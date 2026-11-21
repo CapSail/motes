@@ -67,3 +67,8 @@
 - **Names**: `personName()` in sim.js (first names plus a surname list); children inherit the parent's surname. Species keep their made-up kind names.
 - **Optional worlds**: `starter/dish.json` (evolved world A, 420 creatures) and `starter/world2.json` (B), renamed with `scripts/rename-dish.mjs`. Old predator/swarm dishes removed.
 - Not done: 'rival pairs', dynasty/epitaph/last-of-its-kind ideas from the creative critic; strain-evolving plague and multiple plant types from the engine critic. Not tried on a real phone.
+
+## 2026-11-21 (late): the story features Cap asked for
+- Built from the creative and engine critics' lists: **rival pairs** (mutual grudge, diary kind `rival`, own filter), **family lines** (`m.ln` founder id; "The Kelly family has grown to 60 creatures", Stats record "Largest family"), **record announcements** (oldest, most children, deadliest; rate limited), **obituaries** (starred and very successful creatures; cause, children, kills, friends), **last-of-its-kind alerts** (species at 3 or fewer; Species list shows 🆘 Help which gives food, nests and energy: a player action, not automatic), **per-species firsts** (`milestone2`, once per species), **rename a species** (✏️), and **plague strains** (gene `IMT`, NB=42: the strain mutates when it spreads, hosts with a close immune type resist; Red Queen cycles).
+- `scripts/story-test.mjs` shows each story type firing in a 2 hour run. `BEST_SEED` re-picked after the RNG sequence changed: now 175 (0 of 64 random seeds extinct after an hour, no rescue; top 8 seeds all alive at 3 hours).
+- Not built: multiple plant types, a nutrient limit (see the biology discussion with Cap: sunlight alone should not be a free lunch, proposed as the next engine change).

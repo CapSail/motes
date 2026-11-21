@@ -56,8 +56,9 @@ export const B = {
   SC_A: 33, SC_B: 34, SC_C: 35,
   // more looks: body style (beads / smooth tube / diamonds / stars / rings / leaves), spikes, eyes, dorsal frill, glow
   STYLE: 36, SPIKE: 37, EYES: 38, FRILL: 39, GLOW: 40,
+  IMT: 41,    // immune type: a plague strain close to this value hardly infects the host
 };
-export const NB = 41;
+export const NB = 42;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -210,6 +211,7 @@ function bodyOf(o) {
   b[B.TOXR] = 0.15; b[B.DISR] = 0.2; b[B.ARMOR] = 0.1; b[B.PHOTO] = 0.0; b[B.FAT] = 0.4; b[B.TTOL] = 0.55;
   for (let k = 0; k < 3; k++) b[B.SC_A + k] = 0.5 + (rand() < 0.5 ? -1 : 1) * (0.25 + rand() * 0.25);
   for (let k = B.STYLE; k <= B.GLOW; k++) b[k] = rand();
+  b[B.IMT] = rand();
   for (const k in o) b[B[k]] = o[k];
   return b;
 }
@@ -284,7 +286,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 100;
+export const BEST_SEED = 175;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -334,7 +336,7 @@ export function createWorld(seed = 1, opts = {}) {
       gg.b[B.HUE] = clamp01(hue + (rand() - 0.5) * 0.04);
       const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 60);
       const m = makeMote(w, gg, Math.cos(a) * d, Math.sin(a) * d, 0, 0);
-      m.sp = sp.id; m.e = m.cap * (0.5 + rand() * 0.3); m.age = rand() * m.life * 0.2;
+      m.sp = sp.id; m.e = m.cap * (0.5 + rand() * 0.3); m.age = rand() * m.life * 0.2; m.ln = m.id;
     }
   }
   log(w, 'The dish is seeded. Six kinds of life, ' + w.motes.length + ' motes.', 'life');
@@ -373,6 +375,7 @@ function derive(m) {
   // looks with small consequences: a tail fin makes swimming cheaper, antennae see a bit further but cost a little to keep
   m.pat = Math.floor(b[B.PATTERN] * 3.99); m.accent = (m.hue + 0.25 + b[B.ACCENT] * 0.5) % 1;
   m.ant = Math.floor(b[B.ANTENNA] * 3.99); m.fin = b[B.FIN];
+  m.imt = b[B.IMT];
   m.style = Math.min(5, Math.floor(b[B.STYLE] * 6)); m.spikes = Math.floor(b[B.SPIKE] * 3.99); m.eyes = Math.floor(b[B.EYES] * 4.99); m.frill = b[B.FRILL]; m.glow = b[B.GLOW];
   m.basal += 0.035 * m.spikes + 0.02 * (m.frill > 0.35 ? m.frill : 0) + 0.03 * (m.glow > 0.45 ? m.glow : 0);
   m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= (1 + 0.05 * m.ant) * (1 + 0.15 * m.diet); m.basal += 0.025 * m.ant + 0.05 * m.fin;
@@ -384,7 +387,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -463,9 +466,26 @@ function yearReview(w) {
   log(w, `Year ${w.lastYear} in review: ${bits.join('; ')}.`, 'year');
   w.snap = { newSpecies: c.newSpecies, extinct: c.extinct, births: c.births, kills: c.kills, friends: c.friends };
 }
+const firstName = n => String(n).split(' ')[0];
+const spNameOf = (w, m) => (w.species.get(m.sp) || { name: 'A kind' }).name;
+// a "first" that happens once per dish AND once per species, so every kind gets its own story
+const SPFIRST = {
+  kill: (S, f) => `${S} learned to hunt: ${f} made their first kill.`,
+  granary: (S, f) => `${S} began hoarding: ${f} stocked a granary.`,
+  family: (S, f) => `${S} began caring for relatives: ${f} fed a hungry family member.`,
+  share: (S, f) => `${S} learned to share energy: ${f} helped a neighbour.`,
+  parasite: (S, f) => `${S} produced its first energy thief: ${f}.`,
+};
+function milestone2(w, m, key, text) {
+  milestone(w, key, text);
+  if (w.noLog) return;
+  const b = /^build(\d)$/.exec(key), t = SPFIRST[key] || (b ? (S, f) => `${S} started building: ${f} made a ${['', 'wall', 'farm', 'nest', 'granary'][+b[1]]}.` : null);
+  if (t) milestone(w, key + '#' + m.sp, t(spNameOf(w, m), firstName(m.name)));
+}
 function milestone(w, key, text) { if (!w.milestones[key]) { w.milestones[key] = w.t; log(w, text, 'first'); } }
-function infect(w, m) {
+function infect(w, m, strain) {
   if (m.sick > 0 || m.imm > 0 || m.dead) return;
+  m.strain = strain === undefined ? (w.strain === undefined ? (w.strain = rand()) : w.strain) : strain;
   m.sick = 18 + rand() * 22; w.sick++;
   if (!w.plagueOn) { w.plagueOn = true; w.plagueDead = 0; }
 }
@@ -481,17 +501,33 @@ function kill(w, m, why, killer) {
     for (let i = 0; i < n; i++) spawnFood(w, m.x + gauss() * 4, m.y + gauss() * 4, 1, total / n);
   }
   if (m.fav) noteFavDead(w, m);
+  if (!w.noLog && (m.fav || ((m.kids >= 12 || m.kills >= 12) && w.t - (w.lastObit || -1e9) > 15))) { if (!m.fav) w.lastObit = w.t; obit(w, m); }
   fameUpdate(w, m);
   return true;
 }
 function noteFavDead(w, m) {
   const f = w.favs.find(f => f.id === m.id);
   if (f) { f.alive = false; f.why = m.why; f.age = m.age; f.kids = m.kids; f.gen = m.gen; f.t = w.t; }
-  log(w, `★ ${m.name} has died (${m.why}) at age ${Math.round(m.age)}s with ${m.kids} children.`, 'fav');
+}
+// a short obituary for starred creatures and for the very successful
+function obit(w, m) {
+  const sp = w.species.get(m.sp), killer = m.killer && w.byId.get(m.killer);
+  const cause = { 'old age': 'died peacefully of old age', starved: 'starved', eaten: 'was eaten' + (killer ? ' by ' + firstName(killer.name) : ''), toxin: 'was poisoned', plague: 'died of the plague', heat: 'died of heat', cold: 'froze', smitten: 'was struck down', meteor: 'was hit by a meteor' }[m.why] || 'died (' + m.why + ')';
+  const bits = []; if (m.kids) bits.push(m.kids + (m.kids > 1 ? ' children' : ' child')); if (m.kills) bits.push(m.kills + (m.kills > 1 ? ' kills' : ' kill'));
+  const fr = [...m.fr.values()].filter(v => v > 0.3).length; if (fr) bits.push(fr + (fr > 1 ? ' close friends' : ' close friend'));
+  log(w, `${m.fav ? '★ ' : ''}${m.name}${sp ? ' (' + sp.name + ')' : ''} ${cause} at age ${Math.round(m.age)}s, generation ${m.gen}.${bits.length ? ' Left behind: ' + bits.join(', ') + '.' : ''}`, m.fav ? 'fav' : 'life');
+}
+const REC_MIN = { oldest: 150, kids: 6, kills: 6 };
+const REC_TXT = { oldest: (m, v) => `${m.name} is now the oldest creature ever: ${Math.round(v)} seconds.`, kids: (m, v) => `${m.name} now has the most children ever: ${v}.`, kills: (m, v) => `${m.name} is now the deadliest hunter ever: ${v} kills.` };
+function recordIt(w, key, val, m) {
+  const f = w.fame, prev = f[key];
+  if (prev && val <= prev.val) return;
+  f[key] = { val, name: m.name, sp: m.sp, t: w.t };
+  const at = w._recAt || (w._recAt = {});
+  if (!w.noLog && REC_TXT[key] && val >= REC_MIN[key] && prev && prev.name !== m.name && w.t - (at[key] || -1e9) > 600) { at[key] = w.t; log(w, 'Record broken: ' + REC_TXT[key](m, val), 'first'); }
 }
 function fameUpdate(w, m) {
-  const f = w.fame;
-  const rec = (key, val, label) => { if (!f[key] || val > f[key].val) f[key] = { val, name: m.name, sp: m.sp, label: label || '' , t: w.t }; };
+  const rec = (key, val) => recordIt(w, key, val, m);
   rec('oldest', m.age); rec('kids', m.kids); rec('kills', m.kills); rec('brain', m.net.nc + m.net.nh * 2); rec('gen', m.gen);
 }
 
@@ -622,7 +658,7 @@ function think(w, m, i, dtt) {
       if (d2 < bnd) { bnd = d2; bn = q; }
       if (relOf(m, o) > 0) { fam++; if (d2 < bfmd) { bfmd = d2; bfm = q; } }
       if (hasFr) { const s = m.fr.get(o.id); if (s > 0.2 && d2 < bfrd) { bfrd = d2; bfr = q; } }
-      if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.85)) infect(w, o);
+      if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.6) * (1 - 0.75 * Math.exp(-((o.imt - m.strain) ** 2) / 0.02))) infect(w, o, clamp01(m.strain + gauss() * 0.06));
     }
   }
   m.crowd = crowd;
@@ -788,7 +824,7 @@ function think(w, m, i, dtt) {
     if (rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(0.15, m.meatEff) * m.intake * (globalThis.__BG || 1.3);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
-      if (kill(w, tgt, 'eaten', m.id)) { milestone(w, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
+      if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
     } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
   }
   if (m.dead) return;
@@ -796,11 +832,11 @@ function think(w, m, i, dtt) {
   const xf = o[OUT.XFER];
   if (xf > 0.25 || xf < -0.25) {
     if (stHere === 4 && !tgt) {
-      if (xf > 0) { const a = Math.min(Math.max(0, m.e - m.cap * 0.25), 8 * xf * dtt, 250 - w.store[idx]); if (a > 0) { w.store[idx] += a; m.e -= a; w.counters.stored += a; milestone(w, 'granary', `${m.name} stocked a granary: hoarding has begun.`); } }
+      if (xf > 0) { const a = Math.min(Math.max(0, m.e - m.cap * 0.25), 8 * xf * dtt, 250 - w.store[idx]); if (a > 0) { w.store[idx] += a; m.e -= a; w.counters.stored += a; milestone2(w, m, 'granary', `${m.name} stocked a granary: hoarding has begun.`); } }
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
-      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone(w, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone(w, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone2(w, m, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone2(w, m, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
+      else { const a = Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone2(w, m, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -820,7 +856,7 @@ function think(w, m, i, dtt) {
           if (cur === bt && w.hp[ti] < 255 && w.hp[ti] > 0) { w.hp[ti] = Math.min(250, w.hp[ti] + 60); m.e -= cost * 0.4; m.cdB = 2; }
           else if (cur === 0) {
             w.st[ti] = bt; w.hp[ti] = 200; m.e -= cost; m.cdB = 3; w.counters.built++; w.stCount++;
-            milestone(w, 'build' + bt, `First ${['', 'wall', 'farm', 'nest', 'granary'][bt]} built by ${m.name}.`);
+            milestone2(w, m, 'build' + bt, `First ${['', 'wall', 'farm', 'nest', 'granary'][bt]} built by ${m.name}.`);
           } else m.cdB = 1;
         }
       }
@@ -871,10 +907,15 @@ function grudge(w, m, o) {
   if (!m.fr.has(o.id) && m.fr.size >= 4) { let wid = 0, wv = 9; for (const [id, s] of m.fr) { const v = s < 0 ? 5 + Math.abs(s) : s; if (v < wv) { wv = v; wid = id; } } m.fr.delete(wid); }
   if ((m.fr.get(o.id) || 0) >= 0) w.counters.grudges++;
   m.fr.set(o.id, -1);
+  if ((o.fr.get(m.id) || 0) <= -0.5 && !w.noLog && w.t - (w.lastRival || -1e9) > 60) {      // both hold a grudge: a rivalry
+    const rv = w._rv || (w._rv = new Set()), key = Math.min(m.id, o.id) + ':' + Math.max(m.id, o.id);
+    if (!rv.has(key)) { if (rv.size > 3000) rv.clear(); rv.add(key); w.lastRival = w.t; w.counters.rivalries = (w.counters.rivalries || 0) + 1; log(w, `Rivalry: ${m.name} and ${o.name} each hold a grudge against the other.`, 'rival'); }
+  }
   if (relOf(m, o) > 0) milestone(w, 'betray', `${o.name} hurt its own relative ${m.name}. Family betrayal.`);
 }
 
 function birth(w, pa, pb, energy) {
+  const lineId = pa.ln || pa.id;
   const g = pb ? cross(pa.g, pb.g) : cloneG(pa.g);
   mutateG(g);
   const a = rand() * 6.283, d = pa.r + 3;
@@ -887,7 +928,7 @@ function birth(w, pa, pb, energy) {
     else if ((pa.fr.get(pb.id) || 0) > 0.5) { energy *= 1.15; w.counters.devoted++; milestone(w, 'pair', `${pa.name} and ${pb.name} are a bonded pair with a child.`); }
   }
   const c = makeMote(w, g, x, y, energy, Math.max(pa.gen, pb ? pb.gen : 0) + 1);
-  c.name = personName(lastNameOf(pa.name));
+  c.name = personName(lastNameOf(pa.name)); c.ln = lineId;
   c.par = pa.id; c.pa = pa.id; c.pb = pb ? pb.id : 0; c.anc = [pa.name].concat(pa.anc).slice(0, 3);
   c.fr.set(pa.id, 0.6); pa.fr.size < 4 && pa.fr.set(c.id, 0.6); if (pb) { c.fr.set(pb.id, 0.6); pb.fr.size < 4 && pb.fr.set(c.id, 0.6); }
   if (pb) pb.kids++; pa.kids++;
@@ -948,19 +989,26 @@ function fields(w, dt) {
 function sample(w) {
   for (const s of w.species.values()) s.count = 0;
   let sumR = 0, sumDiet = 0, sumC = 0, sumH = 0, sumPhoto = 0, builders = 0;
-  const ms = w.motes;
+  const ms = w.motes, lc = new Map(), lrep = new Map();
   for (const m of ms) {
+    const ln = m.ln || (m.ln = m.id); lc.set(ln, (lc.get(ln) || 0) + 1); if (!lrep.has(ln)) lrep.set(ln, m);
     const s = w.species.get(m.sp); if (s) s.count++;
     sumR += m.r; sumDiet += m.diet; sumC += m.net.nc; sumH += m.net.nh; sumPhoto += m.photo;
     if (m.fav) { const f = w.favs.find(f => f.id === m.id); if (f) { f.age = m.age; f.kids = m.kids; f.gen = m.gen; } }
-    const f = w.fame;
-    const rec = (key, val) => { if (!f[key] || val > f[key].val) f[key] = { val, name: m.name, sp: m.sp, t: w.t }; };
+    const rec = (key, val) => recordIt(w, key, val, m);
     rec('oldest', m.age); rec('kids', m.kids); rec('kills', m.kills); rec('brain', m.net.nc + m.net.nh * 2); rec('gen', m.gen);
+  }
+  for (const [ln, c] of lc) {          // family lines: everyone descended from one founder
+    if (c < 25) continue;
+    const rm = lrep.get(ln), sur = lastNameOf(rm.name) || firstName(rm.name);
+    for (const th of [25, 60, 120, 250]) if (c >= th) { const key = 'dyn:' + ln + ':' + th; if (!w.milestones[key]) { w.milestones[key] = w.t; if (!w.noLog) log(w, `The ${sur} family has grown to ${c} creatures.`, 'first'); } }
+    if (!w.fame.dynasty || c > w.fame.dynasty.val) w.fame.dynasty = { val: c, name: 'The ' + sur + ' family', sp: rm.sp, t: w.t };
   }
   let alive = 0;
   for (const s of w.species.values()) {
     if (s.count > s.peak) s.peak = s.count;
     if (s.shown === undefined) s.shown = true;           // species from older saves are already known
+    if (s.count > 0 && s.count <= 3 && s.shown && s.peak >= 8 && !s.warned) { s.warned = true; if (!w.noLog) log(w, `Last of their kind: only ${s.count} ${s.name} left. Open Menu, The creatures, and tap 🆘 to help them.`, 'event'); } else if (s.count > 8) s.warned = false;
     if (s.count > 0) { alive++; s.ext = 0; if (!s.shown && s.count >= 3) { s.shown = true; const p = w.species.get(s.par); if (!w.noLog) log(w, `New species: ${s.name}` + (p ? ` (split from ${p.name})` : ''), 'species'); } }
     else if (!s.ext && w.t - s.born > 20) { s.ext = w.t; w.counters.extinct++; if (!w.noLog && s.shown) log(w, `Extinct: ${s.name} (peak ${s.peak}).`, 'species'); }
   }
@@ -980,7 +1028,7 @@ function randomEvent(w) {
   if (pick < 0.25) { w.bloom = 45; log(w, 'A bloom: food is booming.', 'event'); }
   else if (pick < 0.42) { w.tempEv = -0.8; w.tempEvLeft = 70; log(w, 'A cold snap.', 'event'); }
   else if (pick < 0.59) { w.tempEv = 0.8; w.tempEvLeft = 70; log(w, 'A heatwave.', 'event'); }
-  else if (pick < 0.78) { if (w.motes.length > 40) { for (let i = 0; i < 4; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; log(w, 'A plague has started.', 'event'); } }
+  else if (pick < 0.78) { if (w.motes.length > 40) { w.strain = rand(); for (let i = 0; i < 4; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; log(w, 'A plague has started.', 'event'); } }
   else if (pick < 0.88) { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 150); paint(w, 'toxin', Math.cos(a) * d, Math.sin(a) * d, 90, 1); log(w, 'A toxic spill.', 'event'); }
   else if (pick < 0.94) { if (w.motes.length > 90) { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 140); meteor(w, Math.cos(a) * d, Math.sin(a) * d, 70 + rand() * 50); } }
   else if (pick < 0.97) { if (w.motes.length > 60) triggerEvent(w, 'drought'); }
@@ -1050,7 +1098,7 @@ export function toggleFav(w, m) {
   if (m.fav) w.favs.push({ id: m.id, name: m.name, sp: m.sp, hue: m.hue, alive: true, age: m.age, kids: m.kids, gen: m.gen });
   else w.favs = w.favs.filter(f => f.id !== m.id);
 }
-export function startPlague(w, n = 5) { if (w.motes.length) { for (let i = 0; i < n; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; } }
+export function startPlague(w, n = 5) { if (w.motes.length) { w.strain = rand(); for (let i = 0; i < n; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; } }
 export function triggerEvent(w, kind) {
   if (kind === 'bloom') { w.bloom = 45; log(w, 'You called a bloom.', 'event'); }
   if (kind === 'cold') { w.tempEv = -0.8; w.tempEvLeft = 70; log(w, 'You called a cold snap.', 'event'); }
@@ -1103,7 +1151,7 @@ function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb
 export function serialize(w) {
   return JSON.stringify({
     v: 1, t: w.t, tick: w.tick, rng: RS, innov: INNOV, nextId: w.nextId, nextSp: w.nextSp,
-    light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, drift: w.drift || 0, drought: w.drought || 0, evTimer: w.evTimer, bloom: w.bloom,
+    light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, drift: w.drift || 0, drought: w.drought || 0, strain: w.strain, evTimer: w.evTimer, bloom: w.bloom,
     maxPop: w.maxPop, foodMax: w.foodMax, fert: w.fert, events: w.events,
     counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
     sick: w.sick, plagueOn: w.plagueOn, plagueDead: w.plagueDead,
@@ -1111,7 +1159,7 @@ export function serialize(w) {
     chem: w.chem.map(c => u8b64(q8(c, 80))),
     food: w.food.map(f => [Math.round(f.x), Math.round(f.y), f.k, Math.round(f.e)]),
     species: [...w.species.values()].map(s => ({ id: s.id, name: s.name, hue: s.hue, rep: packG(s.rep), peak: s.peak, born: s.born, ext: s.ext, par: s.par, sh: s.shown ? 1 : 0 })),
-    motes: w.motes.map(m => ({ i: m.id, n: m.name, g: packG(m.g), x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, h: Math.round(m.h * 100) / 100, e: Math.round(m.e * 10) / 10, a: Math.round(m.age * 10) / 10, gen: m.gen, sp: m.sp, p: m.par, pa: m.pa, pb: m.pb, fr: [...m.fr].map(([id, s]) => [id, Math.round(s * 100) / 100]), an: m.anc, k: m.kids, kl: m.kills, f: m.fav ? 1 : 0, sk: Math.round(m.sick * 10) / 10, im: Math.round(m.imm) })),
+    motes: w.motes.map(m => ({ i: m.id, ln: m.ln || 0, sn: m.strain, n: m.name, g: packG(m.g), x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, h: Math.round(m.h * 100) / 100, e: Math.round(m.e * 10) / 10, a: Math.round(m.age * 10) / 10, gen: m.gen, sp: m.sp, p: m.par, pa: m.pa, pb: m.pb, fr: [...m.fr].map(([id, s]) => [id, Math.round(s * 100) / 100]), an: m.anc, k: m.kids, kl: m.kills, f: m.fav ? 1 : 0, sk: Math.round(m.sick * 10) / 10, im: Math.round(m.imm) })),
   });
 }
 export function deserialize(str) {
@@ -1119,7 +1167,7 @@ export function deserialize(str) {
   const w = createWorld(1);                     // allocates grids; then we overwrite everything
   w.motes.length = 0; w.food.length = 0; w.species.clear(); w.log.length = 0;
   RS = d.rng | 0 || 1; INNOV = d.innov || 1000;
-  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
+  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, strain: d.strain, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
   w.st.set(b64u8(d.st)); w.hp.set(b64u8(d.hp)); w.store.set(f8(b64u8(d.store), 1));
   w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255));
   d.chem.forEach((c, k) => w.chem[k].set(f8(b64u8(c), 80)));
@@ -1129,7 +1177,7 @@ export function deserialize(str) {
   for (const s of d.species) w.species.set(s.id, { id: s.id, name: s.name, hue: s.hue, rep: unpackG(s.rep), count: 0, peak: s.peak, born: s.born, ext: s.ext, par: s.par, shown: s.sh === undefined ? true : !!s.sh });
   for (const p of d.motes) {
     const m = makeMote(w, unpackG(p.g), p.x, p.y, p.e, p.gen);
-    m.id = p.i; m.name = p.n; m.h = p.h; m.age = p.a; m.sp = p.sp; m.par = p.p; m.pa = p.pa || 0; m.pb = p.pb || 0; m.fr = new Map(p.fr || []); m.anc = p.an; m.kids = p.k; m.kills = p.kl; m.fav = !!p.f; m.sick = p.sk; m.imm = p.im; m.e = p.e; m.lt = w.t;
+    m.id = p.i; m.ln = p.ln || 0; m.strain = p.sn === undefined ? 0.5 : p.sn; m.name = p.n; m.h = p.h; m.age = p.a; m.sp = p.sp; m.par = p.p; m.pa = p.pa || 0; m.pb = p.pb || 0; m.fr = new Map(p.fr || []); m.anc = p.an; m.kids = p.k; m.kills = p.kl; m.fav = !!p.f; m.sick = p.sk; m.imm = p.im; m.e = p.e; m.lt = w.t;
   }
   w.nextId = Math.max(w.nextId, d.nextId);
   w.deadN = 0; sample(w);
@@ -1181,4 +1229,17 @@ export function reseed(w) {
   }
   log(w, 'Life was re-seeded: new founders arrive.', 'life');
   sample(w);
+}
+
+// player action: give the last members of a species a hand (food, a nest under each, some energy)
+export function helpSpecies(w, id) {
+  let n = 0, name = '';
+  for (const m of w.motes) if (m.sp === id && !m.dead) {
+    n++; m.e = Math.min(m.cap, m.e + m.cap * 0.5);
+    for (let i = 0; i < 8; i++) spawnFood(w, m.x + gauss() * 30, m.y + gauss() * 30, 0, 18);
+    const ix = cidx(m.x, m.y); if (ix >= 0 && w.st[ix] === 0) { w.st[ix] = 3; w.hp[ix] = 255; w.stCount++; }
+  }
+  const sp = w.species.get(id); if (sp) name = sp.name;
+  if (n) log(w, 'You gave the last ' + n + ' ' + name + ' a hand: food and nests appeared beside them.', 'event');
+  return n;
 }

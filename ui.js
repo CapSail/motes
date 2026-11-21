@@ -232,7 +232,7 @@ let lastToastT = -1, lastToastAt = 0;
 function toastFeed() {
   if (lastToastT < 0 || w.t < lastToastT) { lastToastT = w.t; return; }
   if (menu.style.display === 'flex' || performance.now() - lastToastAt < 6000 || hintEl.style.opacity === '1') return;
-  const fresh = w.log.slice(-6).concat(w.keep.slice(-6)).filter(e => e.t > lastToastT && ['species', 'event', 'first', 'fav', 'year'].includes(e.kind)).sort((a, b) => a.t - b.t);
+  const fresh = w.log.slice(-6).concat(w.keep.slice(-6)).filter(e => e.t > lastToastT && ['species', 'event', 'first', 'fav', 'year', 'life'].includes(e.kind)).sort((a, b) => a.t - b.t);
   if (!fresh.length) return;
   lastToastT = fresh[0].t; lastToastAt = performance.now(); showHint('', (fresh[0].kind === 'species' ? '🧬 ' : fresh[0].kind === 'event' ? '⚡ ' : fresh[0].kind === 'fav' ? '★ ' : '📓 ') + fresh[0].text);
 }
@@ -468,12 +468,15 @@ function renderMenu() {
   }
   if (menuTab === 'species') {
     const list = [...w.species.values()].sort((a, b) => (b.count - a.count) || (a.ext - b.ext));
-    mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : (s.count ? `<button data-spot="${s.id}" class="${spot === s.id ? 'on' : ''}" style="padding:1px 7px;margin-left:4px">🔦</button>` : '')}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
-    mbody.onclick = e => { const sb = e.target.closest('[data-spot]'); if (sb) { const id = +sb.dataset.spot; spot = spot === id ? 0 : id; menu.style.display = 'none'; if (spot) { const sp = w.species.get(spot); showHint('spot', `Spotlight on ${sp.name}: every one of its motes is circled. Menu → Species → 🔦 again to clear.`); } return; } const r = e.target.closest('[data-sp]'); if (!r) return; const id = +r.dataset.sp; const ms = w.motes.filter(m => m.sp === id); if (ms.length) { menu.style.display = 'none'; startFollow(ms[(Math.random() * ms.length) | 0]); } };
+    mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : (s.count ? `<button data-spot="${s.id}" class="${spot === s.id ? 'on' : ''}" style="padding:1px 9px;margin-left:4px;min-height:36px">🔦</button>${s.count <= 3 && s.peak >= 8 ? `<button data-help="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px">🆘 Help</button>` : ''}` : '') + `<button data-ren="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px" aria-label="Rename">✏️</button>`}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
+    mbody.onclick = e => {
+      const rn = e.target.closest('[data-ren]'); if (rn) { const sp = w.species.get(+rn.dataset.ren); const nn = sp && prompt('Name this kind of creature', sp.name); if (nn) { sp.name = nn.slice(0, 28); renderMenu(); } return; }
+      const hp = e.target.closest('[data-help]'); if (hp) { const n = S.helpSpecies(w, +hp.dataset.help); menu.style.display = 'none'; showHint('', n ? '🆘 You gave the last ' + n + ' a hand: food, a nest and some energy appeared beside them.' : 'There is nobody left to help.'); return; }
+      const sb = e.target.closest('[data-spot]'); if (sb) { const id = +sb.dataset.spot; spot = spot === id ? 0 : id; menu.style.display = 'none'; if (spot) { const sp = w.species.get(spot); showHint('spot', `Spotlight on ${sp.name}: every one of its motes is circled. Menu → Species → 🔦 again to clear.`); } return; } const r = e.target.closest('[data-sp]'); if (!r) return; const id = +r.dataset.sp; const ms = w.motes.filter(m => m.sp === id); if (ms.length) { menu.style.display = 'none'; startFollow(ms[(Math.random() * ms.length) | 0]); } };
   } else if (menuTab === 'tree') {
     renderTree();
   } else if (menuTab === 'diary') {
-    const FILT = [['all', 'Everything'], ['year', 'Years'], ['first', 'Firsts'], ['species', 'Species'], ['event', 'Events'], ['fav', 'Stars']];
+    const FILT = [['all', 'Everything'], ['year', 'Years'], ['first', 'Firsts'], ['species', 'Species'], ['event', 'Events'], ['rival', 'Rivals'], ['life', 'Lives'], ['fav', 'Stars']];
     const rows = S.allLog(w).filter(l => diaryFilter === 'all' || l.kind === diaryFilter).reverse().slice(0, 300);
     mbody.innerHTML = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${FILT.map(([k, l]) => `<button data-df="${k}" class="${diaryFilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>` +
       (rows.map(l => `<div class="row k-${String(l.kind).replace(/\W/g, '')}"><span class="dim">${stamp(l.t)}</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Nothing here yet.</div>');
@@ -488,7 +491,7 @@ function renderMenu() {
     <div class="row">Births ${c.births} (mated ${c.sexual}, budded ${c.asexual}) · deaths ${c.deaths} · kills ${c.kills} · built ${c.built} · torn down ${c.dug}</div>
     <div class="row">Friendships formed ${c.friends} · grudges ${c.grudges} · energy fed to relatives ${Math.round(c.famGifts)} · devoted-pair children ${c.devoted} · inbred births ${c.inbred}</div>
     <div class="row">Energy shared ${Math.round(c.shared)} · stolen ${Math.round(c.stolen)} · hoarded ${Math.round(c.stored)} · species born ${c.newSpecies} · extinct ${c.extinct} · plagues ${c.plagues}</div>
-    <h4>Records</h4>${fr('oldest', 'Oldest', 's')}${fr('kids', 'Most children')}${fr('kills', 'Most kills')}${fr('brain', 'Biggest brain')}${fr('gen', 'Deepest generation')}`;
+    <h4>Records</h4>${fr('dynasty', 'Largest family', ' creatures')}${fr('oldest', 'Oldest', 's')}${fr('kids', 'Most children')}${fr('kills', 'Most kills')}${fr('brain', 'Biggest brain')}${fr('gen', 'Deepest generation')}`;
     drawGraph();
   } else if (menuTab === 'stars') {
     mbody.innerHTML = (w.favs.length ? w.favs.map(f => `<div class="row" data-fid="${f.id}"><span class="dot" style="background:hsl(${f.hue * 360},75%,${f.alive ? 60 : 25}%)"></span><b>${esc(f.name)}</b> <span class="dim">${f.alive ? 'alive' : 'died (' + f.why + ')'} · age ${Math.round(f.age)}s · gen ${f.gen} · kids ${f.kids}</span></div>`).join('') : '<div class="dim">Select a mote and tap ☆ Star to keep an eye on it. Its story is saved here, even after it dies.</div>');
