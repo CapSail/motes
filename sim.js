@@ -26,8 +26,10 @@ export const IN = {
   TEMP: 26, TOX: 27, LIGHT: 28, SICK: 29,
   CH_A: 30, CH_B: 31, CH_C: 32, GA_F: 33, GA_S: 34, GB_F: 35, GB_S: 36, GC_F: 37, GC_S: 38,
   CLOCK: 39, NOISE: 40, HURT: 41, CONTACT: 42, MOTE_ARMOR: 43, MOTE_BITE: 44,
+  // social senses: family (parent/child +1, sibling +0.5), friendship (+) or grudge (-), direction to nearest friend / family
+  MOTE_REL: 45, MOTE_FRIEND: 46, FRIEND_F: 47, FRIEND_S: 48, FAM_F: 49, FAM_S: 50, FAMCOUNT: 51,
 };
-export const NI = 45;
+export const NI = 52;
 export const OUT = {
   THRUST: 0, TURN: 1, BITE: 2, EMIT_A: 3, EMIT_B: 4, EMIT_C: 5,
   B_WALL: 6, B_FARM: 7, B_NEST: 8, B_GRAN: 9, DIG: 10, XFER: 11, MATE: 12,
@@ -36,7 +38,7 @@ export const NO = 13;
 const OUT_ID = 500;                      // output node ids are 500..512, hidden ids are >= 1000
 export const IN_NAMES = Object.keys(IN).map(s => s.toLowerCase());
 export const OUT_NAMES = Object.keys(OUT).map(s => s.toLowerCase());
-const MAXH = 16, MAXC = 150;
+const MAXH = 48, MAXC = 420;
 
 // ---------- body genes ----------
 export const B = {
@@ -44,8 +46,9 @@ export const B = {
   TTOL: 10, TOXR: 11, DISR: 12, HUE: 13, LOBES: 14, LIFE: 15, EFFIC: 16, FAT: 17, BRAINMUT: 18, MATURE: 19,
   // shape genes: a procedural squiggle (spine of segments, curl, wiggle, limbs). They change how it moves, too.
   SEGS: 20, LEN: 21, TAPER: 22, CURL: 23, WAMP: 24, WFREQ: 25, LIMBS: 26, LIMBLEN: 27,
+  BOND: 28,   // how easily it makes friends
 };
-export const NB = 28;
+export const NB = 29;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -192,11 +195,16 @@ function bodyOf(o) {
 const WALLAVOID = [[IN.WALL_L, O(OUT.TURN), -1.6], [IN.WALL_R, O(OUT.TURN), 1.6], [IN.WALL_F, O(OUT.TURN), 1.4], [IN.WALL_F, O(OUT.THRUST), -0.7]];
 const WANDER = [[IN.NOISE, O(OUT.TURN), 0.9]];
 const MATEING = [[IN.ENERGY, O(OUT.MATE), 4.2], [IN.BIAS, O(OUT.MATE), -2.7]];
+// family instincts: drift toward friends and family, and feed a hungry relative or friend who is touching me when I am full
+const FAMILY = [
+  [IN.FRIEND_S, O(OUT.TURN), 0.5], [IN.FAM_S, O(OUT.TURN), 0.5], [IN.FRIEND_F, O(OUT.THRUST), 0.25],
+  [IN.MOTE_REL, 'care', 2.5], [IN.MOTE_FRIEND, 'care', 1.5], [IN.ENERGY, 'care', 2.2], [IN.CONTACT, 'care', 1.5], [IN.MOTE_E, 'care', -2.4], [IN.BIAS, 'care', -4.4], ['care', O(OUT.XFER), 2.2],
+];
 function grazer(hue) {
   return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.PLANT_F, O(OUT.THRUST), 1.3], [IN.ENERGY, O(OUT.THRUST), -0.6],
     [IN.PLANT_S, O(OUT.TURN), 2.3], [IN.KIN_S, O(OUT.TURN), 0.45],
-    ...WANDER, ...WALLAVOID, ...MATEING,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY,
     [IN.MOTE_P, 'fl', 2.0], [IN.MOTE_DIET, 'fl', 2.6], [IN.BIAS, 'fl', -3.1],                 // a hungry-looking neighbour close by
     ['fl', 'tl', 2.6], [IN.MOTE_S, 'tl', 2.6], [IN.BIAS, 'tl', -2.6],
     ['fl', 'tr', 2.6], [IN.MOTE_S, 'tr', -2.6], [IN.BIAS, 'tr', -2.6],
@@ -222,6 +230,7 @@ function weaver(hue) {
     [IN.ENERGY, O(OUT.B_FARM), 4.4], [IN.BIAS, O(OUT.B_FARM), -3.4],
     [IN.ENERGY, O(OUT.B_WALL), 4.4], [IN.BIAS, O(OUT.B_WALL), -3.5], [IN.WALL_F, O(OUT.B_WALL), 1.0],
     [IN.ENERGY, O(OUT.B_GRAN), 4.2], [IN.BIAS, O(OUT.B_GRAN), -3.5],
+    ...FAMILY,
     [IN.ON_GRAN, 'sv', 3.0], [IN.ENERGY, 'sv', 3.2], [IN.BIAS, 'sv', -4.6], ['sv', O(OUT.XFER), 2.2],      // on a granary and full: stock it
     [IN.ON_GRAN, 'wd', 3.0], [IN.ENERGY, 'wd', -3.6], [IN.BIAS, 'wd', -0.4], ['wd', O(OUT.XFER), -2.2],   // on a granary and hungry: withdraw
   ]);
@@ -263,7 +272,8 @@ export function createWorld(seed = 1) {
     chem: [new Float32Array(N), new Float32Array(N), new Float32Array(N)],
     light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, thinkMask: 1,
     log: [], hist: [], fame: {}, favs: [], milestones: {},
-    counters: { births: 0, deaths: 0, kills: 0, built: 0, sexual: 0, asexual: 0, newSpecies: 0, extinct: 0, plagues: 0, dug: 0, stolen: 0, shared: 0, stored: 0 },
+    byId: new Map(),
+    counters: { friends: 0, grudges: 0, famGifts: 0, inbred: 0, devoted: 0, births: 0, deaths: 0, kills: 0, built: 0, sexual: 0, asexual: 0, newSpecies: 0, extinct: 0, plagues: 0, dug: 0, stolen: 0, shared: 0, stored: 0 },
     maxPop: 600, foodMax: 1500, fert: 1, events: true, mercy: false,
     tFood: 0, tStruct: 0, tField: 0, tSample: 0, sick: 0, plagueDead: 0, plagueOn: false,
     hash: { mh: new Int32Array(HN * HN), mn: new Int32Array(4096), fh: new Int32Array(HN * HN), fn: new Int32Array(8192) },
@@ -326,6 +336,7 @@ function makeMote(w, g, x, y, e, gen) {
   const m = {
     id: w.nextId++, name: petName(), g, net: null, o: null, inp: new Float32Array(NI),
     x, y, h: rand() * 6.283, v: 0, e, age: 0, gen, sp: 0, par: 0, anc: [], kids: 0, kills: 0, fav: false,
+    pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
     plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
@@ -430,8 +441,10 @@ export function step(w, dt) {
   if (H.mn.length < motes.length + 64) H.mn = new Int32Array((motes.length + 64) * 2);
   if (H.fn.length < food.length + 64) H.fn = new Int32Array((food.length + 64) * 2);
   H.mh.fill(-1); H.fh.fill(-1);
+  w.byId.clear();
   for (let i = 0; i < motes.length; i++) {
     const m = motes[i]; if (m.dead) continue;
+    w.byId.set(m.id, m);
     const c = Math.floor((m.y + R) / HS) * HN + Math.floor((m.x + R) / HS);
     H.mn[i] = H.mh[c]; H.mh[c] = i;
   }
@@ -515,6 +528,8 @@ function think(w, m, i, dtt) {
   const y0 = Math.max(0, Math.floor((m.y + R - s) / HS)), y1 = Math.min(HN - 1, Math.floor((m.y + R + s) / HS));
   let bp = -1, bpd = 1e9, bm = -1, bmd = 1e9, bn = -1, bnd = 1e9, bk = -1, bkd = 1e9, count = 0, kin = 0;
   const infectR = m.sick > 0 ? (m.r + 8) : 0;
+  let bfm = -1, bfmd = 1e9, fam = 0, bfr = -1, bfrd = 1e9;
+  const hasFr = m.fr.size > 0;
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
     const c = cy * HN + cx;
     for (let f = H.fh[c]; f >= 0; f = H.fn[f]) {
@@ -530,6 +545,8 @@ function think(w, m, i, dtt) {
       const same = o.sp === m.sp;
       if (same) { kin++; if (d2 < bkd) { bkd = d2; bk = q; } }
       if (d2 < bnd) { bnd = d2; bn = q; }
+      if (relOf(m, o) > 0) { fam++; if (d2 < bfmd) { bfmd = d2; bfm = q; } }
+      if (hasFr) { const s = m.fr.get(o.id); if (s > 0.2 && d2 < bfrd) { bfrd = d2; bfr = q; } }
       if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.85)) infect(w, o);
     }
   }
@@ -556,6 +573,10 @@ function think(w, m, i, dtt) {
     if (bnd < (m.r + o.r + 3) * (m.r + o.r + 3)) inp[IN.CONTACT] = 1; else tgt = null;
   }
   if (bk >= 0) polar(motes[bk].x, motes[bk].y, bkd, IN.KIN_F, IN.KIN_S);
+  if (bfm >= 0) polar(motes[bfm].x, motes[bfm].y, bfmd, IN.FAM_F, IN.FAM_S);
+  if (bfr >= 0) polar(motes[bfr].x, motes[bfr].y, bfrd, IN.FRIEND_F, IN.FRIEND_S);
+  inp[IN.FAMCOUNT] = Math.min(1, fam / 4);
+  if (bn >= 0) { const o = motes[bn]; inp[IN.MOTE_REL] = relOf(m, o); inp[IN.MOTE_FRIEND] = m.fr.get(o.id) || 0; }
   inp[IN.DENS] = Math.min(1, count / 8); inp[IN.KINCOUNT] = Math.min(1, kin / 8);
   const ray = (a) => {
     const cx = Math.cos(m.h + a), cy = Math.sin(m.h + a);
@@ -586,6 +607,18 @@ function think(w, m, i, dtt) {
   runBrain(m.net, inp);
   const o = m.o;
 
+  // -- friendships: spending time near a non-hostile mote builds a bond; being bitten or drained makes a grudge; bonds fade
+  if (bn >= 0) {
+    const o = motes[bn];
+    if (bnd < (m.r + o.r + 24) * (m.r + o.r + 24) && m.fr.get(o.id) !== -1) {
+      if (m.hurt > 0.3 && o.o[OUT.BITE] > 0.3 && inp[IN.CONTACT] === 1) grudge(w, m, o); else bump(w, m, o, 0.09 * dtt * (0.5 + 0.8 * m.g.b[B.BOND]));
+    }
+  }
+  if (m.fr.size) for (const [id, s] of m.fr) {
+    if (!w.byId.has(id)) { m.fr.delete(id); continue; }
+    const ns = s * (1 - 0.012 * dtt) + (s < 0 ? 0.004 * dtt : 0);
+    if (Math.abs(ns) < 0.05) m.fr.delete(id); else m.fr.set(id, ns);
+  }
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3) * (m.r + 3) && m.plantEff > 0.05) {
@@ -602,7 +635,7 @@ function think(w, m, i, dtt) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(0.15, m.meatEff) * m.intake;
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
       if (kill(w, tgt, 'eaten', m.id)) { milestone(w, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
-    } else { m.e -= 0.4; tgt.hurt = 1; }
+    } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
   }
   if (m.dead) return;
   // -- give / take energy
@@ -612,8 +645,8 @@ function think(w, m, i, dtt) {
       if (xf > 0) { const a = Math.min(Math.max(0, m.e - m.cap * 0.25), 8 * xf * dtt, 250 - w.store[idx]); if (a > 0) { w.store[idx] += a; m.e -= a; w.counters.stored += a; milestone(w, 'granary', `${m.name} stocked a granary: hoarding has begun.`); } }
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
-      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; if (tgt.sp === m.sp) milestone(w, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = Math.min(tgt.e * 0.3, 4 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.65; tgt.hurt = 1; w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone(w, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone(w, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
+      else { const a = Math.min(tgt.e * 0.3, 4 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.65; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -658,6 +691,35 @@ function think(w, m, i, dtt) {
   }
 }
 
+// ---------- families and friendships ----------
+// relation: parent/child 1, sibling 0.5, otherwise 0. Friendship is each mote's own memory (max 4), strength +1 friend, -1 grudge.
+export function relOf(m, o) {
+  if (o.id === m.pa || o.id === m.pb || m.id === o.pa || m.id === o.pb) return 1;
+  if ((m.pa && (m.pa === o.pa || m.pa === o.pb)) || (m.pb && (m.pb === o.pa || m.pb === o.pb))) return 0.5;
+  return 0;
+}
+function bump(w, m, o, amt) {
+  const cur = m.fr.get(o.id) || 0;
+  if (cur < 0 && amt < 0.2) return;
+  const ns = Math.min(1, cur + amt);
+  if (!m.fr.has(o.id) && m.fr.size >= 4) {            // full address book: drop the weakest friend
+    let wid = 0, wv = 9; for (const [id, s] of m.fr) { const v = s < 0 ? 5 + Math.abs(s) : s; if (v < wv) { wv = v; wid = id; } }
+    if (wv >= ns) return; m.fr.delete(wid);
+  }
+  m.fr.set(o.id, ns);
+  if (cur < 0.7 && ns >= 0.7) {
+    w.counters.friends++;
+    if (m.fr.get(o.id) >= 0.7 && o.fr.get(m.id) >= 0.7) milestone(w, 'friends', `${m.name} and ${o.name} have become best friends.`);
+  }
+}
+function grudge(w, m, o) {
+  if ((m.fr.get(o.id) || 0) < -0.5) { m.fr.set(o.id, -1); return; }
+  if (!m.fr.has(o.id) && m.fr.size >= 4) { let wid = 0, wv = 9; for (const [id, s] of m.fr) { const v = s < 0 ? 5 + Math.abs(s) : s; if (v < wv) { wv = v; wid = id; } } m.fr.delete(wid); }
+  if ((m.fr.get(o.id) || 0) >= 0) w.counters.grudges++;
+  m.fr.set(o.id, -1);
+  if (relOf(m, o) > 0) milestone(w, 'betray', `${o.name} hurt its own relative ${m.name}. Family betrayal.`);
+}
+
 function birth(w, pa, pb, energy) {
   const g = pb ? cross(pa.g, pb.g) : cloneG(pa.g);
   mutateG(g);
@@ -666,8 +728,13 @@ function birth(w, pa, pb, energy) {
   if (x * x + y * y > (R - 8) * (R - 8) || solidAt(w, x, y)) { x = pa.x; y = pa.y; }
   const idx = cidx(x, y);
   if (idx >= 0 && w.st[idx] === 3) energy *= 1.25;
+  if (pb) {
+    if (relOf(pa, pb) > 0) { energy *= 0.6; w.counters.inbred++; milestone(w, 'inbred', `${pa.name} mated with a close relative. The child is weak.`); }
+    else if ((pa.fr.get(pb.id) || 0) > 0.5) { energy *= 1.15; w.counters.devoted++; milestone(w, 'pair', `${pa.name} and ${pb.name} are a bonded pair with a child.`); }
+  }
   const c = makeMote(w, g, x, y, energy, Math.max(pa.gen, pb ? pb.gen : 0) + 1);
-  c.par = pa.id; c.anc = [pa.name].concat(pa.anc).slice(0, 3);
+  c.par = pa.id; c.pa = pa.id; c.pb = pb ? pb.id : 0; c.anc = [pa.name].concat(pa.anc).slice(0, 3);
+  c.fr.set(pa.id, 0.6); pa.fr.size < 4 && pa.fr.set(c.id, 0.6); if (pb) { c.fr.set(pb.id, 0.6); pb.fr.size < 4 && pb.fr.set(c.id, 0.6); }
   if (pb) pb.kids++; pa.kids++;
   assignSpecies(w, c, pa.sp);
   w.counters.births++; pb ? w.counters.sexual++ : w.counters.asexual++;
@@ -850,7 +917,7 @@ export function serialize(w) {
     chem: w.chem.map(c => u8b64(q8(c, 80))),
     food: w.food.map(f => [Math.round(f.x), Math.round(f.y), f.k, Math.round(f.e)]),
     species: [...w.species.values()].map(s => ({ id: s.id, name: s.name, hue: s.hue, rep: packG(s.rep), peak: s.peak, born: s.born, ext: s.ext, par: s.par })),
-    motes: w.motes.map(m => ({ i: m.id, n: m.name, g: packG(m.g), x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, h: Math.round(m.h * 100) / 100, e: Math.round(m.e * 10) / 10, a: Math.round(m.age * 10) / 10, gen: m.gen, sp: m.sp, p: m.par, an: m.anc, k: m.kids, kl: m.kills, f: m.fav ? 1 : 0, sk: Math.round(m.sick * 10) / 10, im: Math.round(m.imm) })),
+    motes: w.motes.map(m => ({ i: m.id, n: m.name, g: packG(m.g), x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, h: Math.round(m.h * 100) / 100, e: Math.round(m.e * 10) / 10, a: Math.round(m.age * 10) / 10, gen: m.gen, sp: m.sp, p: m.par, pa: m.pa, pb: m.pb, fr: [...m.fr].map(([id, s]) => [id, Math.round(s * 100) / 100]), an: m.anc, k: m.kids, kl: m.kills, f: m.fav ? 1 : 0, sk: Math.round(m.sick * 10) / 10, im: Math.round(m.imm) })),
   });
 }
 export function deserialize(str) {
@@ -868,7 +935,7 @@ export function deserialize(str) {
   for (const s of d.species) w.species.set(s.id, { id: s.id, name: s.name, hue: s.hue, rep: unpackG(s.rep), count: 0, peak: s.peak, born: s.born, ext: s.ext, par: s.par });
   for (const p of d.motes) {
     const m = makeMote(w, unpackG(p.g), p.x, p.y, p.e, p.gen);
-    m.id = p.i; m.name = p.n; m.h = p.h; m.age = p.a; m.sp = p.sp; m.par = p.p; m.anc = p.an; m.kids = p.k; m.kills = p.kl; m.fav = !!p.f; m.sick = p.sk; m.imm = p.im; m.e = p.e; m.lt = w.t;
+    m.id = p.i; m.name = p.n; m.h = p.h; m.age = p.a; m.sp = p.sp; m.par = p.p; m.pa = p.pa || 0; m.pb = p.pb || 0; m.fr = new Map(p.fr || []); m.anc = p.an; m.kids = p.k; m.kills = p.kl; m.fav = !!p.f; m.sick = p.sk; m.imm = p.im; m.e = p.e; m.lt = w.t;
   }
   w.nextId = Math.max(w.nextId, d.nextId);
   w.deadN = 0; sample(w);

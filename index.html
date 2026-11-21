@@ -37,13 +37,17 @@ button:active{filter:brightness(1.3)}
 #over{position:fixed;inset:0;background:#0b0f14ee;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:20px}
 #prog{width:240px;height:8px;background:#223;border-radius:4px;overflow:hidden}#prog b{display:block;height:100%;width:0;background:#58c08a}
 textarea{width:100%;height:90px;background:#0a0f16;color:#d8e2ee;border:1px solid #2c3a4d;border-radius:6px;user-select:text}
+details{border:1px solid #223044;border-radius:8px;margin:6px 0;padding:0 10px;background:#0e151e}
+summary{padding:10px 0;font-weight:600;cursor:pointer}
+details[open] summary{border-bottom:1px solid #223044;margin-bottom:6px}
+#mbody li{margin:3px 0}#mbody h4{margin:10px 0 4px}#mbody ul{padding-left:18px;margin:6px 0}
 label{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0}
 input[type=range]{flex:1}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="top" class="bar"><div id="hud">Motes</div><button id="bPause">⏸</button><button id="bSpeed">1×</button><button id="bView">View</button><button id="bMenu">☰</button></div>
+<div id="top" class="bar"><div id="hud">Motes</div><button id="bPause">⏸</button><button id="bSpeed">1×</button><button id="bView">View</button><button id="bHelp">?</button><button id="bMenu">☰</button></div>
 <div id="insp"></div>
 <div id="bot" class="bar" id="tools"></div>
 <div id="menu"><div class="tabs" id="tabs"></div><div class="body" id="mbody"></div></div>

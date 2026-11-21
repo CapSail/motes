@@ -10,7 +10,7 @@ node scripts/sim-test.mjs 1 30   # headless engine run: seed 1, 30 sim-minutes
 Files: `sim.js` (the engine, pure JS), `ui.js` + `index.html` (plain UI), `sw.js` + `manifest.webmanifest` + icons (PWA).
 
 ## What the engine does
-- **Every mote has an evolving brain**: a small recurrent neural net (NEAT-style). Neurons get added, connections get added/removed/re-weighted, crossover matches connections by innovation id. 45 senses in, 13 actions out.
+- **Every mote has an evolving brain**: a small recurrent neural net (NEAT-style). Neurons get added, connections get added/removed/re-weighted, crossover matches connections by innovation id. 52 senses in, 13 actions out, up to 48 hidden neurons and 420 connections.
 - **Senses**: food (plant and meat), nearest mote (size, kinship, diet, energy, armor, whether it is biting), nearest kin, walls on three rays, what tile it stands on, granary stock, temperature, toxin, light, sickness, three chemical channels with gradients, a clock, noise, pain, touch.
 - **Actions**: thrust, turn, bite, emit scent A/B/C, build wall/farm/nest/granary, dig, give-or-take energy (altruism, trade, parasitism, hoarding), mate willingness.
 - Nobody scripted what scents mean, whether to hoard, steal, build walls or hunt kin. Founders have simple hand-wired instincts; everything after is evolution.

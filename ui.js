@@ -1,4 +1,5 @@
 import * as S from './sim.js';
+import { guideHTML } from './guide.js';
 const { R, CELL, GN, DAY } = S;
 
 const $ = id => document.getElementById(id);
@@ -77,6 +78,8 @@ $('bSpeed').onclick = () => { speed = speed === 1 ? 3 : speed === 3 ? 8 : speed 
 const VIEWS = ['View', 'Scent A', 'Scent B', 'Scent C', 'Heat', 'Toxin'];
 $('bView').onclick = () => { view = (view + 1) % VIEWS.length; $('bView').textContent = VIEWS[view]; };
 $('bMenu').onclick = () => { openMenu(); };
+$('bHelp').onclick = () => { menuTab = 'guide'; openMenu(); };
+if (!localStorage.getItem('motes.seenGuide')) { localStorage.setItem('motes.seenGuide', '1'); setTimeout(() => { menuTab = 'guide'; openMenu(); }, 400); }
 addEventListener('keydown', e => { if (e.code === 'Space') { $('bPause').click(); e.preventDefault(); } });
 
 // ---------- camera / input ----------
@@ -145,10 +148,21 @@ function renderInsp(force) {
   if (m.sick > 0) kinds.push('sick'); if (m.imm > 0) kinds.push('immune');
   ib.innerHTML = `<h3><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3>
   <div class="dim">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · gen ${m.gen} · age ${Math.round(m.age)}/${Math.round(m.life)}s · kids ${m.kids} · kills ${m.kills} ${kinds.join(' ')}</div>
-  ${m.anc.length ? `<div class="dim">Parents: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
+  ${m.anc.length ? `<div class="dim">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
+  ${socialText(m)}
   <div class="bars">${bar('energy', m.e, m.cap)}${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
   <div class="dim">Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Output now: ${topOut(m)}</div>
   <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button data-a="follow" class="${follow ? 'on' : ''}">Follow</button><button data-a="fav">${m.fav ? '★ Unstar' : '☆ Star'}</button><button data-a="feed">Feed</button><button data-a="clone">Clone</button><button data-a="rename">Rename</button><button data-a="close">Close</button></div>`;
+}
+function socialText(m) {
+  const fam = [], fr = [], gr = [];
+  for (const o of w.motes) { if (o === m) continue; const r = S.relOf(m, o); if (r > 0) fam.push(`${esc(o.name)} (${r === 1 ? (o.id === m.pa || o.id === m.pb ? 'parent' : 'child') : 'sibling'})`); }
+  for (const [id, s] of m.fr) { const o = w.byId.get(id); if (!o) continue; (s < 0 ? gr : fr).push(`${esc(o.name)}${s < 0 ? '' : ' ' + Math.round(s * 100) + '%'}`); }
+  const parts = [];
+  if (fam.length) parts.push('Family nearby/alive: ' + fam.slice(0, 6).join(', '));
+  if (fr.length) parts.push('Friends: ' + fr.join(', '));
+  if (gr.length) parts.push('Grudges: ' + gr.join(', '));
+  return parts.length ? `<div class="dim">${parts.join(' · ')}</div>` : '';
 }
 function topOut(m) { const o = m.o, names = S.OUT_NAMES, arr = []; for (let k = 2; k < S.NO; k++) if (Math.abs(o[k]) > 0.35 && !(k === 11 || k === 12 && false)) arr.push(names[k] + (o[k] < 0 ? '−' : '')); if (o[0] > 0.5) arr.unshift('moving'); return arr.join(', ') || 'quiet'; }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -195,13 +209,19 @@ function drawBrain() {
 
 // ---------- menu ----------
 const menu = $('menu'), mbody = $('mbody'), tabsEl = $('tabs');
-const TABS = [['species', 'Species'], ['diary', 'Diary'], ['stats', 'Stats'], ['stars', 'Stars'], ['dish', 'Dish']];
+const TABS = [['guide', 'Guide'], ['species', 'Species'], ['diary', 'Diary'], ['stats', 'Stats'], ['stars', 'Stars'], ['dish', 'Dish']];
 tabsEl.innerHTML = TABS.map(([id, l]) => `<button data-tab="${id}">${l}</button>`).join('') + '<button data-tab="close" style="margin-left:auto">✕ Close</button>';
 tabsEl.onclick = e => { const t = e.target.dataset.tab; if (!t) return; if (t === 'close') { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; } else { menuTab = t; renderMenu(); } };
 function openMenu() { menu.style.display = 'flex'; renderMenu(); }
 const dayOf = t => Math.floor(t / DAY) + 1;
 function renderMenu() {
   for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === menuTab);
+  if (menuTab === 'guide') {
+    mbody.onclick = null;
+    if (mbody.dataset.tab !== 'guide') { mbody.innerHTML = guideHTML(); mbody.dataset.tab = 'guide'; mbody.scrollTop = 0; }
+    return;
+  }
+  mbody.dataset.tab = '';
   if (menuTab === 'species') {
     const list = [...w.species.values()].sort((a, b) => (b.count - a.count) || (a.ext - b.ext));
     mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : ''}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
@@ -217,6 +237,7 @@ function renderMenu() {
     <div class="row">Day ${dayOf(w.t)} · population ${st.pop} · species alive ${st.species} · food ${st.food} · structures ${st.struct}</div>
     <div class="row">Average brain: ${(st.conns || 0).toFixed(1)} connections, ${(st.hid || 0).toFixed(2)} hidden neurons · average diet ${(st.diet || 0).toFixed(2)}</div>
     <div class="row">Births ${c.births} (mated ${c.sexual}, budded ${c.asexual}) · deaths ${c.deaths} · kills ${c.kills} · built ${c.built} · torn down ${c.dug}</div>
+    <div class="row">Friendships formed ${c.friends} · grudges ${c.grudges} · energy fed to relatives ${Math.round(c.famGifts)} · devoted-pair children ${c.devoted} · inbred births ${c.inbred}</div>
     <div class="row">Energy shared ${Math.round(c.shared)} · stolen ${Math.round(c.stolen)} · hoarded ${Math.round(c.stored)} · species born ${c.newSpecies} · extinct ${c.extinct} · plagues ${c.plagues}</div>
     <h4>Records</h4>${fr('oldest', 'Oldest', 's')}${fr('kids', 'Most children')}${fr('kills', 'Most kills')}${fr('brain', 'Biggest brain')}${fr('gen', 'Deepest generation')}`;
     drawGraph();
@@ -347,6 +368,10 @@ function draw() {
   const sm = selected();
   if (sm) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / cam.z + 0.5; ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r + 5, 0, 7); ctx.stroke();
+    ctx.lineWidth = 1.2 / cam.z + 0.4;
+    for (const o of w.motes) { if (o !== sm && S.relOf(sm, o) > 0) { ctx.strokeStyle = '#ffd24acc'; ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(o.x, o.y); ctx.stroke(); } }
+    for (const [id, s] of sm.fr) { const o = w.byId.get(id); if (!o) continue; ctx.strokeStyle = s < 0 ? '#ff4a4acc' : `rgba(90,220,140,${0.3 + 0.6 * s})`; ctx.setLineDash(s < 0 ? [3, 3] : []); ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(o.x, o.y); ctx.stroke(); }
+    ctx.setLineDash([]);
     ctx.strokeStyle = '#ffffff30'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.senseR, 0, 7); ctx.stroke(); ctx.setLineDash([]);
   }
   if (painting && tool !== 'look') { ctx.strokeStyle = '#fff8'; ctx.lineWidth = 1.5 / cam.z; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.stroke(); }

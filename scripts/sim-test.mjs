@@ -11,7 +11,7 @@ for (let t = 0; t < mins * 60; t += dt) {
   if (t >= next) {
     next += 120;
     const s = w.stats, c = w.counters;
-    console.log(`t=${(t / 60).toFixed(0)}m pop=${w.motes.length} sp=${s.species} food=${w.food.length} diet=${(s.diet || 0).toFixed(2)} conns=${(s.conns || 0).toFixed(1)} hid=${(s.hid || 0).toFixed(2)} photo=${(s.photo || 0).toFixed(2)} struct=${w.stCount} births=${c.births} (sex ${c.sexual}) kills=${c.kills} built=${c.built} stored=${Math.round(c.stored)} stolen=${Math.round(c.stolen)} shared=${Math.round(c.shared)}  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    console.log(`t=${(t / 60).toFixed(0)}m pop=${w.motes.length} sp=${s.species} food=${w.food.length} diet=${(s.diet || 0).toFixed(2)} conns=${(s.conns || 0).toFixed(1)} hid=${(s.hid || 0).toFixed(2)} photo=${(s.photo || 0).toFixed(2)} struct=${w.stCount} births=${c.births} (sex ${c.sexual}) kills=${c.kills} built=${c.built} stored=${Math.round(c.stored)} stolen=${Math.round(c.stolen)} shared=${Math.round(c.shared)} friends=${c.friends} grudges=${c.grudges} famGifts=${Math.round(c.famGifts)} inbred=${c.inbred} devoted=${c.devoted} ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     if (!w.motes.length) { console.log('EXTINCT'); break; }
   }
 }
