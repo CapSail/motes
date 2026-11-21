@@ -33,7 +33,7 @@ async function loadStarter(intro, name = 'dish') {
     if (intro) {
       const o = $('over'); o.style.display = 'flex';
       const yrs = (w.t / S.YEAR).toFixed(1);
-      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Read the Diary (☰) to see what happened, tap ? for the Guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
+      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Open the Menu (top right) to read its Diary or the guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
       $('stWatch').onclick = () => { o.style.display = 'none'; };
       if ($('stInstall')) $('stInstall').onclick = () => { o.style.display = 'none'; menuTab = 'install'; openMenu(); };
       $('stFresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 7); selId = 0; save(); o.style.display = 'none'; };
@@ -98,50 +98,114 @@ function catchStep() {
   }
 }
 
-// ---------- tools ----------
-const TOOLS = [
-  ['look', '👆 Look'], ['food', '🍃 Food'], ['wall', '🧱 Wall'], ['farm', '🌱 Farm'], ['nest', '🪺 Nest'], ['granary', '🏺 Granary'],
-  ['heat', '🔥 Heat'], ['cold', '❄️ Cold'], ['toxin', '☠️ Toxin'], ['chemA', '🔴 Scent A'], ['chemB', '🟢 Scent B'], ['chemC', '🔵 Scent C'],
-  ['plague', '🦠 Plague'], ['smite', '⚡ Smite'], ['meteor', '☄️ Meteor'], ['spark', '✨ Spark'], ['erase', '🧹 Erase'],
-];
-const bot = $('bot');
-for (const [id, label] of TOOLS) { const b = document.createElement('button'); b.textContent = label; b.dataset.t = id; bot.appendChild(b); }
-const bBrush = document.createElement('button'); bBrush.textContent = '◯ M'; bot.appendChild(bBrush);
-function syncTools() { for (const b of bot.children) b.classList.toggle('on', b.dataset.t === tool); }
-const HINTS = {
-  look: 'Look: tap a mote to inspect it, drag to pan, pinch to zoom.',
-  food: 'Food: hold and drag to sprinkle plants. Hungry motes smell it from far away.',
-  wall: 'Wall: paint barriers. Motes steer around them.', farm: 'Farm: paint ground that keeps growing food.', nest: 'Nest: paint a place that heals motes and helps newborns.', granary: 'Granary: paint a store where motes can hoard energy.',
-  heat: 'Heat: paint warmth (orange). Each kind has a favourite temperature: some seek it, others flee, and too hot drains energy.',
-  cold: 'Cold: paint chill (blue). Each kind has a favourite temperature: some seek it, others flee, and too cold drains energy.',
-  toxin: 'Toxin: paint poison (purple). Everything flees it and anything standing in it loses energy fast. It fades slowly.',
-  chemA: 'Scent A (red): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
-  chemB: 'Scent B (green): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
-  chemC: 'Scent C (blue): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
-  plague: 'Plague: infect the motes under your finger.', smite: 'Smite: kill the motes under your finger.', spark: 'Spark: tap to drop in a brand-new founder: a new species with its own look.', meteor: 'Meteor: tap to drop one. It wipes out everything in the crater and burns the ground bare, then plants spring up around the rim.', erase: 'Erase: clears structures, food, scents, heat and toxin.',
+// ---------- tools: a dock of big buttons, a sheet of tiles that explain themselves, and a strip for the active tool ----------
+const TOOLINFO = {
+  food: ['🍃', 'Food', 'Sprinkle plants for them to eat. Hungry motes smell it from far away.'],
+  wall: ['🧱', 'Wall', 'A solid barrier. Nothing walks, sees or smells through it.'],
+  farm: ['🌱', 'Farm', 'Ground that keeps growing food by itself.'],
+  nest: ['🪺', 'Nest', 'A safe spot that heals motes and gives newborns a boost.'],
+  granary: ['🏺', 'Granary', 'A pantry. Motes can store spare energy here for later.'],
+  erase: ['🧹', 'Erase', 'Rub out walls, farms, food, smells, heat and poison.'],
+  heat: ['🔥', 'Heat', 'A warm patch (orange). Every kind has a favourite temperature, so some come and some run. Too hot drains energy.'],
+  cold: ['❄️', 'Cold', 'A chilly patch (blue). Some kinds love it and some run. Too cold drains energy.'],
+  toxin: ['☠️', 'Poison', 'A purple poison cloud. Everything runs from it, and anything inside loses energy fast. It slowly fades.'],
+  chemA: ['🔴', 'Smell A', 'A red smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
+  chemB: ['🟢', 'Smell B', 'A green smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
+  chemC: ['🔵', 'Smell C', 'A blue smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
+  plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others.'],
+  smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
+  meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
+  spark: ['✨', 'New life', 'Tap to drop in a brand-new creature: a new species with its own look.'],
 };
+const GROUPS = [
+  ['look', '👆', 'Look', null, ''],
+  ['build', '🌱', 'Build', ['food', 'wall', 'farm', 'nest', 'granary', 'erase'], 'Build and feed'],
+  ['climate', '🌡️', 'Climate', ['heat', 'cold', 'toxin', 'chemA', 'chemB', 'chemC'], 'Heat, poison and smells'],
+  ['powers', '⚡', 'Powers', ['plague', 'smite', 'meteor', 'spark'], 'Powers'],
+];
+const dock = $('dock'), sheet = $('sheet'), strip = $('strip');
+let sheetFor = '';
+const fx = [];            // short-lived rings that show where a power just hit
+dock.innerHTML = GROUPS.map(g => `<button data-g="${g[0]}"><span class="ic">${g[1]}</span>${g[2]}</button>`).join('');
+function syncDock() {
+  for (const b of dock.children) {
+    const g = GROUPS.find(x => x[0] === b.dataset.g);
+    b.classList.toggle('on', g[0] === 'look' ? tool === 'look' && !sheetFor : (sheetFor === g[0] || (!sheetFor && g[3].includes(tool))));
+  }
+}
+function closeSheet() { sheet.style.display = 'none'; sheetFor = ''; renderStrip(); syncDock(); }
+function openSheet(html, id) { sheet.innerHTML = html; sheet.style.display = 'block'; sheetFor = id; strip.style.display = 'none'; insp.style.display = 'none'; syncDock(); }
+function setTool(t) {
+  tool = t; sheet.style.display = 'none'; sheetFor = '';
+  if (t !== 'look' && !follow && selId) { selId = 0; insp.style.display = 'none'; }
+  renderStrip(); syncDock();
+}
+function renderStrip() {
+  if (tool === 'look') { strip.style.display = 'none'; return; }
+  const [ic, name, desc] = TOOLINFO[tool], isPaint = tool !== 'spark' && tool !== 'meteor';
+  strip.style.display = 'flex';
+  strip.innerHTML = `<span class="ic">${ic}</span><div class="txt"><b>${name}</b><small>${desc}</small><small style="color:#6f8199">${isPaint ? 'Touch and drag on the dish.' : 'Tap on the dish.'} Two fingers move and zoom the map.</small></div>` +
+    (isPaint ? `<div class="brush">${[[20, 'S'], [40, 'M'], [80, 'L']].map(([b, l]) => `<button data-b="${b}" class="${brush === b ? 'on' : ''}" aria-label="Brush size ${l}">${l}</button>`).join('')}</div>` : '') +
+    '<button id="stripDone" class="go">✔ Done</button>';
+}
+strip.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.b) { brush = +b.dataset.b; renderStrip(); } else if (b.id === 'stripDone') setTool('look'); };
+dock.onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const id = b.dataset.g, g = GROUPS.find(x => x[0] === id);
+  if (id === 'look') { setTool('look'); return; }
+  if (sheetFor === id) { closeSheet(); return; }
+  openSheet(`<h4>${g[4]}: tap one</h4><div class="tiles">${g[3].map(t => `<button class="tile ${tool === t ? 'on' : ''}" data-t="${t}"><span class="ic">${TOOLINFO[t][0]}</span><span><b>${TOOLINFO[t][1]}</b><small>${TOOLINFO[t][2]}</small></span></button>`).join('')}</div>`, id);
+};
+sheet.onclick = e => {
+  const t = e.target.closest('[data-t]'); if (t) { setTool(t.dataset.t); return; }
+  const v = e.target.closest('[data-v]'); if (v) { view = +v.dataset.v; closeSheet(); }
+};
+const HINTS = {};
 const hintEl = document.createElement('div');
-hintEl.style.cssText = 'position:fixed;left:50%;top:54px;transform:translateX(-50%);max-width:90vw;background:#000c;color:#fff;border:1px solid #fff3;border-radius:10px;padding:6px 12px;font-size:13px;line-height:1.3;z-index:20;pointer-events:none;transition:opacity .4s;opacity:0;text-align:center';
+hintEl.style.cssText = 'position:fixed;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 96px);transform:translateX(-50%);width:max-content;max-width:92vw;background:#000d;color:#fff;border:1px solid #fff4;border-radius:14px;padding:9px 14px;font-size:14.5px;line-height:1.35;z-index:20;pointer-events:none;transition:opacity .4s;opacity:0;text-align:center';
 document.body.appendChild(hintEl);
 let hintT = 0;
 function showHint(t, text) { hintEl.textContent = text || HINTS[t] || ''; hintEl.style.opacity = 1; clearTimeout(hintT); hintT = setTimeout(() => { hintEl.style.opacity = 0; }, 5000); }
-bot.onclick = e => { const t = e.target.dataset && e.target.dataset.t; if (t) { tool = t; syncTools(); showHint(t); } };
-bBrush.onclick = () => { brush = brush === 20 ? 40 : brush === 40 ? 80 : 20; bBrush.textContent = '◯ ' + (brush === 20 ? 'S' : brush === 40 ? 'M' : 'L'); };
-syncTools();
+const VIEWS = ['Everything', 'Smell A', 'Smell B', 'Smell C', 'Heat and cold', 'Poison'];
+$('bView').onclick = () => {
+  if (sheetFor === 'view') { closeSheet(); return; }
+  openSheet('<h4>What should the dish show?</h4><div class="chips">' + VIEWS.map((v, i) => `<button data-v="${i}" class="${view === i ? 'on' : ''}">${v}</button>`).join('') + '</div><p class="dim" style="margin:10px 4px 0;font-size:13px">“Everything” shows every coloured field at once (smells, heat, cold, poison). Pick one to look at just that.</p>', 'view');
+};
+syncDock();
 $('bPause').onclick = () => { paused = !paused; $('bPause').textContent = paused ? '▶' : '⏸'; };
-$('bSpeed').onclick = () => { speed = speed === 1 ? 3 : speed === 3 ? 8 : speed === 8 ? 0.4 : 1; $('bSpeed').textContent = speed + '×'; };
-const VIEWS = ['View', 'Scent A', 'Scent B', 'Scent C', 'Heat', 'Toxin'];
-$('bView').onclick = () => { view = (view + 1) % VIEWS.length; $('bView').textContent = VIEWS[view]; };
-$('bMenu').onclick = () => { openMenu(); };
-$('bHelp').onclick = () => { menuTab = 'guide'; openMenu(); };
+$('bSpeed').onclick = () => { speed = speed === 1 ? 3 : speed === 3 ? 8 : speed === 8 ? 0.4 : 1; $('bSpeed').textContent = speed + '×'; showHint('', speed === 0.4 ? 'Slow motion (0.4×)' : speed === 1 ? 'Normal speed' : 'Fast forward ' + speed + '×'); };
+$('bMenu').onclick = () => { menuTab = 'home'; openMenu(); };
 if (!localStorage.getItem('motes.seenGuide') && !firstRun) { localStorage.setItem('motes.seenGuide', '1'); setTimeout(() => { menuTab = 'guide'; openMenu(); }, 400); }
 addEventListener('keydown', e => { if (e.code === 'Space') { $('bPause').click(); e.preventDefault(); } });
+
+// what a power just did: counts, a ring on the dish, a message
+// the brush is at least its S/M/L size in screen pixels, so it stays thumb-sized when the map is zoomed out
+function BR() { return brush * Math.max(1, 1 / cam.z); }
+function feedback(t, wx, wy) {
+  const R0 = BR(), near = () => w.motes.filter(m => !m.dead && Math.hypot(m.x - wx, m.y - wy) < R0);
+  const n0 = near();
+  if (!n0.length) { showHint('', t === 'plague' ? '🦠 No motes under your finger. Touch right on some motes.' : '⚡ No motes under your finger.'); return; }
+  if (t === 'plague') {
+    const was = n0.filter(m => m.sick > 0).length;
+    S.paint(w, 'plague', wx, wy, R0, 0.05);
+    const n = near().filter(m => m.sick > 0).length - was;
+    fx.push({ x: wx, y: wy, r: R0, c: '120,255,90', t: 0 });
+    showHint('', n > 0 ? `🦠 Infected ${n} mote${n > 1 ? 's' : ''}. They glow green and spread it when they touch others.` : '🦠 Those motes are already sick or recently recovered (immune).');
+    sfx('sick'); buzz(25);
+  } else {
+    S.paint(w, 'smite', wx, wy, R0, 0.05);
+    fx.push({ x: wx, y: wy, r: R0, c: '255,230,90', t: 0 });
+    showHint('', `⚡ Smote ${n0.length} mote${n0.length > 1 ? 's' : ''}.`);
+    sfx('zap'); buzz(25);
+  }
+}
 
 // ---------- camera / input ----------
 const s2w = (sx, sy) => [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y];
 const ptrs = new Map();
 let pinch = null, downAt = null, painting = null, panning = null;
 cv.addEventListener('pointerdown', e => {
+  if (sheet.style.display === 'block') { closeSheet(); return; }
   try { cv.setPointerCapture(e.pointerId); } catch (_) { /* synthetic or already-released pointer */ }
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return; }
@@ -149,9 +213,9 @@ cv.addEventListener('pointerdown', e => {
   if (e.button === 1 || e.button === 2 || tool === 'look') { panning = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; return; }
   const [wx, wy] = s2w(e.clientX, e.clientY);
   painting = { x: wx, y: wy };
-  if (tool === 'smite') { sfx('zap'); buzz(25); } else if (tool === 'plague') { sfx('sick'); buzz(25); }
-  if (tool === 'spark') { S.spark(w, wx, wy); painting = null; sfx('spark'); buzz(15); }
-  if (tool === 'meteor') { S.meteor(w, wx, wy, 100); painting = null; shake = 1; sfx('boom'); buzz([60, 40, 60]); }
+  if (tool === 'smite' || tool === 'plague') feedback(tool, wx, wy);
+  if (tool === 'spark') { const nm = S.spark(w, wx, wy); painting = null; fx.push({ x: wx, y: wy, r: 40, c: '255,255,160', t: 0 }); showHint('', '✨ A new creature appeared: ' + ((w.species.get(nm.sp) || {}).name || 'unknown') + '. Tap it with 👆 Look to see its brain.'); sfx('spark'); buzz(15); }
+  if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 100); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 100, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
 });
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;
@@ -179,7 +243,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => { e.preventDefault(); const [bx, by] = s2w(e.clientX, e.clientY); cam.z = Math.max(0.15, Math.min(8, cam.z * Math.exp(-e.deltaY * 0.0015))); const [ax, ay] = s2w(e.clientX, e.clientY); cam.x += bx - ax; cam.y += by - ay; }, { passive: false });
 
 function pick(wx, wy) {
-  let best = null, bd = Math.pow(Math.max(14, 22 / cam.z), 2);
+  let best = null, bd = Math.pow(Math.max(26, 44 / cam.z), 2);
   for (const m of w.motes) { const d = (m.x - wx) ** 2 + (m.y - wy) ** 2; if (d < bd) { bd = d; best = m; } }
   if (!best && follow && selected()) return;                 // while following, tapping empty water keeps following
   selId = best ? best.id : 0; follow = false; inspHidden = false; renderInsp(true); updChip();
@@ -187,14 +251,14 @@ function pick(wx, wy) {
 // Follow mode: the info panel can be hidden while the camera keeps tracking; a small chip stays on screen.
 let inspHidden = false;
 const fchip = document.createElement('div');
-fchip.style.cssText = 'position:fixed;top:52px;left:50%;transform:translateX(-50%);background:#101722ee;border:1px solid #58c08a;border-radius:16px;padding:6px 12px;display:none;z-index:5;white-space:nowrap';
+fchip.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 96px);left:50%;transform:translateX(-50%);background:#101722f2;border:1px solid #58c08a;border-radius:20px;padding:0 6px 0 16px;display:none;z-index:5;white-space:nowrap;font-size:15px';
 document.body.appendChild(fchip);
 fchip.onclick = e => { if (e.target.dataset.x) { follow = false; inspHidden = false; renderInsp(true); } else { inspHidden = false; renderInsp(true); } updChip(); };
 function updChip() {
   const m = selected();
   const show = follow && inspHidden && m;
   fchip.style.display = show ? 'block' : 'none';
-  if (show) fchip.innerHTML = `👁 Following <b>${esc(m.name)}</b> · <u>info</u> · <b data-x="1" style="padding-left:6px">✕ stop</b>`;
+  if (show) fchip.innerHTML = `👁 Following <b>${esc(m.name)}</b><span data-i="1" style="display:inline-block;padding:10px 12px;margin-left:4px;text-decoration:underline">info</span><span data-x="1" style="display:inline-block;padding:10px 12px;font-weight:700">✕ Stop</span>`;
 }
 function startFollow(m) { selId = m.id; follow = true; inspHidden = true; cam.z = Math.max(cam.z, 2.2); renderInsp(true); updChip(); }
 const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.id === selId); return m || null; };
@@ -203,7 +267,7 @@ const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.
 const insp = $('insp');
 insp.innerHTML = '<div id="ibody"></div><canvas id="brain"></canvas>';
 const ib = $('ibody'), bc = $('brain'), bctx = bc.getContext('2d');
-let lastInsp = 0;
+let lastInsp = 0, showBrain = false, showMore = false;
 const dietLabel = d => d < 0.2 ? 'Grazer' : d < 0.45 ? 'Forager' : d < 0.7 ? 'Omnivore' : 'Hunter';
 function bar(label, v, max = 1) { return `<span>${label}</span><i><b style="width:${Math.max(0, Math.min(100, v / max * 100))}%"></b></i>`; }
 function renderInsp(force) {
@@ -211,20 +275,23 @@ function renderInsp(force) {
   if (!selId) { insp.style.display = 'none'; return; }
   if (inspHidden && m) { insp.style.display = 'none'; return; }
   if (!m) { inspHidden = false; // died
-    if (force || insp.dataset.dead !== String(selId)) { insp.dataset.dead = String(selId); ib.innerHTML = `<h3>That mote has died.</h3><button data-a="close">Close</button>`; bc.style.display = 'none'; }
+    if (force || insp.dataset.dead !== String(selId)) { insp.dataset.dead = String(selId); ib.innerHTML = `<h3>That mote has died.</h3><button data-a="close" style="width:100%">✕ Close</button>`; bc.style.display = 'none'; }
     insp.style.display = 'block'; return;
   }
-  insp.dataset.dead = ''; bc.style.display = 'block'; insp.style.display = 'block';
+  insp.dataset.dead = ''; bc.style.display = showBrain && showMore ? 'block' : 'none'; insp.style.display = 'block';
   const sp = w.species.get(m.sp), b = m.g.b;
   const kinds = [];
   if (m.sick > 0) kinds.push('sick'); if (m.imm > 0) kinds.push('immune');
-  ib.innerHTML = `<h3><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3>
-  <div class="dim">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · gen ${m.gen} · age ${Math.round(m.age)}/${Math.round(m.life)}s · kids ${m.kids} · kills ${m.kills} ${kinds.join(' ')}</div>
-  ${m.anc.length ? `<div class="dim">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
+  const more = showMore ? `${m.anc.length ? `<div class="dim" style="margin-top:6px">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
   ${socialText(m)}
-  <div class="bars">${bar('energy', m.e, m.cap)}${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
-  <div class="dim">Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Output now: ${topOut(m)}</div>
-  <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button data-a="follow" class="${follow ? 'on' : ''}">Follow</button><button data-a="fav">${m.fav ? '★ Unstar' : '☆ Star'}</button><button data-a="feed">Feed</button><button data-a="clone">Clone</button><button data-a="rename">Rename</button><button data-a="close">${follow ? 'Hide' : 'Close'}</button></div>`;
+  <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
+  <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Doing now: ${topOut(m)}</div>
+  <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>` : '';
+  ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
+  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
+  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
+  <div class="bars" style="margin-top:4px">${bar('energy', m.e, m.cap)}</div>
+  <button data-a="more" style="width:100%;margin-top:8px;min-height:44px">${showMore ? '▴ Fewer details' : '▾ More details'}</button>${more}`;
 }
 function socialText(m) {
   const fam = [], fr = [], gr = [];
@@ -246,6 +313,8 @@ insp.addEventListener('click', e => {
   const m = selected();
   if (a === 'close') { if (follow && m) { inspHidden = true; insp.style.display = 'none'; updChip(); } else { selId = 0; follow = false; insp.style.display = 'none'; } }
   else if (m) {
+    if (a === 'brain') { showBrain = !showBrain; renderInsp(true); return; }
+    if (a === 'more') { showMore = !showMore; renderInsp(true); return; }
     if (a === 'follow') { if (!follow) { startFollow(m); return; } follow = false; }
     if (a === 'fav') S.toggleFav(w, m);
     if (a === 'feed') S.feedMote(m);
@@ -255,7 +324,7 @@ insp.addEventListener('click', e => {
   }
 });
 function drawBrain() {
-  const m = selected(); if (!m || insp.style.display === 'none') return;
+  const m = selected(); if (!m || insp.style.display === 'none' || !showBrain || !showMore) return;
   const cw = bc.clientWidth, ch = bc.clientHeight;
   if (bc.width !== cw * dpr) { bc.width = cw * dpr; bc.height = ch * dpr; }
   bctx.setTransform(dpr, 0, 0, dpr, 0, 0); bctx.clearRect(0, 0, cw, ch);
@@ -283,16 +352,33 @@ function drawBrain() {
 }
 
 // ---------- menu ----------
-const menu = $('menu'), mbody = $('mbody'), tabsEl = $('tabs');
-const TABS = [['guide', 'Guide'], ['install', '📲 Install'], ['species', 'Species'], ['tree', '🌳 Tree'], ['diary', 'Diary'], ['stats', 'Stats'], ['stars', 'Stars'], ['dish', 'Dish']];
-tabsEl.innerHTML = TABS.map(([id, l]) => `<button data-tab="${id}">${l}</button>`).join('') + '<button data-tab="close" style="margin-left:auto">✕ Close</button>';
-tabsEl.onclick = e => { const t = e.target.dataset.tab; if (!t) return; if (t === 'close') { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; } else { menuTab = t; renderMenu(); } };
-function openMenu() { menu.style.display = 'flex'; renderMenu(); }
+const menu = $('menu'), mbody = $('mbody');
+const PAGES = [
+  ['guide', '📖', 'How it works', 'Plain-English guide to everything'],
+  ['species', '🧬', 'Species', 'Who is alive. 🔦 finds them on the dish'],
+  ['tree', '🌳', 'Family tree', 'How species split from each other'],
+  ['diary', '📓', 'Diary', 'Everything notable that happened'],
+  ['stats', '📊', 'Stats', 'Population graph and records'],
+  ['stars', '⭐', 'Starred motes', 'The ones you are keeping an eye on'],
+  ['dish', '⚙️', 'Dish and saving', 'Disasters, load another dish, share or save'],
+  ['install', '📲', 'Put it on your phone', 'Add it to your home screen as an app'],
+];
+$('mClose').onclick = () => { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; };
+$('mBack').onclick = () => { menuTab = 'home'; mbody.scrollTop = 0; renderMenu(); };
+function openMenu() { menu.style.display = 'flex'; if (sheetFor) closeSheet(); renderMenu(); }
 const dayOf = t => Math.floor(t / DAY) + 1;
 const stamp = t => `Year ${Math.floor(t / S.YEAR) + 1}, day ${Math.floor((t % S.YEAR) / DAY) + 1}`;
 let diaryFilter = 'all', spot = 0, shake = 0;
 function renderMenu() {
-  for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === menuTab);
+  const home = menuTab === 'home', pg = PAGES.find(p => p[0] === menuTab);
+  $('mBack').style.visibility = home ? 'hidden' : 'visible';
+  $('mTitle').textContent = home ? 'Menu' : pg ? pg[2] : '';
+  if (home) {
+    mbody.dataset.tab = '';
+    mbody.innerHTML = '<div class="cards">' + PAGES.map(p => `<button class="card" data-pg="${p[0]}"><span class="ic">${p[1]}</span><b>${p[2]}</b><small>${p[3]}</small></button>`).join('') + '</div>';
+    mbody.onclick = e => { const c = e.target.closest('[data-pg]'); if (c) { menuTab = c.dataset.pg; mbody.scrollTop = 0; renderMenu(); } };
+    return;
+  }
   if (menuTab === 'guide') {
     mbody.onclick = null;
     if (mbody.dataset.tab !== 'guide') { mbody.innerHTML = guideHTML(); mbody.dataset.tab = 'guide'; mbody.scrollTop = 0; }
@@ -340,9 +426,9 @@ function renderMenu() {
     mbody.innerHTML = `<label>Max population <input id="sMax" type="range" min="100" max="1200" step="50" value="${w.maxPop}"><span id="vMax">${w.maxPop}</span></label>
     <label>Food abundance <input id="sFert" type="range" min="0.3" max="3" step="0.1" value="${w.fert}"><span id="vFert">${w.fert}</span></label>
     <label>Random events (blooms, cold, plague, spills, meteors) <input id="cEv" type="checkbox" ${w.events ? 'checked' : ''}></label>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0"><button id="eBloom">Call a bloom</button><button id="eCold">Cold snap</button><button id="eHeat">Heatwave</button><button id="eIce">Ice age</button><button id="eDry">Drought</button><button id="ePlague">Plague</button></div>
+    <h4>Make something happen now</h4><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button id="eBloom">Call a bloom</button><button id="eCold">Cold snap</button><button id="eHeat">Heatwave</button><button id="eIce">Ice age</button><button id="eDry">Drought</button><button id="ePlague">Plague</button></div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0"><button id="bSound">${sndOn ? '🔊 Sound: on' : '🔈 Sound: off'}</button><button id="bPhoto">📷 Save a picture of the dish</button></div>
-    <h4>Move this dish between phone and PC</h4>
+    <h4>Save or share this dish (phone ⇄ computer)</h4>
     <div style="display:flex;gap:4px;flex-wrap:wrap"><button id="xDown">Download dish file</button><button id="xCopy">Copy dish code</button><label style="display:inline"><input id="xFile" type="file" accept=".json,.motes" hidden><button id="xUp" type="button">Load dish file</button></label></div>
     <textarea id="xText" placeholder="Paste a dish code here, then tap Load pasted code"></textarea><button id="xPaste">Load pasted code</button>
     <h4>Start over</h4><div class="dim">Pre-evolved dishes: each was fast-forwarded about 4 dish-years on a computer while the motes evolved. Loading one erases this dish.</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"><button id="nStarter">🏗️ Builders (smartest, spread out)</button><button id="nBuild">🦈 Predators (6 species)</button><button id="nCycle">🐝 The Swarm (predator ball)</button></div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="nNew">New primordial dish (erases this one)</button></div>
@@ -583,10 +669,11 @@ function draw() {
     if (m.pod && m.id < m.pod) { const po = w.byId.get(m.pod); if (po) { ctx.strokeStyle = '#ffe14d70'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(po.x, po.y); ctx.stroke(); } }
     if (m.hurt > 0 && m.why2 === 'toxin') { ctx.strokeStyle = '#c6f'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + Math.sin(performance.now() / 70) * 1.5, 0, 7); ctx.stroke(); }
     for (let k = 0; k < 3; k++) { const e = m.o[S.OUT.EMIT_A + k]; if (e > 0.05) { const ph = ((performance.now() / 700 + m.id * 0.37 + k * 0.33) % 1); ctx.strokeStyle = ['#ff4646', '#46ff6e', '#5a8cff'][k]; ctx.globalAlpha = (1 - ph) * 0.8; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + ph * 22, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
-    if (m.sick > 0) { ctx.strokeStyle = '#9f4'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 2, 0, 7); ctx.stroke(); }
+    if (m.sick > 0) { const pu = 0.5 + 0.5 * Math.sin(performance.now() / 160 + m.id); ctx.fillStyle = `rgba(120,255,90,${0.15 + 0.2 * pu})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3, 0, 7); ctx.fill(); ctx.strokeStyle = '#9f4'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3 + pu * 2, 0, 7); ctx.stroke(); }
     if (m.fav) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3, 0, 7); ctx.stroke(); }
     if (m.o[S.OUT.BITE] > 0.3 && m.hurt < 0.1) { ctx.fillStyle = '#ff0'; ctx.fillRect(m.x - 1, m.y - m.r - 4, 2, 2); }
   }
+  for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dtv; if (f.t > 0.7) { fx.splice(i, 1); continue; } const k = f.t / 0.7; ctx.strokeStyle = `rgba(${f.c},${1 - k})`; ctx.lineWidth = 3 / cam.z + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.9 * k), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.c},${0.25 * (1 - k)})`; ctx.fill(); }
   const sm = selected();
   if (sm) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / cam.z + 0.5; ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r + 5, 0, 7); ctx.stroke();
@@ -601,8 +688,8 @@ function draw() {
   }
   if (painting && tool !== 'look') {
     const tc = { toxin: '#c6f', heat: '#fa4', cold: '#8cf', chemA: '#f55', chemB: '#5f7', chemC: '#58f' }[tool];
-    if (tc) { ctx.fillStyle = tc; ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
-    ctx.strokeStyle = tc || '#fff8'; ctx.lineWidth = 1.5 / cam.z; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.stroke();
+    if (tc) { ctx.fillStyle = tc; ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.arc(painting.x, painting.y, BR(), 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = tc || '#fff8'; ctx.lineWidth = 1.5 / cam.z; ctx.beginPath(); ctx.arc(painting.x, painting.y, BR(), 0, 7); ctx.stroke();
   }
   ctx.restore();
 }
@@ -620,7 +707,7 @@ function frame(now) {
     while (acc >= 0.05 && n < 60 && performance.now() - t0 < 13) { S.step(w, 0.05); acc -= 0.05; n++; }
     if (acc > 0.5) acc = 0;
   }
-  if (painting && tool !== 'look' && tool !== 'spark' && !catching) { S.paint(w, tool, painting.x, painting.y, brush, Math.max(0.02, rdt)); if (tool === 'erase' || tool === 'food') S.cleanFood(w); }
+  if (painting && tool !== 'look' && tool !== 'spark' && !catching) { S.paint(w, tool, painting.x, painting.y, BR(), Math.max(0.02, rdt)); if (tool === 'erase' || tool === 'food') S.cleanFood(w); }
   const sm = selected();
   if (follow && sm) { cam.x += (sm.x - cam.x) * 0.15; cam.y += (sm.y - cam.y) * 0.15; }
   if (!catching) soundTick();
@@ -639,6 +726,6 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__motes = { get w() { return w; }, S, cam, catchUp: maybeCatchUp, setTool: t => { tool = t; syncTools(); } };
+window.__motes = { get w() { return w; }, S, cam, catchUp: maybeCatchUp, setTool: t => setTool(t) };
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});

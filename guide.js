@@ -75,7 +75,7 @@ ${S('desktop', 'Computer (Chrome, Edge, Brave)', [
     'Click <b>Install</b>. It opens in its own window and gets a shortcut.',
   ], 'On a Mac in Safari: File → Add to Dock.')}
 <h4>Sharing it</h4>
-<p>Send people the link <b>https://capsail.github.io/motes/</b> and point them to <b>? → Guide</b> or <b>☰ → 📲 Install</b>. Everyone gets their own dish that lives on their own device.</p>
+<p>Send people the link <b>https://capsail.github.io/motes/</b> and point them to <b>☰ Menu → How it works</b> or <b>☰ Menu → Put it on your phone</b>. Everyone gets their own dish that lives on their own device.</p>
 <h4>Trouble?</h4>
 <ul><li><b>No install option:</b> make sure you are in the browser itself (not inside another app's built-in browser such as Facebook or Messenger). Use "Open in browser" first.</li>
 <li><b>Saves are separate per device and per install.</b> Menu → Dish has Download dish file and Copy dish code to move one.</li>
@@ -92,30 +92,40 @@ export function guideHTML() {
 <li>Every squiggle is a <b>mote</b>. It has a <b>body</b> (shape, size, speed, diet…) and a <b>brain</b> (a tiny neural network).</li>
 <li>Motes eat green <b>plant pellets</b> or red <b>meat</b>, burn energy to move and think, and when they have spare energy they <b>mate</b> or bud. Children inherit a mix of the parents' bodies and brains, plus random <b>mutations</b>.</li>
 <li>Motes that do well leave more children, so over time the population changes. That is evolution. Let it run, then come back.</li>
-<li>Tap a mote to see its stats and its <b>live brain</b>. Open <b>☰</b> for species, the diary, stats and this guide.</li>
+<li>Tap a mote with <b>👆 Look</b> to see its stats (and its <b>🧠 live brain</b>). The <b>☰ Menu</b> button (top right) opens species, the family tree, the diary, stats and this guide.</li>
 </ul></details>
 
-<details><summary>Controls (phone and PC)</summary>
+<details><summary>Buttons and controls</summary>
 <ul>
-<li><b>Look</b> tool: drag to pan, tap a mote to select it. <b>Pinch</b> (phone) or <b>mouse wheel</b> (PC) to zoom.</li>
-<li>Any other tool: drag on the dish to paint it. With a paint tool active, use <b>two fingers</b> to pan/zoom (PC: right or middle mouse drag to pan).</li>
-<li>Top bar: <b>⏸</b> pause (Space on PC), the speed button cycles 1× / 3× / 8× / 0.4×, <b>View</b> cycles overlays (everything at once, then each scent, heat, toxin alone). Scents, heat and toxin always show on the dish, <b>?</b> opens this guide, <b>☰</b> opens the menu.</li>
-<li><b>◯ S/M/L</b> at the end of the tool bar changes brush size.</li>
-<li>Selected mote buttons: <b>Follow</b> (camera tracks it), <b>☆ Star</b> (keep its story forever), <b>Feed</b>, <b>Clone</b> (a mutated copy), <b>Rename</b>.</li>
+<li><b>Top left:</b> <b>⏸</b> pauses (Space on a computer). <b>1×</b> changes speed: 1×, 3×, 8× and slow-motion 0.4×. <b>👁</b> chooses what the dish shows: everything at once, or just one smell, heat and cold, or poison. <b>☰ Menu</b> (top right) opens everything else.</li>
+<li><b>Bottom row</b> has four big buttons. <b>👆 Look</b> is the normal mode: drag to move the map, pinch (or mouse wheel) to zoom, tap a mote to inspect it. <b>🌱 Build</b>, <b>🌡️ Climate</b> and <b>⚡ Powers</b> each open a panel of tools. Every tool says in plain words what it does. Tap one to pick it, then touch the dish.</li>
+<li>With a tool picked, a bar appears above the buttons with its name, what it does, the brush size (<b>S / M / L</b>) and a green <b>✔ Done</b> that takes you back to Look. <b>Two fingers</b> always move and zoom the map, even with a tool picked.</li>
+<li>When you use a power, you get a message saying what happened (for example “Infected 3 motes”) and a ring flashes where it hit.</li>
+<li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (keep its story forever), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>, <b>🧠 Brain</b> (shows its live brain).</li>
 </ul></details>
 
-<details><summary>The tools</summary>
+<details><summary>The tools, one by one</summary>
+<p><b>🌱 Build</b></p>
 <ul>
-<li><b>🍃 Food</b> — sprinkle plant pellets.</li>
-<li><b>🧱 Wall</b> — permanent wall; motes cannot swim through it. Fence off a species, build mazes, protect a nest.</li>
-<li><b>🌱 Farm</b> — a tile that keeps growing food (a permanent one, unlike motes' own).</li>
-<li><b>🪺 Nest</b> — heals motes standing on it, slows their energy drain, and gives newborns a boost.</li>
-<li><b>🏺 Granary</b> — stores energy. Motes can learn to deposit and withdraw.</li>
-<li><b>🔥 Heat / ❄️ Cold</b> — paint warm or cold zones. Every kind has a favourite temperature and a tolerance. They steer toward the warmth or chill they like and away from what is too hot or cold, and evolution adapts to your climate.</li>
-<li><b>☠️ Toxin</b> — poison (purple) that slowly spreads and fades. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
-<li><b>🔴🟢🔵 Scent A/B/C</b> — paint chemical signals. Every mote has an inherited like or dislike for each scent: some kinds are drawn to a scent and some run from it, and that taste evolves. Brains can also sense and release them, and what that <i>means</i> is up to evolution (see below).</li>
-<li><b>🦠 Plague</b> — infect motes you touch. It spreads on contact, drains energy, and then fades, leaving survivors briefly immune.</li>
-<li><b>⚡ Smite</b> — kill motes under the brush. <b>☄️ Meteor</b> — tap to drop one: it kills everything in the crater, burns the ground bare and leaves it hot and poisoned, then plants spring up around the rim. <b>✨ Spark</b> — tap to drop in a new founder. <b>🧹 Erase</b> — clears structures, food, toxin, heat and scents.</li>
+<li><b>🍃 Food</b>: sprinkle plant pellets.</li>
+<li><b>🧱 Wall</b>: a permanent wall. Nothing swims, sees or smells through it. Fence off a species, build mazes, protect a nest.</li>
+<li><b>🌱 Farm</b>: ground that keeps growing food by itself.</li>
+<li><b>🪺 Nest</b>: heals motes standing on it, slows their energy drain, and gives newborns a boost.</li>
+<li><b>🏺 Granary</b>: stores energy. Motes can learn to put some in and take some out.</li>
+<li><b>🧹 Erase</b>: clears structures, food, smells, heat and poison.</li>
+</ul>
+<p><b>🌡️ Climate</b></p>
+<ul>
+<li><b>🔥 Heat / ❄️ Cold</b>: warm or chilly patches. Every kind has a favourite temperature and a tolerance. They steer toward what they like and away from what is too hot or cold, and evolution adapts to your climate.</li>
+<li><b>☠️ Poison</b>: a purple cloud that slowly spreads and fades. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
+<li><b>🔴🟢🔵 Smell A / B / C</b>: every mote has an inherited like or dislike for each smell. Some kinds are drawn to a smell and some run from it, and that taste evolves. Brains can also sense and release smells, and what that <i>means</i> is up to evolution.</li>
+</ul>
+<p><b>⚡ Powers</b></p>
+<ul>
+<li><b>🦠 Plague</b>: touch motes to infect them. Sick motes glow green and pulse, lose energy, and pass the sickness to motes they touch. It wears off after about half a minute and leaves survivors briefly immune. Touch <i>right on</i> some motes. If you miss you get a message saying so.</li>
+<li><b>⚡ Smite</b>: kills the motes under your finger.</li>
+<li><b>☄️ Meteor</b>: tap to drop one. It kills everything in the crater, burns the ground bare and leaves it hot and poisoned, then plants spring up around the rim.</li>
+<li><b>✨ New life</b>: tap to drop in a brand-new creature, a new species with its own look.</li>
 </ul>
 <p>Player-built structures are permanent. Structures built by motes decay unless motes keep repairing them.</p></details>
 
@@ -217,7 +227,7 @@ export function guideHTML() {
 <li>Wall off half the dish for ten minutes (use 8×), then remove the wall and see which side evolved differently.</li>
 <li>Paint a ring of cold around one species' home. Do they evolve fat and armor, or migrate?</li>
 <li>Release a plague into the biggest herd. Who survives?</li>
-<li>Spotlight a species (Menu → Species → 🔦) and watch where its motes live and travel. Open 🌳 Tree to see how every species is related.</li>
+<li>Spotlight a species (☰ Menu → Species → 🔦) and watch where its motes live and travel. Open 🌳 Tree to see how every species is related.</li>
 <li>Build a wall with a gap and drop food behind it. Do they find the gap?</li>
 <li>Put a Scent A patch near food over and over. Does anyone start following it?</li>
 <li>Press <b>Spark</b> in a quiet corner a few times and watch the newcomers either take over or get eaten.</li>

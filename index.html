@@ -10,47 +10,96 @@
 <title>Motes</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:#0b0f14;color:#d8e2ee;font:13px/1.35 system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none}
+html,body{margin:0;height:100%;background:#0b0f14;color:#e2eaf3;font:15px/1.4 system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none}
 canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
-.bar{position:fixed;left:0;right:0;display:flex;gap:4px;padding:5px;overflow-x:auto;scrollbar-width:none}
-.bar::-webkit-scrollbar{display:none}
-#top{top:0;padding-top:max(5px,env(safe-area-inset-top));pointer-events:none}
-#top>*{pointer-events:auto}
-#bot{bottom:0;padding-bottom:max(5px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#0b0f14cc 40%)}
-button{font:inherit;color:#d8e2ee;background:#1a2330;border:1px solid #2c3a4d;border-radius:8px;padding:7px 10px;white-space:nowrap;flex:none}
+button{font:inherit;color:#e2eaf3;background:#1c2736;border:1px solid #33455c;border-radius:12px;padding:10px 14px;min-height:46px;white-space:nowrap;flex:none;cursor:pointer}
 button.on{background:#2f6f4f;border-color:#58c08a}
-button:active{filter:brightness(1.3)}
-#hud{flex:1;min-width:0;padding:6px 8px;background:#0b0f14b0;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#insp{position:fixed;left:6px;right:6px;bottom:56px;background:#101722f2;border:1px solid #2c3a4d;border-radius:10px;padding:8px;display:none;max-height:58vh;overflow:auto;touch-action:pan-y}
-#insp h3{margin:0 0 4px;font-size:15px}
-.bars{display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:12px}
-.bars i{display:block;height:7px;background:#223;border-radius:4px;overflow:hidden;align-self:center}
+button:active{filter:brightness(1.35);transform:scale(.97)}
+button.go{background:#2f6f4f;border-color:#58c08a;font-weight:600}
+button.bad{background:#5a2630;border-color:#c0586a}
+
+/* top bar: three big buttons and a status pill */
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));align-items:center;pointer-events:none}
+#top>*{pointer-events:auto}
+#top button{width:52px;height:52px;min-height:52px;padding:0;font-size:22px;background:#111a26e6;border-radius:14px}
+#top #bSpeed{font-size:17px;font-weight:600}
+#top #bMenu{width:auto;padding:0 16px;font-size:16px;margin-left:auto}
+#hud{position:fixed;left:10px;top:calc(max(8px,env(safe-area-inset-top)) + 58px);padding:4px 10px;background:#0b0f14b8;border-radius:12px;font-size:13px;pointer-events:none;max-width:calc(100vw - 20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* bottom dock: one big button per group of tools */
+#dock{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:8px 8px max(10px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#0b0f14f0 28%)}
+#dock button{flex:1;min-width:0;min-height:62px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;border-radius:16px;background:#162030f2}
+#dock button .ic{font-size:24px;line-height:1.1}
+#dock button.on{background:#2f6f4f}
+
+/* sheets that slide above the dock */
+#sheet,#strip{position:fixed;left:8px;right:8px;bottom:calc(84px + env(safe-area-inset-bottom));background:#0f1722f7;border:1px solid #33455c;border-radius:18px;padding:10px;display:none;box-shadow:0 8px 30px #000a}
+#sheet{max-height:62vh;overflow:auto;touch-action:pan-y}
+#sheet h4{margin:2px 4px 8px;font-size:14px;color:#9fb0c4;font-weight:600}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{display:flex;gap:10px;align-items:flex-start;text-align:left;white-space:normal;min-height:78px;padding:10px 12px;border-radius:14px}
+.tile .ic{font-size:28px;line-height:1.1}
+.tile b{display:block;font-size:15px}
+.tile small{display:block;color:#93a5ba;font-size:12px;line-height:1.3;margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:50px;padding:0 16px}
+#strip{display:none;align-items:center;gap:10px;flex-wrap:wrap}
+#strip .ic{font-size:30px}
+#strip .txt{flex:1 1 150px;min-width:0}
+#strip .txt b{display:block;font-size:16px}
+#strip .txt small{color:#93a5ba;font-size:12.5px;line-height:1.3;display:block}
+#strip .brush{display:flex;gap:6px}
+#strip .brush button{width:52px;padding:0}
+#strip #stripDone{min-width:96px}
+
+/* selected-mote panel */
+#insp{position:fixed;left:8px;right:8px;bottom:calc(84px + env(safe-area-inset-bottom));background:#0f1722f7;border:1px solid #33455c;border-radius:18px;padding:12px;display:none;max-height:56vh;overflow:auto;touch-action:pan-y;box-shadow:0 8px 30px #000a}
+#insp h3{margin:0 0 4px;font-size:18px}
+#insp .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+#insp .btns button{padding:0 6px;min-height:50px;white-space:normal;line-height:1.15}
+.bars{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px;margin:6px 0}
+.bars i{display:block;height:8px;background:#223;border-radius:4px;overflow:hidden;align-self:center}
 .bars i b{display:block;height:100%;background:#58c08a}
-#brain{width:100%;height:190px;background:#0a0f16;border-radius:6px;margin-top:6px}
-#menu{position:fixed;inset:0;background:#0b0f14f5;display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
-#menu .tabs{display:flex;gap:4px;padding:6px;overflow-x:auto}
-#menu .body{flex:1;overflow:auto;padding:8px;touch-action:pan-y;user-select:text}
-.row{padding:5px 0;border-bottom:1px solid #1d2836}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
-.dim{color:#7c8da1}
+#brain{width:100%;height:190px;background:#0a0f16;border-radius:8px;margin-top:6px}
+#brainBtn{width:100%;margin-top:6px}
+
+/* menu: a big home screen of cards, and pages with a Back button */
+#menu{position:fixed;inset:0;background:#0b0f14fa;display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.mhead{display:flex;align-items:center;gap:8px;padding:10px}
+.mhead button{width:56px;min-height:52px;padding:0;font-size:22px}
+.mhead #mTitle{flex:1;font-size:19px;font-weight:600;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#menu .body{flex:1;overflow:auto;padding:10px;padding-bottom:max(20px,env(safe-area-inset-bottom));touch-action:pan-y;user-select:text}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;white-space:normal;min-height:108px;padding:14px;border-radius:16px}
+.card .ic{font-size:30px}.card b{font-size:16px}.card small{color:#93a5ba;font-size:12.5px;line-height:1.3}
+.row{padding:9px 0;border-bottom:1px solid #1d2836}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dim{color:#8a9bb0}
 .k-species{color:#8fd1ff}.k-first{color:#ffd37a}.k-event{color:#ff9a7a}.k-fav{color:#ffe14d}.k-life{color:#9fe0a8}
-#over{position:fixed;inset:0;background:#0b0f14ee;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:20px}
+#over{position:fixed;inset:0;background:#0b0f14ee;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:20px}
+#over button{min-width:220px;min-height:54px;font-size:16px}
 #prog{width:240px;height:8px;background:#223;border-radius:4px;overflow:hidden}#prog b{display:block;height:100%;width:0;background:#58c08a}
-textarea{width:100%;height:90px;background:#0a0f16;color:#d8e2ee;border:1px solid #2c3a4d;border-radius:6px;user-select:text}
-details{border:1px solid #223044;border-radius:8px;margin:6px 0;padding:0 10px;background:#0e151e}
-summary{padding:10px 0;font-weight:600;cursor:pointer}
+textarea{width:100%;height:90px;background:#0a0f16;color:#e2eaf3;border:1px solid #33455c;border-radius:8px;user-select:text;font-size:14px}
+details{border:1px solid #223044;border-radius:12px;margin:8px 0;padding:0 12px;background:#0e151e}
+summary{padding:14px 0;font-weight:600;cursor:pointer;font-size:16px}
 details[open] summary{border-bottom:1px solid #223044;margin-bottom:6px}
-#mbody li{margin:3px 0}#mbody h4{margin:10px 0 4px}#mbody ul{padding-left:18px;margin:6px 0}
-label{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0}
-input[type=range]{flex:1}
+#mbody li{margin:5px 0}#mbody h4{margin:14px 0 6px}#mbody ul{padding-left:20px;margin:6px 0}
+#mbody button{margin:2px 0}
+label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0}
+input[type=range]{flex:1;height:36px}
+input[type=checkbox]{width:26px;height:26px}
+@media (min-width:700px){#sheet,#strip,#insp{left:50%;right:auto;transform:translateX(-50%);width:620px}#dock{max-width:620px;margin:0 auto}#menu .body,.mhead{max-width:760px;width:100%;margin:0 auto}.tiles{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="top" class="bar"><div id="hud">Motes</div><button id="bPause">⏸</button><button id="bSpeed">1×</button><button id="bView">View</button><button id="bHelp">?</button><button id="bMenu">☰</button></div>
+<div id="top"><button id="bPause" aria-label="Pause">⏸</button><button id="bSpeed" aria-label="Speed">1×</button><button id="bView" aria-label="Choose what to show on the dish">👁</button><button id="bMenu">☰ Menu</button></div>
+<div id="hud">Motes</div>
 <div id="insp"></div>
-<div id="bot" class="bar" id="tools"></div>
-<div id="menu"><div class="tabs" id="tabs"></div><div class="body" id="mbody"></div></div>
+<div id="sheet"></div>
+<div id="strip"></div>
+<div id="dock"></div>
+<div id="menu"><div class="mhead"><button id="mBack" aria-label="Back">←</button><div id="mTitle">Menu</div><button id="mClose" aria-label="Close">✕</button></div><div class="body" id="mbody"></div></div>
 <div id="over"></div>
 <script type="module" src="ui.js"></script>
 </body>

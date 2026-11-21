@@ -21,6 +21,7 @@ Files: `sim.js` (the engine, pure JS), `ui.js` + `index.html` (plain UI), `sw.js
 - **Short-term memory**: each mote remembers where it last saw food and where it was last hurt (fades over ~15 s), readable by its brain as senses.
 - **Walls are solid**: they block movement, sight, smell and the spread of scents. **Pods**: strongly bonded friends stay together and share energy. **Disasters**: meteors, ice age, drought, plus the older events.
 - **Looks**: six body styles, spikes, eyes, frills, glow (all inherited).
+- **Controls**: built for thumbs. Four big buttons at the bottom (Look, Build, Climate, Powers) open panels of tools that each explain themselves; the active tool shows a bar with brush size and a Done button; powers report what they did (for example Infected 3 motes). The Menu is a home screen of big cards with a Back button.
 - **Tools for you**: spotlight a species, family tree of species (🌳), save a picture, optional sound and haptics, backup storage for big dishes.
 - **Brain viewer**: tap a mote to see its actual network, live, with activations.
 - **While you are away** the dish keeps living (1 away-second = 0.25 dish-seconds, capped at 40 dish-minutes), with a welcome-back report. The last few motes are protected during catch-up.
