@@ -290,6 +290,7 @@ export function createWorld(seed = 1) {
     }
   }
   log(w, 'The dish is seeded. Six kinds of life, ' + w.motes.length + ' motes.', 'life');
+  sample(w);
   return w;
 }
 
