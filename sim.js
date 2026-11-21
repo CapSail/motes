@@ -49,8 +49,10 @@ export const B = {
   BOND: 28,   // how easily it makes friends
   // look genes: skin pattern, accent colour, antennae, tail fin
   PATTERN: 29, ACCENT: 30, ANTENNA: 31, FIN: 32,
+  // smell genes: how strongly it is drawn to (above 0.5) or repelled by (below 0.5) each of the three scents
+  SC_A: 33, SC_B: 34, SC_C: 35,
 };
-export const NB = 33;
+export const NB = 36;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -191,6 +193,7 @@ function bodyOf(o) {
   const b = new Float32Array(NB).fill(0.5);
   b[B.MUT] = 0.45; b[B.BRAINMUT] = 0.45; b[B.REPRO] = 0.4; b[B.INVEST] = 0.5; b[B.LIFE] = 0.5; b[B.MATURE] = 0.3; b[B.EFFIC] = 0.5;
   b[B.TOXR] = 0.15; b[B.DISR] = 0.2; b[B.ARMOR] = 0.1; b[B.PHOTO] = 0.0; b[B.FAT] = 0.4; b[B.TTOL] = 0.55;
+  for (let k = 0; k < 3; k++) b[B.SC_A + k] = 0.5 + (rand() < 0.5 ? -1 : 1) * (0.25 + rand() * 0.25);
   for (const k in o) b[B[k]] = o[k];
   return b;
 }
@@ -313,7 +316,9 @@ function derive(m) {
   const b = m.g.b;
   m.r = 2.8 + b[B.SIZE] * 6.2;
   m.maxSp = 12 + b[B.SPEED] * 55;
-  m.senseR = 30 + b[B.SENSE] * 110;
+  // sight/hunting range is now long (50-240); smell (food) reaches a further 50% beyond that
+  m.senseR = 50 + b[B.SENSE] * 190;
+  m.aff = [(b[B.SC_A] - 0.5) * 2, (b[B.SC_B] - 0.5) * 2, (b[B.SC_C] - 0.5) * 2];
   m.diet = b[B.DIET]; m.armor = b[B.ARMOR]; m.photo = b[B.PHOTO];
   m.cap = 50 + m.r * 16 + b[B.FAT] * 60;
   m.life = 140 + b[B.LIFE] * 340;
@@ -336,7 +341,7 @@ function derive(m) {
   // looks with small consequences: a tail fin makes swimming cheaper, antennae see a bit further but cost a little to keep
   m.pat = Math.floor(b[B.PATTERN] * 3.99); m.accent = (m.hue + 0.25 + b[B.ACCENT] * 0.5) % 1;
   m.ant = Math.floor(b[B.ANTENNA] * 3.99); m.fin = b[B.FIN];
-  m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= 1 + 0.05 * m.ant; m.basal += 0.025 * m.ant + 0.05 * m.fin;
+  m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= (1 + 0.05 * m.ant) * (1 + 0.15 * m.diet); m.basal += 0.025 * m.ant + 0.05 * m.fin;
 }
 function makeMote(w, g, x, y, e, gen) {
   const m = {
@@ -345,7 +350,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    aff: [0, 0, 0], rt: 0, rth: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -503,8 +508,8 @@ export function step(w, dt) {
 function body(w, m, dt, tempG) {
   const o = m.o;
   // steering and motion
-  m.h += clamp(o[OUT.TURN], -1, 1) * m.turnRate * dt;
-  const target = clamp(o[OUT.THRUST], 0, 1) * m.maxSp;
+  m.h += clamp(o[OUT.TURN] + m.rt, -1.5, 1.5) * m.turnRate * dt;
+  const target = clamp(o[OUT.THRUST] + m.rth, 0, 1) * m.maxSp;
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
   let nx = m.x + ch * m.v * dt, ny = m.y + sh * m.v * dt;
@@ -519,7 +524,7 @@ function body(w, m, dt, tempG) {
 
   // metabolism
   const idx = cidx(m.x, m.y);
-  let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.003 * m.senseR + m.bcost;
+  let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.0012 * m.senseR + m.bcost;
   if (o[OUT.BITE] > 0.3) drain += 0.3;
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
   drain += 0.12 * em;
@@ -547,8 +552,9 @@ function think(w, m, i, dtt) {
   const motes = w.motes, food = w.food, H = w.hash, inp = m.inp;
   inp.fill(0);
   const ch = Math.cos(m.h), sh = Math.sin(m.h), s = m.senseR, s2 = s * s;
-  const x0 = Math.max(0, Math.floor((m.x + R - s) / HS)), x1 = Math.min(HN - 1, Math.floor((m.x + R + s) / HS));
-  const y0 = Math.max(0, Math.floor((m.y + R - s) / HS)), y1 = Math.min(HN - 1, Math.floor((m.y + R + s) / HS));
+  const sm = s * 1.5, sm2 = sm * sm;           // smell: food is noticed from further away than motes are seen
+  const x0 = Math.max(0, Math.floor((m.x + R - sm) / HS)), x1 = Math.min(HN - 1, Math.floor((m.x + R + sm) / HS));
+  const y0 = Math.max(0, Math.floor((m.y + R - sm) / HS)), y1 = Math.min(HN - 1, Math.floor((m.y + R + sm) / HS));
   let bp = -1, bpd = 1e9, bm = -1, bmd = 1e9, bn = -1, bnd = 1e9, bk = -1, bkd = 1e9, count = 0, kin = 0;
   const infectR = m.sick > 0 ? (m.r + 8) : 0;
   let bfm = -1, bfmd = 1e9, fam = 0, bfr = -1, bfrd = 1e9;
@@ -557,7 +563,7 @@ function think(w, m, i, dtt) {
     const c = cy * HN + cx;
     for (let f = H.fh[c]; f >= 0; f = H.fn[f]) {
       const fo = food[f]; if (fo.dead) continue;
-      const dx = fo.x - m.x, dy = fo.y - m.y, d2 = dx * dx + dy * dy; if (d2 > s2) continue;
+      const dx = fo.x - m.x, dy = fo.y - m.y, d2 = dx * dx + dy * dy; if (d2 > sm2) continue;
       if (fo.k === 0) { if (d2 < bpd) { bpd = d2; bp = f; } } else if (d2 < bmd) { bmd = d2; bm = f; }
     }
     for (let q = H.mh[c]; q >= 0; q = H.mn[q]) {
@@ -576,13 +582,13 @@ function think(w, m, i, dtt) {
   // -- inputs
   inp[IN.BIAS] = 1;
   inp[IN.ENERGY] = m.e / m.cap; inp[IN.AGE] = m.age / m.life; inp[IN.SPEED] = m.v / m.maxSp;
-  const polar = (ox, oy, d2, fi, si) => {
-    const d = Math.sqrt(d2) || 1, prox = 1 - d / s, dx = ox - m.x, dy = oy - m.y;
+  const polar = (ox, oy, d2, fi, si, rng) => {
+    const d = Math.sqrt(d2) || 1, prox = 1 - d / (rng || s), dx = ox - m.x, dy = oy - m.y;
     inp[fi] = ((dx * ch + dy * sh) / d) * prox; inp[si] = ((dy * ch - dx * sh) / d) * prox;
     return prox;
   };
-  if (bp >= 0) polar(food[bp].x, food[bp].y, bpd, IN.PLANT_F, IN.PLANT_S);
-  if (bm >= 0) polar(food[bm].x, food[bm].y, bmd, IN.MEAT_F, IN.MEAT_S);
+  if (bp >= 0) polar(food[bp].x, food[bp].y, bpd, IN.PLANT_F, IN.PLANT_S, sm);
+  if (bm >= 0) polar(food[bm].x, food[bm].y, bmd, IN.MEAT_F, IN.MEAT_S, sm);
   let tgt = null, tgtD2 = 0;
   if (bn >= 0) {
     const o = motes[bn]; tgt = o; tgtD2 = bnd;
@@ -622,7 +628,48 @@ function think(w, m, i, dtt) {
       inp[IN.GA_F + k * 2] = Math.tanh(((fx >= 0 ? arr[fx] : 0) - (bx >= 0 ? arr[bx] : 0)) * 6);
       inp[IN.GA_S + k * 2] = Math.tanh(((lx >= 0 ? arr[lx] : 0) - (rx >= 0 ? arr[rx] : 0)) * 6);
     }
-  }
+    // innate smell reflex (independent of the brain, added to steering): sniff three cells out and a bit further,
+    // be drawn to scents it likes and pushed away from ones it dislikes; everybody flees toxin
+    let rt = 0, rth = 0;
+    const sniff = (arr, dist) => {
+      const f = cidx(m.x + ch * dist, m.y + sh * dist), l = cidx(m.x - sh * dist, m.y + ch * dist), r = cidx(m.x + sh * dist, m.y - ch * dist);
+      const here = arr[idx], ahead = f >= 0 ? arr[f] : 0;
+      return [ahead - here, (l >= 0 ? arr[l] : 0) - (r >= 0 ? arr[r] : 0), here + ahead];
+    };
+    for (let k = 0; k < 3; k++) {
+      const a = m.aff[k]; if (a > -0.12 && a < 0.12) continue;
+      const arr = w.chem[k];
+      let tf = 0, ts = 0, tot = 0;
+      for (let q = 1; q <= 2; q++) { const [gf, gs, c] = sniff(arr, q * 26); tf += gf; ts += gs; tot += c; }
+      if (tot < 0.01) continue;
+      const side = Math.tanh(ts * 5), fwd = Math.tanh(tf * 5);
+      // drawn: turn toward the stronger side, speed up while it gets stronger, turn around when it is behind
+      // repelled: the opposite
+      const bad = Math.max(0, a > 0 ? -fwd : fwd);
+      rt += a * side * 1.9 + (m.id & 1 ? 1 : -1) * Math.abs(a) * bad * 1.2;
+      rth += a * fwd * 1.2 + Math.abs(a) * 0.25 * Math.tanh(tot);
+    }
+    const tgx = sniff(w.tox, 26);
+    if (tgx[2] > 0.01) {
+      const fear = 1.4 * (1 - m.toxr * 0.6), side = Math.tanh(tgx[1] * 6), fwd = Math.tanh(tgx[0] * 6);
+      rt += -fear * side * 1.4 + (fwd > 0 ? (m.id & 1 ? 1 : -1) * fwd * fear : 0);
+      rth += fear * 0.5 - fear * fwd * 0.6;
+    }
+    // temperature: head toward the warmth or cold it prefers, shy away from what is too hot or too cold for it
+    {
+      const T = w.tempG - m.tpref, hv = w.heat, d = 26;
+      const f = cidx(m.x + ch * d, m.y + sh * d), l = cidx(m.x - sh * d, m.y + ch * d), r = cidx(m.x + sh * d, m.y - ch * d);
+      const bad0 = Math.abs(T + hv[idx]);
+      const vf = f >= 0 ? Math.abs(T + hv[f]) : bad0, vl = l >= 0 ? Math.abs(T + hv[l]) : bad0, vr = r >= 0 ? Math.abs(T + hv[r]) : bad0;
+      const dis = clamp((bad0 - m.ttol * 0.4) / 0.5, 0, 1), sc = 0.35 + 0.65 * dis;
+      const fwd = Math.tanh((bad0 - vf) * 6), side = Math.tanh((vr - vl) * 6);
+      if (Math.abs(fwd) + Math.abs(side) > 0.05 || dis > 0) {
+        rt += sc * (side * 1.2 + (m.id & 1 ? 1 : -1) * Math.max(0, -fwd) * 0.9);
+        rth += sc * fwd * 0.6 + dis * 0.3;
+      }
+    }
+    m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1);
+  } else { m.rt = 0; m.rth = 0; }
   inp[IN.LIGHT] = w.light - 0.6; inp[IN.SICK] = m.sick > 0 ? 1 : 0;
   inp[IN.CLOCK] = Math.sin(w.t * 0.9 + (m.id % 7)); inp[IN.NOISE] = rand() * 2 - 1;
   inp[IN.HURT] = m.hurt > 0 ? 1 : 0;
@@ -790,7 +837,7 @@ function structures(w, dt) {
 }
 function fields(w, dt) {
   const N = GN * GN, heat = w.heat, tox = w.tox, ch = w.chem;
-  const dh = Math.exp(-0.012 * dt), dtx = Math.exp(-0.03 * dt), dc = Math.exp(-0.32 * dt);
+  const dh = Math.exp(-0.012 * dt), dtx = Math.exp(-0.03 * dt), dc = Math.exp(-0.16 * dt);
   for (let i = 0; i < N; i++) { heat[i] *= dh; tox[i] *= dtx; }
   for (let k = 0; k < 3; k++) {
     const a = ch[k]; let any = false;
@@ -929,7 +976,7 @@ function b64u8(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (le
 const q8 = (f, scale, off = 0) => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = clamp(Math.round(f[i] * scale + off), 0, 255); return u; };
 const f8 = (u, scale, off = 0) => { const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = (u[i] - off) / scale; return f; };
 function packG(g) { return { b: u8b64(q8(g.b, 255)), h: g.h, c: g.c.map(c => [c.s, c.d, Math.round(c.w * 1000) / 1000]) }; }
-function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
+function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = i >= B.SC_A ? 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.25) : 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
 
 export function serialize(w) {
   return JSON.stringify({

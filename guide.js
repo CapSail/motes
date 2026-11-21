@@ -97,7 +97,7 @@ export function guideHTML() {
 <ul>
 <li><b>Look</b> tool: drag to pan, tap a mote to select it. <b>Pinch</b> (phone) or <b>mouse wheel</b> (PC) to zoom.</li>
 <li>Any other tool: drag on the dish to paint it. With a paint tool active, use <b>two fingers</b> to pan/zoom (PC: right or middle mouse drag to pan).</li>
-<li>Top bar: <b>⏸</b> pause (Space on PC), the speed button cycles 1× / 3× / 8× / 0.4×, <b>View</b> cycles overlays (scents, heat, toxin), <b>?</b> opens this guide, <b>☰</b> opens the menu.</li>
+<li>Top bar: <b>⏸</b> pause (Space on PC), the speed button cycles 1× / 3× / 8× / 0.4×, <b>View</b> cycles overlays (everything at once, then each scent, heat, toxin alone). Scents, heat and toxin always show on the dish, <b>?</b> opens this guide, <b>☰</b> opens the menu.</li>
 <li><b>◯ S/M/L</b> at the end of the tool bar changes brush size.</li>
 <li>Selected mote buttons: <b>Follow</b> (camera tracks it), <b>☆ Star</b> (keep its story forever), <b>Feed</b>, <b>Clone</b> (a mutated copy), <b>Rename</b>.</li>
 </ul></details>
@@ -109,9 +109,9 @@ export function guideHTML() {
 <li><b>🌱 Farm</b> — a tile that keeps growing food (a permanent one, unlike motes' own).</li>
 <li><b>🪺 Nest</b> — heals motes standing on it, slows their energy drain, and gives newborns a boost.</li>
 <li><b>🏺 Granary</b> — stores energy. Motes can learn to deposit and withdraw.</li>
-<li><b>🔥 Heat / ❄️ Cold</b> — paint warm or cold zones. Species have a preferred temperature and tolerance; evolution adapts to your climate.</li>
-<li><b>☠️ Toxin</b> — poison that slowly spreads and fades. Resistance costs energy but evolves.</li>
-<li><b>🔴🟢🔵 Scent A/B/C</b> — paint chemical signals. Motes can sense them and release them. What they <i>mean</i> is up to evolution (see below).</li>
+<li><b>🔥 Heat / ❄️ Cold</b> — paint warm or cold zones. Every kind has a favourite temperature and a tolerance. They steer toward the warmth or chill they like and away from what is too hot or cold, and evolution adapts to your climate.</li>
+<li><b>☠️ Toxin</b> — poison (purple) that slowly spreads and fades. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
+<li><b>🔴🟢🔵 Scent A/B/C</b> — paint chemical signals. Every mote has an inherited like or dislike for each scent: some kinds are drawn to a scent and some run from it, and that taste evolves. Brains can also sense and release them, and what that <i>means</i> is up to evolution (see below).</li>
 <li><b>🦠 Plague</b> — infect motes you touch. It spreads on contact, drains energy, and then fades, leaving survivors briefly immune.</li>
 <li><b>⚡ Smite</b> — kill motes under the brush. <b>✨ Spark</b> — tap to create a new, unrelated founder. <b>🧹 Erase</b> — clears structures, food, toxin, heat and scents.</li>
 </ul>
@@ -159,7 +159,7 @@ export function guideHTML() {
 <ul>
 <li><b>Day and night:</b> daylight rises and falls over a 200-second day. Plants grow faster in daylight, and sun-feeding motes only earn energy by day.</li>
 <li><b>Food:</b> plant pellets grow in clumps, so some places are rich and some are deserts. When a mote dies it leaves <b>meat</b> that rots away in about a minute. Hunters and scavengers digest meat well.</li>
-<li><b>Temperature, toxin and scents</b> are fields you can see with the <b>View</b> button. Toxin spreads slowly. Scents spread and fade quickly, so they work like short-range messages and trails.</li>
+<li><b>Temperature, toxin and scents</b> are fields you can see with the <b>View</b> button. Toxin spreads slowly. Scents spread and fade over about half a minute, so they work like messages and trails. Motes that are releasing a scent show a coloured ripple.</li>
 <li><b>Structures</b> motes can build: walls (block movement), farms (grow food), nests (heal and boost babies), granaries (store energy). They decay unless motes repair them by building the same thing again on them. A mote can also dig them down, so raiders are possible.</li>
 <li><b>Random events</b> (optional, on by default): blooms of food, cold snaps, heatwaves, plagues and toxic spills. You can also call them yourself from Menu → Dish.</li>
 </ul></details>

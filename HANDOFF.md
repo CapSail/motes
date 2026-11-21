@@ -30,3 +30,10 @@
 
 ## 2026-11-20 (late): install instructions for every phone type
 - Cap wanted instructions for new users on making it an app for each phone type. Added a **📲 Install** menu tab (detects Android Chrome, Samsung Internet, iPhone/iPad Safari, Firefox Android, desktop; opens and marks the visitor's own section; shows a one-tap "Install Motes now" button when the browser fires `beforeinstallprompt`; says "already installed" in standalone mode), an "Install it as an app" button on the first-visit screen, and an Install section in `README.md`. Checked with Android emulation in the browser pane. iOS and Samsung steps are written from known behaviour, not tested on those devices.
+
+## 2026-11-20 (night): scents, toxin and temperature you can see; longer senses
+- Cap could not tell that toxin/scent buttons did anything. Fixes: **overlays are always on** (all scents, heat, cold, toxin drawn together; the View button still isolates one); a hint line appears when you pick a tool; the brush glows in the tool's colour; motes in toxin get a purple ring; motes releasing a scent give off a coloured ripple.
+- Motes now react. **3 new smell genes** (NB=36, `SC_A/B/C`): each mote is drawn to or repelled by each scent (old saves get random tastes). A brain-independent reflex steers by sniffing 26 and 52 units out; **everyone flees toxin** (less so with resistance); **everyone steers toward the temperature it prefers** and away from too hot/cold. `scripts/reflex-test.mjs` checks it: likers move toward a poured scent, haters away, toxin area ends up almost empty.
+- **Sense range**: sight/hunting 30-140 became 50-240 (hunters +15%), and **smell of food reaches 1.5x** further than sight. Upkeep cost per range cut (0.003 to 0.0012). A first try at 60-320 with +30% hunters crashed the prey, so it was dialled back; seeds 1-2 stay healthy (pop 90-120).
+- Scents now fade slower (decay 0.32 to 0.16/s) so they spread and linger.
+- The starter dish was not re-evolved (brains still tuned for the short range); genes load padded. Not tested on a real phone.

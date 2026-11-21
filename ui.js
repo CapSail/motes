@@ -96,7 +96,24 @@ const bot = $('bot');
 for (const [id, label] of TOOLS) { const b = document.createElement('button'); b.textContent = label; b.dataset.t = id; bot.appendChild(b); }
 const bBrush = document.createElement('button'); bBrush.textContent = '◯ M'; bot.appendChild(bBrush);
 function syncTools() { for (const b of bot.children) b.classList.toggle('on', b.dataset.t === tool); }
-bot.onclick = e => { const t = e.target.dataset && e.target.dataset.t; if (t) { tool = t; syncTools(); } };
+const HINTS = {
+  look: 'Look: tap a mote to inspect it, drag to pan, pinch to zoom.',
+  food: 'Food: hold and drag to sprinkle plants. Hungry motes smell it from far away.',
+  wall: 'Wall: paint barriers. Motes steer around them.', farm: 'Farm: paint ground that keeps growing food.', nest: 'Nest: paint a place that heals motes and helps newborns.', granary: 'Granary: paint a store where motes can hoard energy.',
+  heat: 'Heat: paint warmth (orange). Each kind has a favourite temperature: some seek it, others flee, and too hot drains energy.',
+  cold: 'Cold: paint chill (blue). Each kind has a favourite temperature: some seek it, others flee, and too cold drains energy.',
+  toxin: 'Toxin: paint poison (purple). Everything flees it and anything standing in it loses energy fast. It fades slowly.',
+  chemA: 'Scent A (red): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
+  chemB: 'Scent B (green): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
+  chemC: 'Scent C (blue): motes smell it. Some kinds are drawn to it and some run from it. Watch them react.',
+  plague: 'Plague: infect the motes under your finger.', smite: 'Smite: kill the motes under your finger.', spark: 'Spark: tap to give a mote a lucky random mutation.', erase: 'Erase: clears structures, food, scents, heat and toxin.',
+};
+const hintEl = document.createElement('div');
+hintEl.style.cssText = 'position:fixed;left:50%;top:54px;transform:translateX(-50%);max-width:90vw;background:#000c;color:#fff;border:1px solid #fff3;border-radius:10px;padding:6px 12px;font-size:13px;line-height:1.3;z-index:20;pointer-events:none;transition:opacity .4s;opacity:0;text-align:center';
+document.body.appendChild(hintEl);
+let hintT = 0;
+function showHint(t) { hintEl.textContent = HINTS[t] || ''; hintEl.style.opacity = 1; clearTimeout(hintT); hintT = setTimeout(() => { hintEl.style.opacity = 0; }, 5000); }
+bot.onclick = e => { const t = e.target.dataset && e.target.dataset.t; if (t) { tool = t; syncTools(); showHint(t); } };
 bBrush.onclick = () => { brush = brush === 20 ? 40 : brush === 40 ? 80 : 20; bBrush.textContent = '◯ ' + (brush === 20 ? 'S' : brush === 40 ? 'M' : 'L'); };
 syncTools();
 $('bPause').onclick = () => { paused = !paused; $('bPause').textContent = paused ? '▶' : '⏸'; };
@@ -340,11 +357,14 @@ const ov = document.createElement('canvas'); ov.width = GN; ov.height = GN; cons
 let ovT = 0;
 function updOverlay() {
   const d = oimg.data;
+  // view 0 shows every field at once (scents, heat, cold, toxin); views 1-5 show just one
+  const CC = [[255, 70, 70], [70, 255, 110], [90, 140, 255]];
   for (let i = 0; i < GN * GN; i++) {
     let r = 0, g = 0, b = 0, a = 0;
-    if (view >= 1 && view <= 3) { const v = Math.min(1, w.chem[view - 1][i] * 0.8); [r, g, b] = [[255, 70, 70], [70, 255, 110], [90, 140, 255]][view - 1]; a = v * 200; }
-    else if (view === 4) { const h = w.heat[i]; if (h > 0.02) { r = 255; g = 130; b = 30; a = Math.min(1, h) * 170; } else if (h < -0.02) { r = 80; g = 170; b = 255; a = Math.min(1, -h) * 170; } }
-    else if (view === 5) { r = 170; g = 60; b = 255; a = Math.min(1, w.tox[i]) * 200; }
+    const add = (c, al) => { if (al < 4) return; const t = a + al; r = (r * a + c[0] * al) / t; g = (g * a + c[1] * al) / t; b = (b * a + c[2] * al) / t; a = Math.min(235, t); };
+    for (let k = 0; k < 3; k++) if (view === 0 || view === k + 1) add(CC[k], Math.min(1, w.chem[k][i] * 1.1) * 210);
+    if (view === 0 || view === 4) { const h = w.heat[i]; if (h > 0.03) add([255, 130, 30], Math.min(1, h) * 190); else if (h < -0.03) add([80, 170, 255], Math.min(1, -h) * 190); }
+    if (view === 0 || view === 5) add([180, 60, 255], Math.min(1, w.tox[i] * 1.3) * 230);
     d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = a;
   }
   octx.putImageData(oimg, 0, 0);
@@ -415,7 +435,8 @@ function draw() {
   const lum = Math.round(14 + 14 * w.light);
   ctx.fillStyle = `rgb(${lum},${lum + 4},${lum + 10})`; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
   ctx.strokeStyle = '#2a3a4e'; ctx.lineWidth = 4; ctx.stroke();
-  if (view) { if (performance.now() - ovT > 250) { updOverlay(); ovT = performance.now(); } ctx.imageSmoothingEnabled = true; ctx.drawImage(ov, -R, -R, GN * CELL, GN * CELL); }
+  if (performance.now() - ovT > 200) { updOverlay(); ovT = performance.now(); }
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(ov, -R, -R, GN * CELL, GN * CELL);
   // structures
   const x0 = Math.max(0, Math.floor((cam.x - W / 2 / cam.z + R) / CELL)), x1 = Math.min(GN - 1, Math.floor((cam.x + W / 2 / cam.z + R) / CELL));
   const y0 = Math.max(0, Math.floor((cam.y - H / 2 / cam.z + R) / CELL)), y1 = Math.min(GN - 1, Math.floor((cam.y + H / 2 / cam.z + R) / CELL));
@@ -436,6 +457,8 @@ function draw() {
   // motes
   for (const m of w.motes) {
     drawSquiggle(m, dtv);
+    if (m.hurt > 0 && m.why2 === 'toxin') { ctx.strokeStyle = '#c6f'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + Math.sin(performance.now() / 70) * 1.5, 0, 7); ctx.stroke(); }
+    for (let k = 0; k < 3; k++) { const e = m.o[S.OUT.EMIT_A + k]; if (e > 0.05) { const ph = ((performance.now() / 700 + m.id * 0.37 + k * 0.33) % 1); ctx.strokeStyle = ['#ff4646', '#46ff6e', '#5a8cff'][k]; ctx.globalAlpha = (1 - ph) * 0.8; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + ph * 22, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
     if (m.sick > 0) { ctx.strokeStyle = '#9f4'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 2, 0, 7); ctx.stroke(); }
     if (m.fav) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3, 0, 7); ctx.stroke(); }
     if (m.o[S.OUT.BITE] > 0.3 && m.hurt < 0.1) { ctx.fillStyle = '#ff0'; ctx.fillRect(m.x - 1, m.y - m.r - 4, 2, 2); }
@@ -449,7 +472,11 @@ function draw() {
     ctx.setLineDash([]);
     ctx.strokeStyle = '#ffffff30'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.senseR, 0, 7); ctx.stroke(); ctx.setLineDash([]);
   }
-  if (painting && tool !== 'look') { ctx.strokeStyle = '#fff8'; ctx.lineWidth = 1.5 / cam.z; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.stroke(); }
+  if (painting && tool !== 'look') {
+    const tc = { toxin: '#c6f', heat: '#fa4', cold: '#8cf', chemA: '#f55', chemB: '#5f7', chemC: '#58f' }[tool];
+    if (tc) { ctx.fillStyle = tc; ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = tc || '#fff8'; ctx.lineWidth = 1.5 / cam.z; ctx.beginPath(); ctx.arc(painting.x, painting.y, brush, 0, 7); ctx.stroke();
+  }
   ctx.restore();
 }
 
