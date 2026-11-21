@@ -1,5 +1,4 @@
 node_modules
-scripts/evo2/
-scripts/evo3/
-scripts/evo4/
-scripts/evo5/
+scripts/evo*/
+scripts/seeds/
+scripts/pool*.json

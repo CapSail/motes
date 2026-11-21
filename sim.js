@@ -8,6 +8,7 @@
 // give-or-take energy, willingness to mate. Nobody wrote what the chemicals mean, what the granary is for,
 // or whether taking energy from a neighbour is a good idea. Evolution decides.
 
+import { PACK } from './founders.js';
 export const R = 700;                    // dish radius
 export const CELL = 14;                  // structure/field grid cell
 export const GN = Math.ceil((2 * R) / CELL);
@@ -76,6 +77,13 @@ export function innovState() { return INNOV; }
 
 // ---------- names ----------
 const SYL = ['bo', 'zu', 'mi', 'ka', 'lo', 'pi', 'ta', 'ne', 'gu', 'fi', 'ra', 'so', 'vi', 'wu', 'de', 'ya', 'qui', 'zo', 'mo', 'li', 'nu', 'be', 'cha', 'dro', 'fle', 'gri', 'sha', 'tri', 'plo', 'ski'];
+// creatures get American names: a first name, and children carry their parent's last name, so families are easy to spot
+const FIRST = ('James Mary Robert Patricia John Jennifer Michael Linda William Elizabeth David Barbara Richard Susan Joseph Jessica Thomas Sarah Charles Karen Christopher Lisa Daniel Nancy Matthew Betty Anthony Sandra Mark Ashley Donald Kimberly Steven Emily Paul Donna Andrew Michelle Joshua Carol Kenneth Amanda Kevin Melissa Brian Deborah George Stephanie Edward Rebecca Ronald Laura Timothy Sharon Jason Cynthia Jeffrey Kathleen Ryan Amy Jacob Angela Gary Shirley Nicholas Anna Eric Brenda Jonathan Pamela Stephen Emma Larry Nicole Justin Helen Scott Samantha Brandon Katherine Benjamin Christine Samuel Debra Frank Rachel Gregory Catherine Raymond Carolyn Alexander Janet Patrick Ruth Jack Maria Dennis Heather Jerry Diane Tyler Virginia Aaron Julie Jose Joyce Adam Victoria Henry Olivia Nathan Kelly Douglas Christina Zachary Lauren Peter Joan Kyle Evelyn Walter Judith Ethan Megan Jeremy Cheryl Harold Andrea Keith Hannah Christian Martha Roger Jacqueline Noah Frances Gerald Gloria Carl Ann Terry Teresa Sean Kathryn Austin Sara Arthur Janice Lawrence Jean Jesse Alice Dylan Madison Bryan Doris Joe Abigail Jordan Julia Billy Judy Bruce Grace Albert Denise Willie Amber Gabriel Marilyn Logan Beverly Alan Danielle Juan Theresa Wayne Sophia Roy Marie Ralph Diana Randy Brittany Eugene Natalie Vincent Isabella Russell Charlotte Elijah Rose Louis Alexis Bobby Kayla Philip Buddy Johnny Maggie Cooper Riley Casey Skyler Jamie Taylor Morgan Cody Hunter Brooke Dakota Tucker Sadie Lucy Hazel Ruby Scout Jax Cash Daisy Piper').split(' ');
+const LAST = ('Smith Johnson Williams Brown Jones Garcia Miller Davis Rodriguez Martinez Hernandez Lopez Gonzalez Wilson Anderson Thomas Taylor Moore Jackson Martin Lee Perez Thompson White Harris Sanchez Clark Ramirez Lewis Robinson Walker Young Allen King Wright Scott Torres Nguyen Hill Flores Green Adams Nelson Baker Hall Rivera Campbell Mitchell Carter Roberts Gomez Phillips Evans Turner Diaz Parker Cruz Edwards Collins Reyes Stewart Morris Morales Murphy Cook Rogers Gutierrez Ortiz Morgan Cooper Peterson Bailey Reed Kelly Howard Ramos Kim Cox Ward Richardson Watson Brooks Chavez Wood James Bennett Gray Mendoza Ruiz Hughes Price Alvarez Castillo Sanders Patel Myers Long Ross Foster Jimenez Powell Jenkins Perry Russell Sullivan Bell Coleman Butler Henderson Barnes Fisher Vasquez Simmons Romero Jordan Patterson Alexander Hamilton Graham Reynolds Griffin Wallace Moreno West Cole Hayes Bryant Herrera Gibson Ellis Tran Medina Aguilar Stevens Murray Ford Castro Marshall Owens Harrison Fernandez McDonald Woods Washington Kennedy Wells Vargas Henry Chen Freeman Webb Tucker Guzman Burns Crawford Olson Simpson Porter Hunter Gordon Mendez Silva Shaw Snyder Mason Dixon Munoz Hunt Hicks Holmes Palmer Wagner Black Robertson Boyd Rose Stone Salazar Fox Warren Mills Meyer Rice Schmidt Garza Daniels Ferguson Nichols Stephens Soto Weaver Ryan Gardner Payne Grant Dunn Kelley Spencer Hawkins Arnold Pierce Vazquez Hansen Peters Santos Hart Bradley Knight Elliott Cunningham Duncan Armstrong Hudson Carroll Lane Riley Andrews Alvarado Ray Delgado Berry Perkins Hoffman Johnston Matthews Pena Richards Contreras Willis Carpenter Lawrence Sandoval Guerrero George Chapman Rios Estrada Ortega Watkins Greene Nunez Wheeler Valdez Harper Burke Larson Santiago Maldonado Morrison Franklin Carlson Austin Dominguez Carr Lawson Jacobs OBrien Lynch Singh Vega Bishop Montgomery Oliver Jensen Harvey Williamson Gilbert Dean Sims Espinoza Howell Li Wong Reid Hanson Le McCoy Garrett Burton Fuller Wang Weber Welch Rojas Lucas Marquez Fields Park Yang Little Banks Padilla Day Walsh Bowman Schultz Luna Fowler Mejia Davidson Acosta Brewer May Holland Juarez Newman Pearson Curtis Cortez Douglas Schneider Joseph Barrett Navarro Figueroa Keller Avila Wade Molina Stanley Hopkins Campos Barnett Bates Chambers Caldwell Beck Lambert Miranda Byrd Craig Ayala Lowe Frazier Powers Neal Leonard Gregory Carrillo Sutton Fleming Rhodes Shelton Schwartz Norris Jennings Watts Duran Walters Cohen McDaniel Moran Parks Steele McBride Bridges Dudley').split(' ');
+export function personName(surname) {
+  return FIRST[(rand() * FIRST.length) | 0] + ' ' + (surname || LAST[(rand() * LAST.length) | 0]);
+}
+export function lastNameOf(name) { const p = String(name || '').split(' '); return p.length > 1 ? p.slice(1).join(' ') : ''; }
 export function petName() {
   const n = 2 + (rand() < 0.35 ? 1 : 0);
   let s = '';
@@ -130,7 +138,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS, B.PATTERN, B.FIN, B.STYLE, B.SPIKE, B.EYES];
+const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -143,15 +151,18 @@ function dist(a, b) {
   const miss = 1 - match / total;
   return 1.6 * bd + 0.8 * hd + 0.7 * miss + (match ? 0.12 * (wd / match) : 0);
 }
+// geography: the dish is cooler at the top and warmer at the bottom (a fixed gradient on top of weather and anything you paint)
+export const GEO = 0.32;
+const geoT = y => (GEO * y) / R;
 export const SPLIT = 0.56;
 
 function mutateG(g) {
-  const b = g.b, mu = b[B.MUT];
+  const b = g.b, mu = Math.max(0.25, b[B.MUT]);
   for (let i = 0; i < NB; i++) {
     if (rand() < 0.2 * (0.5 + mu)) b[i] = clamp01(b[i] + gauss() * (0.03 + 0.09 * mu));
     if (rand() < 0.004 * (0.5 + mu)) b[i] = rand();
   }
-  const bs = 0.4 + b[B.BRAINMUT] * 1.4, c = g.c;
+  const bs = 0.4 + Math.max(0.3, b[B.BRAINMUT]) * 1.4, c = g.c;
   for (let i = 0; i < c.length; i++) {
     if (rand() < 0.22 * bs) c[i].w = clamp(rand() < 0.07 ? gauss() * 1.2 : c[i].w + gauss() * 0.3, -6, 6);
   }
@@ -272,7 +283,9 @@ function wild(hue) {
 }
 
 // ---------- world ----------
-export function createWorld(seed = 1) {
+// the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
+export const BEST_SEED = 100;
+export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
   const w = {
@@ -281,7 +294,7 @@ export function createWorld(seed = 1) {
     st: new Uint8Array(N), hp: new Uint8Array(N), store: new Float32Array(N),
     heat: new Float32Array(N), tox: new Float32Array(N),
     chem: [new Float32Array(N), new Float32Array(N), new Float32Array(N)],
-    light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, drought: 0, thinkMask: 1,
+    deadN: 0, light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, drought: 0, thinkMask: 1,
     log: [], keep: [], lastYear: 0, snap: null, hist: [], fame: {}, favs: [], milestones: {},
     byId: new Map(),
     counters: { friends: 0, grudges: 0, famGifts: 0, inbred: 0, devoted: 0, births: 0, deaths: 0, kills: 0, built: 0, sexual: 0, asexual: 0, newSpecies: 0, extinct: 0, plagues: 0, dug: 0, stolen: 0, shared: 0, stored: 0 },
@@ -295,7 +308,19 @@ export function createWorld(seed = 1) {
     if (Math.hypot(cx, cy) > R - CELL * 0.3) w.st[gy * GN + gx] = 255;
   }
   for (let i = 0; i < 700; i++) spawnFood(w, null, null, 0, 18);
-  const founders = [
+  // a fresh dish starts from six lineages taken from evolved dishes (smart brains, generation 0), so it survives on any seed;
+  // if the pack is missing it falls back to the six hand-wired founders
+  const usePack = PACK.length >= 8 && !opts.classic;
+  let packG = null;
+  if (usePack) {
+    const info = PACK.map(p => unpackG(p)), pick = f => { const c = info.filter(f); return c[(rand() * c.length) | 0]; };
+    const picked = new Set();
+    while (picked.size < 5) picked.add(info[(rand() * info.length) | 0]);
+    packG = [...picked];
+    let mx = 1000; for (const g of packG) for (const id of g.h) if (id > mx) mx = id; INNOV = mx + 1;
+  }
+  // five evolved lineages plus one hand-wired hunter lineage, so there are always predators to adapt to
+  const founders = usePack ? packG.map((g, i) => [() => g, 14]).concat([[hunter, 8]]) : [
     [grazer, 20], [hunter, 8], [weaver, 14], [scavenger, 12], [drifter, 12], [wild, 8],
   ];
   let hue = rand();
@@ -326,6 +351,7 @@ function derive(m) {
   m.senseR = 50 + b[B.SENSE] * 190;
   m.aff = [(b[B.SC_A] - 0.5) * 2, (b[B.SC_B] - 0.5) * 2, (b[B.SC_C] - 0.5) * 2];
   m.diet = b[B.DIET]; m.armor = b[B.ARMOR]; m.photo = b[B.PHOTO];
+  m.maxSp *= 1 - 0.45 * m.photo;                 // plants are slow: sunlight is not a free lunch
   m.cap = 50 + m.r * 16 + b[B.FAT] * 60;
   m.life = 140 + b[B.LIFE] * 340;
   m.matureAge = m.life * (0.05 + 0.2 * b[B.MATURE]);
@@ -353,12 +379,12 @@ function derive(m) {
 }
 function makeMote(w, g, x, y, e, gen) {
   const m = {
-    id: w.nextId++, name: petName(), g, net: null, o: null, inp: new Float32Array(NI),
+    id: w.nextId++, name: personName(), g, net: null, o: null, inp: new Float32Array(NI),
     x, y, h: rand() * 6.283, v: 0, e, age: 0, gen, sp: 0, par: 0, anc: [], kids: 0, kills: 0, fav: false,
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -474,7 +500,8 @@ export function step(w, dt) {
   w.t += dt; w.tick++; w.deadN = 0;
   const motes = w.motes, food = w.food, H = w.hash;
   w.light = clamp(0.78 + 0.55 * Math.sin((w.t * 2 * Math.PI) / DAY - 1.2), 0.15, 1.4);
-  const tempG = w.tempEv * (w.tempEvLeft > 0 ? Math.min(1, w.tempEvLeft / 15) : 0) + 0.12 * Math.sin((w.t * 2 * Math.PI) / DAY);
+  w.drift = clamp(((w.drift || 0) * (1 - 0.0005 * dt)) + gauss() * 0.01 * Math.sqrt(dt), -0.35, 0.35);   // the climate slowly wanders, so no kind stays perfectly suited for ever
+  const tempG = w.drift + w.tempEv * (w.tempEvLeft > 0 ? Math.min(1, w.tempEvLeft / 15) : 0) + 0.12 * Math.sin((w.t * 2 * Math.PI) / DAY);
   w.tempG = tempG;
   if (w.tempEvLeft > 0) w.tempEvLeft -= dt;
 
@@ -542,15 +569,15 @@ function body(w, m, dt, tempG) {
   let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.0012 * m.senseR + m.bcost;
   if (o[OUT.BITE] > 0.3) drain += 0.3;
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
-  drain += 0.12 * em;
-  let gain = 0;
-  if (m.photo > 0.05) gain += m.photo * w.light * m.r * m.r * 0.052;
+  drain += 0.12 * em + 0.05 * Math.max(0, m.crowd - 5);
+  let gain = 0; m.why2 = '';
+  if (m.photo > 0.05) gain += m.photo * w.light * m.r * m.r * 0.052 / (1 + 0.3 * Math.max(0, m.crowd - 1));   // shaded by neighbours
   if (idx >= 0) {
     const tx = w.tox[idx];
     if (tx > 0.05) { drain += tx * 7 * (1 - m.toxr * 0.9); m.hurt = 1; m.why2 = 'toxin'; }
-    const T = tempG + w.heat[idx], d = Math.abs(T - m.tpref) - m.ttol;
+    const T = tempG + w.heat[idx] + geoT(m.y), d = Math.abs(T - m.tpref) - m.ttol;
     if (d > 0) { drain += d * 6; m.why2 = T > m.tpref ? 'heat' : 'cold'; }
-    if (w.st[idx] === 3) { gain += 0.75; drain *= 0.8; }
+    if (w.st[idx] === 3 && m.crowd <= 4) { gain += 0.75; drain *= 0.8; }
   }
   if (m.sick > 0) {
     drain += 1.5 * (1 - m.disr * 0.8); m.sick -= dt; m.why2 = 'plague';
@@ -563,6 +590,8 @@ function body(w, m, dt, tempG) {
   if (m.age > m.life) kill(w, m, 'old age');
 }
 
+// negative frequency dependence: the more of your kind there are, the harder it is to find enough to eat (keeps more species alive)
+function rare(w, m) { const sp = w.species.get(m.sp); const share = sp ? sp.count / Math.max(20, w.motes.length) : 0; return clamp(1.25 - 0.85 * share, 0.5, 1.25); }
 function think(w, m, i, dtt) {
   const motes = w.motes, food = w.food, H = w.hash, inp = m.inp;
   inp.fill(0);
@@ -572,7 +601,7 @@ function think(w, m, i, dtt) {
   const y0 = Math.max(0, Math.floor((m.y + R - sm) / HS)), y1 = Math.min(HN - 1, Math.floor((m.y + R + sm) / HS));
   let bp = -1, bpd = 1e9, bm = -1, bmd = 1e9, bn = -1, bnd = 1e9, bk = -1, bkd = 1e9, count = 0, kin = 0;
   const infectR = m.sick > 0 ? (m.r + 8) : 0;
-  const hasW = w.walls > 0;
+  const hasW = w.walls > 0; let crowd = 0;
   let bfm = -1, bfmd = 1e9, fam = 0, bfr = -1, bfrd = 1e9;
   const hasFr = m.fr.size > 0;
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
@@ -587,7 +616,7 @@ function think(w, m, i, dtt) {
       const o = motes[q]; if (o.dead) continue;
       const dx = o.x - m.x, dy = o.y - m.y, d2 = dx * dx + dy * dy; if (d2 > s2) continue;
       if (hasW && d2 > 900 && blockedLine(w, m.x, m.y, o.x, o.y)) continue;
-      count++;
+      count++; if (d2 < 1600) crowd++;
       const same = o.sp === m.sp;
       if (same) { kin++; if (d2 < bkd) { bkd = d2; bk = q; } }
       if (d2 < bnd) { bnd = d2; bn = q; }
@@ -596,6 +625,7 @@ function think(w, m, i, dtt) {
       if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.85)) infect(w, o);
     }
   }
+  m.crowd = crowd;
   // -- inputs
   inp[IN.BIAS] = 1;
   inp[IN.ENERGY] = m.e / m.cap; inp[IN.AGE] = m.age / m.life; inp[IN.SPEED] = m.v / m.maxSp;
@@ -635,7 +665,7 @@ function think(w, m, i, dtt) {
   inp[IN.ON_FARM] = stHere === 2 ? 1 : 0; inp[IN.ON_NEST] = stHere === 3 ? 1 : 0; inp[IN.ON_GRAN] = stHere === 4 ? 1 : 0;
   if (stHere === 4) inp[IN.GRAN_STORE] = Math.min(1, w.store[idx] / 100);
   if (idx >= 0) {
-    inp[IN.TEMP] = clamp((w.tempG + w.heat[idx] - m.tpref) / (m.ttol + 0.3), -1.5, 1.5);
+    inp[IN.TEMP] = clamp((w.tempG + w.heat[idx] + geoT(m.y) - m.tpref) / (m.ttol + 0.3), -1.5, 1.5);
     inp[IN.TOX] = w.tox[idx];
     for (let k = 0; k < 3; k++) {
       const arr = w.chem[k];
@@ -676,8 +706,8 @@ function think(w, m, i, dtt) {
     {
       const T = w.tempG - m.tpref, hv = w.heat, d = 26;
       const f = cidx(m.x + ch * d, m.y + sh * d), l = cidx(m.x - sh * d, m.y + ch * d), r = cidx(m.x + sh * d, m.y - ch * d);
-      const bad0 = Math.abs(T + hv[idx]);
-      const vf = f >= 0 ? Math.abs(T + hv[f]) : bad0, vl = l >= 0 ? Math.abs(T + hv[l]) : bad0, vr = r >= 0 ? Math.abs(T + hv[r]) : bad0;
+      const bad0 = Math.abs(T + hv[idx] + geoT(m.y));
+      const vf = f >= 0 ? Math.abs(T + hv[f] + geoT(m.y + sh * d)) : bad0, vl = l >= 0 ? Math.abs(T + hv[l] + geoT(m.y + ch * d)) : bad0, vr = r >= 0 ? Math.abs(T + hv[r] + geoT(m.y - ch * d)) : bad0;
       const dis = clamp((bad0 - m.ttol * 0.4) / 0.5, 0, 1), sc = dis;
       const fwd = Math.tanh((bad0 - vf) * 6), side = Math.tanh((vr - vl) * 6);
       if (dis > 0.12) {
@@ -746,10 +776,10 @@ function think(w, m, i, dtt) {
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3) * (m.r + 3) && m.plantEff > 0.05) {
-      const f = food[bp]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.plantEff);
+      const f = food[bp]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.plantEff * rare(w, m));
     }
     if (bm >= 0 && bmd < (m.r + 3) * (m.r + 3) && !food[bm].dead && m.meatEff > 0.1) {
-      const f = food[bm]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.meatEff);
+      const f = food[bm]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.meatEff * rare(w, m));
     }
   }
   // -- bite
@@ -857,6 +887,7 @@ function birth(w, pa, pb, energy) {
     else if ((pa.fr.get(pb.id) || 0) > 0.5) { energy *= 1.15; w.counters.devoted++; milestone(w, 'pair', `${pa.name} and ${pb.name} are a bonded pair with a child.`); }
   }
   const c = makeMote(w, g, x, y, energy, Math.max(pa.gen, pb ? pb.gen : 0) + 1);
+  c.name = personName(lastNameOf(pa.name));
   c.par = pa.id; c.pa = pa.id; c.pb = pb ? pb.id : 0; c.anc = [pa.name].concat(pa.anc).slice(0, 3);
   c.fr.set(pa.id, 0.6); pa.fr.size < 4 && pa.fr.set(c.id, 0.6); if (pb) { c.fr.set(pb.id, 0.6); pb.fr.size < 4 && pb.fr.set(c.id, 0.6); }
   if (pb) pb.kids++; pa.kids++;
@@ -990,6 +1021,15 @@ export function paint(w, tool, x, y, rad, dt) {
     if (tool === 'smite' && w.deadN) { let j = 0; for (let i = 0; i < w.motes.length; i++) if (!w.motes[i].dead) w.motes[j++] = w.motes[i]; w.motes.length = j; w.deadN = 0; }
   }
 }
+// undo support for the player's brush tools: a copy of every painted field, the structures and the food
+export function snapshotFields(w) {
+  return { st: w.st.slice(), hp: w.hp.slice(), store: w.store.slice(), heat: w.heat.slice(), tox: w.tox.slice(), chem: w.chem.map(c => c.slice()), stCount: w.stCount,
+    food: w.food.filter(f => !f.dead).map(f => ({ x: f.x, y: f.y, k: f.k, e: f.e, dead: false, age: f.age })) };
+}
+export function restoreFields(w, sn) {
+  w.st.set(sn.st); w.hp.set(sn.hp); w.store.set(sn.store); w.heat.set(sn.heat); w.tox.set(sn.tox); sn.chem.forEach((c, k) => w.chem[k].set(c));
+  w.stCount = sn.stCount; w.food.length = 0; for (const f of sn.food) w.food.push({ x: f.x, y: f.y, k: f.k, e: f.e, dead: false, age: f.age });
+}
 export function cleanFood(w) { let j = 0; for (let i = 0; i < w.food.length; i++) if (!w.food[i].dead) w.food[j++] = w.food[i]; w.food.length = j; }
 export function spark(w, x, y) {
   const g = rand() < 0.5 ? wild(rand()) : [grazer, hunter, weaver, scavenger, drifter][(rand() * 5) | 0](rand());
@@ -1063,7 +1103,7 @@ function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb
 export function serialize(w) {
   return JSON.stringify({
     v: 1, t: w.t, tick: w.tick, rng: RS, innov: INNOV, nextId: w.nextId, nextSp: w.nextSp,
-    light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, evTimer: w.evTimer, bloom: w.bloom,
+    light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, drift: w.drift || 0, drought: w.drought || 0, evTimer: w.evTimer, bloom: w.bloom,
     maxPop: w.maxPop, foodMax: w.foodMax, fert: w.fert, events: w.events,
     counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
     sick: w.sick, plagueOn: w.plagueOn, plagueDead: w.plagueDead,
@@ -1079,7 +1119,7 @@ export function deserialize(str) {
   const w = createWorld(1);                     // allocates grids; then we overwrite everything
   w.motes.length = 0; w.food.length = 0; w.species.clear(); w.log.length = 0;
   RS = d.rng | 0 || 1; INNOV = d.innov || 1000;
-  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
+  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
   w.st.set(b64u8(d.st)); w.hp.set(b64u8(d.hp)); w.store.set(f8(b64u8(d.store), 1));
   w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255));
   d.chem.forEach((c, k) => w.chem[k].set(f8(b64u8(c), 80)));
@@ -1113,4 +1153,32 @@ export function catchUpReport(cu) {
   const w = cu.w, b = cu.before, c = w.counters, bc = b.counters;
   let newSp = 0; for (const id of w.species.keys()) if (!b.speciesIds.has(id)) newSp++;
   return { simSec: cu.simSec, popBefore: b.pop, popAfter: w.motes.length, births: c.births - bc.births, deaths: c.deaths - bc.deaths, kills: c.kills - bc.kills, built: c.built - bc.built, newSp, extinct: c.extinct - b.extinct };
+}
+
+// genome helpers for the founders pack (see scripts/make-founders.mjs)
+export function packGenome(g) { return packG(g); }
+export function unpackGenome(p) { return unpackG(p); }
+
+// bring life back to an empty dish: three evolved lineages plus a hunter lineage, all at generation 0
+export function reseed(w) {
+  const info = PACK.length >= 8 ? PACK.map(p => unpackG(p)) : [];
+  let mx = INNOV; for (const g of info) for (const id of g.h) if (id > mx) mx = id; INNOV = mx + 1;
+  const picks = [];
+  while (picks.length < Math.min(3, info.length)) { const g = info[(rand() * info.length) | 0]; if (!picks.includes(g)) picks.push(g); }
+  const lineages = picks.map(g => [() => g, 14]).concat([[hunter, 8]]);
+  if (!info.length) lineages.push([grazer, 20], [weaver, 14]);
+  let hue = rand();
+  for (const [fn, count] of lineages) {
+    hue = (hue + 0.17 + rand() * 0.1) % 1;
+    const g = fn(hue), sp = newSpecies(w, g, 0);
+    for (let i = 0; i < count; i++) {
+      const gg = cloneG(g); if (i > 0) mutateG(gg);
+      gg.b[B.HUE] = clamp01(hue + (rand() - 0.5) * 0.04);
+      const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 60);
+      const m = makeMote(w, gg, Math.cos(a) * d, Math.sin(a) * d, 0, 0);
+      m.sp = sp.id; m.e = m.cap * (0.5 + rand() * 0.3); m.age = rand() * m.life * 0.2;
+    }
+  }
+  log(w, 'Life was re-seeded: new founders arrive.', 'life');
+  sample(w);
 }

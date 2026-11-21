@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f14">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -19,7 +20,7 @@ button.go{background:#2f6f4f;border-color:#58c08a;font-weight:600}
 button.bad{background:#5a2630;border-color:#c0586a}
 
 /* top bar: three big buttons and a status pill */
-#top{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));align-items:center;pointer-events:none}
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));padding-top:max(8px,env(safe-area-inset-top));align-items:center;pointer-events:none}
 #top>*{pointer-events:auto}
 #top button{width:52px;height:52px;min-height:52px;padding:0;font-size:22px;background:#111a26e6;border-radius:14px}
 #top #bSpeed{font-size:17px;font-weight:600}
@@ -27,14 +28,14 @@ button.bad{background:#5a2630;border-color:#c0586a}
 #hud{position:fixed;left:10px;top:calc(max(8px,env(safe-area-inset-top)) + 58px);padding:4px 10px;background:#0b0f14b8;border-radius:12px;font-size:13px;pointer-events:none;max-width:calc(100vw - 20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* bottom dock: one big button per group of tools */
-#dock{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:8px 8px max(10px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#0b0f14f0 28%)}
+#dock{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:8px max(8px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:linear-gradient(transparent,#0b0f14f0 28%)}
 #dock button{flex:1;min-width:0;min-height:62px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;border-radius:16px;background:#162030f2}
 #dock button .ic{font-size:24px;line-height:1.1}
 #dock button.on{background:#2f6f4f}
 
 /* sheets that slide above the dock */
 #sheet,#strip{position:fixed;left:8px;right:8px;bottom:calc(84px + env(safe-area-inset-bottom));background:#0f1722f7;border:1px solid #33455c;border-radius:18px;padding:10px;display:none;box-shadow:0 8px 30px #000a}
-#sheet{max-height:62vh;overflow:auto;touch-action:pan-y}
+#sheet{max-height:62vh;max-height:62dvh;overflow:auto;touch-action:pan-y}
 #sheet h4{margin:2px 4px 8px;font-size:14px;color:#9fb0c4;font-weight:600}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tile{display:flex;gap:10px;align-items:flex-start;text-align:left;white-space:normal;min-height:78px;padding:10px 12px;border-radius:14px}

@@ -5,7 +5,7 @@ import { createWorld, step, serialize, deserialize } from '../sim.js';
 import { writeFileSync, readFileSync } from 'node:fs';
 const seed = +process.argv[2] || 1, years = +process.argv[3] || 1, out = process.argv[4], maxPop = +process.argv[5] || 500;
 const YEAR = 365 * 200, dt = 0.2;
-const w = process.argv[6] ? deserialize(readFileSync(process.argv[6], 'utf8')) : createWorld(seed);   // optional 6th arg: continue an earlier dish
+const w = process.argv[6] ? deserialize(readFileSync(process.argv[6], 'utf8')) : createWorld(seed, { classic: !process.env.PACK });   // evolve from the hand-wired founders unless PACK=1   // optional 6th arg: continue an earlier dish
 if (process.argv[6]) console.log('resuming at dish-year', (w.t / (365 * 200)).toFixed(2));
  w.maxPop = maxPop; w.mercy = true;
 const t0 = Date.now(); let next = 0;

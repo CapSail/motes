@@ -100,7 +100,10 @@ export function guideHTML() {
 <li><b>Top left:</b> <b>⏸</b> pauses (Space on a computer). <b>1×</b> changes speed: 1×, 3×, 8× and slow-motion 0.4×. <b>👁</b> chooses what the dish shows: everything at once, or just one smell, heat and cold, or poison. <b>☰ Menu</b> (top right) opens everything else.</li>
 <li><b>Bottom row</b> has four big buttons. <b>👆 Look</b> is the normal mode: drag to move the map, pinch (or mouse wheel) to zoom, tap a mote to inspect it. <b>🌱 Build</b>, <b>🌡️ Climate</b> and <b>⚡ Powers</b> each open a panel of tools. Every tool says in plain words what it does. Tap one to pick it, then touch the dish.</li>
 <li>With a tool picked, a bar appears above the buttons with its name, what it does, the brush size (<b>S / M / L</b>) and a green <b>✔ Done</b> that takes you back to Look. <b>Two fingers</b> always move and zoom the map, even with a tool picked.</li>
+<li><b>↶ Undo</b> appears after you paint with a Build or Climate tool (walls, farms, heat, poison, smells, food, erase). It undoes your last brush stroke, up to ten in a row. Powers like Smite and Meteor cannot be undone.</li>
 <li>When you use a power, you get a message saying what happened (for example “Infected 3 motes”) and a ring flashes where it hit.</li>
+<li>The first time you open the app you get a short tour of these buttons. Menu → 🎓 Show me around replays it.</li>
+<li><b>The little icon over a creature's head</b> (when you zoom in) shows what it is doing right now: 💢 hurt or attacked, ☠️ poisoned, 🤢 sick, 😈 hunting, 😠 stealing energy, 💛 giving energy, ❤️ looking for a mate, 🔨 building, 🍽️ hungry, 🤝 in a pod with a friend. ★ means you starred it. Tap a creature and its panel says in words what it is <b>doing</b> and how it is <b>feeling</b>; its best friend (💚), rival (💢) and nearest relatives (🏠) get a name tag and a line.</li>
 <li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (keep its story forever), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>, <b>🧠 Brain</b> (shows its live brain).</li>
 </ul></details>
 
@@ -118,7 +121,7 @@ export function guideHTML() {
 <ul>
 <li><b>🔥 Heat / ❄️ Cold</b>: warm or chilly patches. Every kind has a favourite temperature and a tolerance. They steer toward what they like and away from what is too hot or cold, and evolution adapts to your climate.</li>
 <li><b>☠️ Poison</b>: a purple cloud that slowly spreads and fades. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
-<li><b>🔴🟢🔵 Smell A / B / C</b>: every mote has an inherited like or dislike for each smell. Some kinds are drawn to a smell and some run from it, and that taste evolves. Brains can also sense and release smells, and what that <i>means</i> is up to evolution.</li>
+<li><b>🔴🟢🔵 Red / Green / Blue smell</b>: every mote has an inherited like or dislike for each smell. Some kinds are drawn to a smell and some run from it, and that taste evolves. Brains can also sense and release smells, and what that <i>means</i> is up to evolution.</li>
 </ul>
 <p><b>⚡ Powers</b></p>
 <ul>
@@ -171,7 +174,7 @@ export function guideHTML() {
 <ul>
 <li><b>Day and night:</b> daylight rises and falls over a 200-second day. Plants grow faster in daylight, and sun-feeding motes only earn energy by day.</li>
 <li><b>Food:</b> plant pellets grow in clumps, so some places are rich and some are deserts. When a mote dies it leaves <b>meat</b> that rots away in about a minute. Hunters and scavengers digest meat well.</li>
-<li><b>Temperature, toxin and scents</b> are fields you can see with the <b>View</b> button. Toxin spreads slowly. Scents spread and fade over about half a minute, so they work like messages and trails. Motes that are releasing a scent show a coloured ripple.</li>
+<li><b>Temperature, toxin and scents</b> are fields you can see with the <b>View</b> button. Toxin spreads slowly. Scents spread and fade over about half a minute, so they work like messages and trails. If you want to see creatures releasing smells, turn on “Show smell ripples” in the 👁 panel.</li>
 <li><b>Structures</b> motes can build: walls (block movement), farms (grow food), nests (heal and boost babies), granaries (store energy). They decay unless motes repair them by building the same thing again on them. A mote can also dig them down, so raiders are possible.</li>
 <li><b>Random events</b> (optional, on by default): blooms of food, cold snaps, heatwaves, plagues and toxic spills. You can also call them yourself from Menu → Dish.</li>
 </ul></details>
@@ -206,7 +209,8 @@ export function guideHTML() {
 <li>When you come back after a while, the dish <b>fast-forwards</b>: 1 second away is 0.25 seconds of dish time, up to about 40 dish-minutes, and you get a welcome-back report (births, deaths, new species, structures). The last dozen motes are protected during the fast-forward so you never return to an empty dish. You can tap <b>Skip ahead</b> to stop early.</li>
 <li><b>Phone ↔ PC:</b> Menu → Dish → <b>Download dish file</b> or <b>Copy dish code</b>, then <b>Load</b> it on the other device. Each device keeps its own copy.</li>
 <li><b>Dish settings:</b> max population (lower on slow phones), food abundance, random events on or off, and a New dish button (erases the current one).</li>
-<li><b>The first dish you see is not new.</b> Before shipping, it was fast-forwarded on the developer's PC for several dish-years (a dish-year is 365 days of 200 seconds, about 20 hours) so the motes had already evolved. Its Diary holds those years. You can start over from the first six founders any time (Menu → Dish) or reload the pre-evolved dish.</li>
+<li><b>Everyone has an American name</b> (like Jake Miller), and children carry their parent's last name, so you can spot families. The icons and the panel use first names.</li>
+<li><b>A new game starts at Day 1, generation 0.</b> The six founding lineages carry brains that were evolved for years on the developer's computer, so a fresh dish is smart enough to survive on its own, but everything after Day 1 is still evolution. In ☰ Menu → Dish and saving you can start another fresh dish, or load a world that was fast-forwarded for several dish-years (a dish-year is 365 days of 200 seconds).</li>
 <li>Install: open the site in Chrome, choose <b>Add to Home screen</b>. It then works offline.</li>
 </ul></details>
 
@@ -218,7 +222,9 @@ export function guideHTML() {
 <li><b>Instincts you can see.</b> Everything has an inherited like or dislike for each scent. Everything flees toxin. Everything steers toward its favourite temperature.</li>
 <li><b>Pods.</b> Two motes with a strong two-way friendship stay close and even out their energy, so the fed one feeds the hungry one. A gold line joins podmates. Pods ride out famine together.</li>
 <li><b>Looks.</b> Bodies come in six styles (beads, smooth tubes, diamonds, stars, rings, leaves) with spikes, one to four eyes or none, dorsal frills and bioluminescent glow. Spikes add a little armour, and frills and glow cost a little energy. All of it is inherited and mutates, and big differences make new species.</li>
-<li><b>Disasters.</b> Menu → Dish has Ice age and Drought, the ☄️ Meteor tool drops a crater anywhere, and random events now include rare meteors and droughts too (only when the dish is healthy).</li>
+<li><b>Geography.</b> The dish is always a little cooler at the top and warmer at the bottom, on top of the weather and anything you paint. Kinds that like cool and kinds that like warm can each own a region, which helps new species appear.</li>
+<li><b>Crowding and rarity.</b> Standing in a big crowd (more than about 5 others within a short distance) costs energy, and the more of your own kind there are, the harder it is to find enough food. Both stop everything balling up into one clump and help several species survive together.</li>
+<li><b>Disasters.</b> Ice age, Drought, Food bloom, Cold snap and Heatwave are one-tap tiles at the bottom of the ⚡ Powers panel, the ☄️ Meteor tool drops a crater anywhere, and random events now include rare meteors and droughts too (only when the dish is healthy).</li>
 </ul></details>
 
 <details><summary>Things to try</summary>
@@ -227,9 +233,9 @@ export function guideHTML() {
 <li>Wall off half the dish for ten minutes (use 8×), then remove the wall and see which side evolved differently.</li>
 <li>Paint a ring of cold around one species' home. Do they evolve fat and armor, or migrate?</li>
 <li>Release a plague into the biggest herd. Who survives?</li>
-<li>Spotlight a species (☰ Menu → Species → 🔦) and watch where its motes live and travel. Open 🌳 Tree to see how every species is related.</li>
+<li>Spotlight a species (☰ Menu → The creatures → 🔦) and watch where its motes live and travel. Open 🌳 Tree to see how every species is related.</li>
 <li>Build a wall with a gap and drop food behind it. Do they find the gap?</li>
-<li>Put a Scent A patch near food over and over. Does anyone start following it?</li>
+<li>Put a red smell patch near food over and over. Does anyone start following it?</li>
 <li>Press <b>Spark</b> in a quiet corner a few times and watch the newcomers either take over or get eaten.</li>
 <li>Turn food abundance down to 0.4 and see which body plan wins when times are hard.</li>
 <li>Star a mote, leave for a day, and read its descendants' story in the Diary.</li>

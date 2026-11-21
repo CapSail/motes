@@ -22,21 +22,21 @@ let firstRun = false;
 function load() {
   try { const s = localStorage.getItem(SAVE); if (s) return S.deserialize(s); } catch (e) { console.warn('load failed', e); }
   firstRun = true;
-  return S.createWorld((Date.now() & 0x7fffffff) || 7);
+  return S.createWorld(S.BEST_SEED);          // a new game always starts at Day 1, generation 0, from the best founding seed
 }
 w = load();
 // First visit: offer the pre-evolved dish (simulated for years on the dev machine before shipping).
 async function loadStarter(intro, name = 'dish') {
   try {
     const r = await fetch('starter/' + name + '.json'); if (!r.ok) throw new Error('no starter');
-    w = S.deserialize(await r.text()); selId = 0; localStorage.setItem(SAVED_AT, String(Date.now())); save();
+    setWorld(S.deserialize(await r.text())); localStorage.setItem(SAVED_AT, String(Date.now())); save();
     if (intro) {
       const o = $('over'); o.style.display = 'flex';
       const yrs = (w.t / S.YEAR).toFixed(1);
       o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Open the Menu (top right) to read its Diary or the guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
-      $('stWatch').onclick = () => { o.style.display = 'none'; };
+      $('stWatch').onclick = () => { o.style.display = 'none'; maybeTour(); };
       if ($('stInstall')) $('stInstall').onclick = () => { o.style.display = 'none'; menuTab = 'install'; openMenu(); };
-      $('stFresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 7); selId = 0; save(); o.style.display = 'none'; };
+      $('stFresh').onclick = () => { setWorld(S.createWorld((Date.now() & 0x7fffffff) || 7)); save(); o.style.display = 'none'; maybeTour(); };
     }
     return true;
   } catch (e) { return false; }
@@ -48,8 +48,8 @@ const idbGet = () => idb('readonly', st => st.get('save'));
 if (firstRun) {
   idbGet().then(rec => {
     if (rec && rec.s) { w = S.deserialize(rec.s); firstRun = false; selId = 0; if (matchMedia('(pointer:coarse)').matches && w.maxPop > 450) w.maxPop = 450; maybeCatchUp((Date.now() - rec.at) / 1000); }
-    else loadStarter(true);
-  }).catch(() => loadStarter(true));
+    else maybeTour();
+  }).catch(() => maybeTour());
 }
 if (matchMedia('(pointer:coarse)').matches) { if (w.maxPop > 450) w.maxPop = 450; }
 let fitted = false;
@@ -61,13 +61,15 @@ function resize() {
 addEventListener('resize', resize); resize();
 
 function save() {
-  try { localStorage.setItem(SAVE, S.serialize(w)); localStorage.setItem(SAVED_AT, String(Date.now())); }
+  let str = ''; try { str = S.serialize(w); } catch (e) { console.warn('serialize failed', e); return; }
+  try { localStorage.setItem(SAVE, str); localStorage.setItem(SAVED_AT, String(Date.now())); }
   catch (e) {
     console.warn('save failed, using backup storage', e);
-    idbPut(S.serialize(w)).then(() => { if (!save.told) { save.told = true; showHint('x', 'Your dish is big, so it is saving to backup storage. That is fine.'); } }).catch(e2 => console.warn('backup save failed', e2));
+    try { localStorage.removeItem(SAVE); localStorage.setItem(SAVED_AT, String(Date.now())); } catch (_) {}
+    idbPut(str).then(() => { if (!save.told) { save.told = true; showHint('x', 'Your dish is big, so it is saving to backup storage. That is fine.'); } }).catch(e2 => console.warn('backup save failed', e2));
   }
 }
-setInterval(save, 15000);
+setInterval(save, 45000);
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); save(); }
@@ -78,7 +80,7 @@ addEventListener('pagehide', save);
 
 function fmtDur(s) { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; }
 function maybeCatchUp(awaySec) {
-  if (awaySec < 30 || catching || !w.motes.length) return;
+  if (awaySec < 120 || catching || !w.motes.length) return;
   const cu = S.beginCatchUp(w, awaySec); cu.away = awaySec;
   if (cu.ticks < 4) return;
   catching = cu;
@@ -109,14 +111,16 @@ const TOOLINFO = {
   heat: ['🔥', 'Heat', 'A warm patch (orange). Every kind has a favourite temperature, so some come and some run. Too hot drains energy.'],
   cold: ['❄️', 'Cold', 'A chilly patch (blue). Some kinds love it and some run. Too cold drains energy.'],
   toxin: ['☠️', 'Poison', 'A purple poison cloud. Everything runs from it, and anything inside loses energy fast. It slowly fades.'],
-  chemA: ['🔴', 'Smell A', 'A red smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
-  chemB: ['🟢', 'Smell B', 'A green smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
-  chemC: ['🔵', 'Smell C', 'A blue smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
+  chemA: ['🔴', 'Red smell', 'A red smell. Some kinds are drawn to it and some run away. Creatures can release smells too.'],
+  chemB: ['🟢', 'Green smell', 'A green smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
+  chemC: ['🔵', 'Blue smell', 'A blue smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
   plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
   spark: ['✨', 'New life', 'Tap to drop in a brand-new creature: a new species with its own look.'],
 };
+const EVTILES = [['bloom', '🌸', 'Food bloom', 'Plants boom for a while.'], ['cold', '🥶', 'Cold snap', 'The whole dish turns cold for a bit.'], ['heat', '🥵', 'Heatwave', 'The whole dish heats up for a bit.'], ['iceage', '🧊', 'Ice age', 'Long deep cold and thin food. Harsh!'], ['drought', '🏜️', 'Drought', 'Food becomes scarce for a while.']];
+const EVMSG = { bloom: '🌸 A food bloom has begun.', cold: '🥶 A cold snap is coming.', heat: '🥵 A heatwave is coming.', iceage: '🧊 An ice age has begun. It will be hard.', drought: '🏜️ A drought has begun.' };
 const GROUPS = [
   ['look', '👆', 'Look', null, ''],
   ['build', '🌱', 'Build', ['food', 'wall', 'farm', 'nest', 'granary', 'erase'], 'Build and feed'],
@@ -126,6 +130,23 @@ const GROUPS = [
 const dock = $('dock'), sheet = $('sheet'), strip = $('strip');
 let sheetFor = '';
 const fx = [];            // short-lived rings that show where a power just hit
+const UNDOABLE = new Set(['food', 'wall', 'farm', 'nest', 'granary', 'erase', 'heat', 'cold', 'toxin', 'chemA', 'chemB', 'chemC']);
+const undoStack = []; let lastUndoAt = 0;
+let showSignals = false, camGoal = null;
+const undoPill = document.createElement('button');
+undoPill.textContent = '↶ Undo'; undoPill.style.cssText = 'position:fixed;left:10px;bottom:calc(92px + env(safe-area-inset-bottom));display:none;z-index:6;min-height:52px;padding:0 18px;border-radius:26px;background:#111a26f2;font-size:16px';
+document.body.appendChild(undoPill);
+function undo() {
+  const sn = undoStack.pop(); if (!sn) return;
+  if (sn.w !== w) { undoStack.length = 0; updUndo(); return; }
+  S.restoreFields(w, sn.f); showHint('', '↶ Undid your last brush stroke.'); renderStrip(); updUndo();
+}
+undoPill.onclick = undo;
+function updUndo() {
+  const show = tool === 'look' && undoStack.length && sheet.style.display !== 'block' && insp.style.display !== 'block' && menu.style.display !== 'flex' && Date.now() - lastUndoAt < 90000;
+  undoPill.style.display = show ? 'block' : 'none';
+}
+setInterval(updUndo, 800);
 dock.innerHTML = GROUPS.map(g => `<button data-g="${g[0]}"><span class="ic">${g[1]}</span>${g[2]}</button>`).join('');
 function syncDock() {
   for (const b of dock.children) {
@@ -136,7 +157,8 @@ function syncDock() {
 function closeSheet() { sheet.style.display = 'none'; sheetFor = ''; renderStrip(); syncDock(); }
 function openSheet(html, id) { sheet.innerHTML = html; sheet.style.display = 'block'; sheetFor = id; strip.style.display = 'none'; insp.style.display = 'none'; syncDock(); }
 function setTool(t) {
-  tool = t; sheet.style.display = 'none'; sheetFor = '';
+  tool = t; setTimeout(updUndo, 0);
+  sheet.style.display = 'none'; sheetFor = '';
   if (t !== 'look' && !follow && selId) { selId = 0; insp.style.display = 'none'; }
   renderStrip(); syncDock();
 }
@@ -146,38 +168,74 @@ function renderStrip() {
   strip.style.display = 'flex';
   strip.innerHTML = `<span class="ic">${ic}</span><div class="txt"><b>${name}</b><small>${desc}</small><small style="color:#6f8199">${isPaint ? 'Touch and drag on the dish.' : 'Tap on the dish.'} Two fingers move and zoom the map.</small></div>` +
     (isPaint ? `<div class="brush">${[[20, 'S'], [40, 'M'], [80, 'L']].map(([b, l]) => `<button data-b="${b}" class="${brush === b ? 'on' : ''}" aria-label="Brush size ${l}">${l}</button>`).join('')}</div>` : '') +
-    '<button id="stripDone" class="go">✔ Done</button>';
+    (UNDOABLE.has(tool) && undoStack.length ? '<button id="undoBtn">↶ Undo</button>' : '') + '<button id="stripDone" class="go">✔ Done</button>';
 }
-strip.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.b) { brush = +b.dataset.b; renderStrip(); } else if (b.id === 'stripDone') setTool('look'); };
+strip.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.b) { brush = +b.dataset.b; renderStrip(); } else if (b.id === 'undoBtn') undo(); else if (b.id === 'stripDone') setTool('look'); };
 dock.onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   const id = b.dataset.g, g = GROUPS.find(x => x[0] === id);
   if (id === 'look') { setTool('look'); return; }
   if (sheetFor === id) { closeSheet(); return; }
-  openSheet(`<h4>${g[4]}: tap one</h4><div class="tiles">${g[3].map(t => `<button class="tile ${tool === t ? 'on' : ''}" data-t="${t}"><span class="ic">${TOOLINFO[t][0]}</span><span><b>${TOOLINFO[t][1]}</b><small>${TOOLINFO[t][2]}</small></span></button>`).join('')}</div>`, id);
+  const evBlock = id === 'powers' ? `<h4 style="margin-top:12px">Make the weather happen now (one tap)</h4><div class="tiles">${EVTILES.map(([k, ic, nm, ds]) => `<button class="tile" data-ev="${k}"><span class="ic">${ic}</span><span><b>${nm}</b><small>${ds}</small></span></button>`).join('')}</div>` : '';
+  openSheet(`<h4>${g[4]}: tap one</h4><div class="tiles">${g[3].map(t => `<button class="tile ${tool === t ? 'on' : ''}" data-t="${t}"><span class="ic">${TOOLINFO[t][0]}</span><span><b>${TOOLINFO[t][1]}</b><small>${TOOLINFO[t][2]}</small></span></button>`).join('')}</div>${evBlock}`, id);
 };
 sheet.onclick = e => {
   const t = e.target.closest('[data-t]'); if (t) { setTool(t.dataset.t); return; }
-  const v = e.target.closest('[data-v]'); if (v) { view = +v.dataset.v; closeSheet(); }
+  const v = e.target.closest('[data-v]'); if (v) { view = +v.dataset.v; closeSheet(); return; }
+  const sg = e.target.closest('[data-sig]'); if (sg) { showSignals = !showSignals; closeSheet(); showHint('', showSignals ? 'Smell ripples are on: a coloured ring pulses when a creature releases red, green or blue smell.' : 'Smell ripples are off.'); return; }
+  const ev = e.target.closest('[data-ev]'); if (ev) { const k = ev.dataset.ev; S.triggerEvent(w, k); closeSheet(); showHint('', EVMSG[k]); sfx(k === 'heat' ? 'spark' : 'sick'); return; }
 };
 const HINTS = {};
 const hintEl = document.createElement('div');
-hintEl.style.cssText = 'position:fixed;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 96px);transform:translateX(-50%);width:max-content;max-width:92vw;background:#000d;color:#fff;border:1px solid #fff4;border-radius:14px;padding:9px 14px;font-size:14.5px;line-height:1.35;z-index:20;pointer-events:none;transition:opacity .4s;opacity:0;text-align:center';
+hintEl.style.cssText = 'position:fixed;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 146px);transform:translateX(-50%);width:max-content;max-width:92vw;background:#000d;color:#fff;border:1px solid #fff4;border-radius:14px;padding:9px 14px;font-size:14.5px;line-height:1.35;z-index:20;pointer-events:none;transition:opacity .4s;opacity:0;text-align:center';
 document.body.appendChild(hintEl);
 let hintT = 0;
 function showHint(t, text) { hintEl.textContent = text || HINTS[t] || ''; hintEl.style.opacity = 1; clearTimeout(hintT); hintT = setTimeout(() => { hintEl.style.opacity = 0; }, 5000); }
 const VIEWS = ['Everything', 'Smell A', 'Smell B', 'Smell C', 'Heat and cold', 'Poison'];
 $('bView').onclick = () => {
   if (sheetFor === 'view') { closeSheet(); return; }
-  openSheet('<h4>What should the dish show?</h4><div class="chips">' + VIEWS.map((v, i) => `<button data-v="${i}" class="${view === i ? 'on' : ''}">${v}</button>`).join('') + '</div><p class="dim" style="margin:10px 4px 0;font-size:13px">“Everything” shows every coloured field at once (smells, heat, cold, poison). Pick one to look at just that.</p>', 'view');
+  openSheet('<h4>What should the dish show?</h4><div class="chips">' + VIEWS.map((v, i) => `<button data-v="${i}" class="${view === i ? 'on' : ''}">${v}</button>`).join('') + '</div><p class="dim" style="margin:10px 4px 0;font-size:13px">“Everything” shows every coloured field at once (smells, heat, cold, poison). Pick one to look at just that.</p><button data-sig="1" class="' + (showSignals ? 'on' : '') + '" style="width:100%;margin-top:10px;white-space:normal">' + (showSignals ? '✔ ' : '') + 'Show smell ripples and pod threads on the creatures</button>', 'view');
 };
 syncDock();
 $('bPause').onclick = () => { paused = !paused; $('bPause').textContent = paused ? '▶' : '⏸'; };
 $('bSpeed').onclick = () => { speed = speed === 1 ? 3 : speed === 3 ? 8 : speed === 8 ? 0.4 : 1; $('bSpeed').textContent = speed + '×'; showHint('', speed === 0.4 ? 'Slow motion (0.4×)' : speed === 1 ? 'Normal speed' : 'Fast forward ' + speed + '×'); };
 $('bMenu').onclick = () => { menuTab = 'home'; openMenu(); };
-if (!localStorage.getItem('motes.seenGuide') && !firstRun) { localStorage.setItem('motes.seenGuide', '1'); setTimeout(() => { menuTab = 'guide'; openMenu(); }, 400); }
+// ---------- first-time tour: dims the screen, circles one control at a time and says what it is ----------
+const TOUR = [
+  { sel: '#dock [data-g="look"]', title: '👆 Look', text: 'Drag to move, pinch to zoom, and tap any creature to read its mind.' },
+  { sel: '#dock', title: '🌱 Build · 🌡️ Climate · ⚡ Powers', text: 'Each opens a panel of tools that explain themselves. Try Powers, then Plague.' },
+  { sel: '#top', title: 'Time and view', text: '⏸ pause, the number is speed, 👁 chooses what the dish shows.' },
+  { sel: '#bMenu', title: '☰ Menu', text: 'The creatures, the story so far, the guide and saving. “Show me around” replays this.' },
+];
+const tourEl = document.createElement('div');
+tourEl.style.cssText = 'position:fixed;inset:0;z-index:60;display:none';
+document.body.appendChild(tourEl);
+function startTour(i = 0) {
+  if ($('over').style.display === 'flex' || menu.style.display === 'flex') { setTimeout(() => startTour(i), 1200); return; }
+  if (i >= TOUR.length) { tourEl.style.display = 'none'; try { localStorage.setItem('motes.tour', '1'); } catch (_) {} return; }
+  const st = TOUR[i], el = document.querySelector(st.sel); if (!el) { startTour(i + 1); return; }
+  const r = el.getBoundingClientRect(), pad = 6, low = r.top > innerHeight / 2;
+  tourEl.style.display = 'block';
+  tourEl.innerHTML = '<div style="position:absolute;left:' + (r.left - pad) + 'px;top:' + (r.top - pad) + 'px;width:' + (r.width + 2 * pad) + 'px;height:' + (r.height + 2 * pad) + 'px;border-radius:18px;box-shadow:0 0 0 9999px #000b;border:2px solid #58c08a;pointer-events:none"></div>' +
+    '<div style="position:absolute;left:12px;right:12px;' + (low ? 'bottom:' + (innerHeight - r.top + 16) + 'px' : 'top:' + (r.bottom + 16) + 'px') + ';max-width:460px;margin:0 auto;background:#101a28;border:1px solid #58c08a;border-radius:18px;padding:16px;box-shadow:0 8px 30px #000a">' +
+    '<div style="font-size:17px;font-weight:700;margin-bottom:6px">' + st.title + '</div><div style="font-size:15px;line-height:1.45;color:#cfdbe8">' + st.text + '</div>' +
+    '<div style="display:flex;gap:10px;margin-top:14px;align-items:center"><span class="dim" style="flex:1">' + (i + 1) + ' of ' + TOUR.length + '</span><button id="tourSkip">Skip</button><button id="tourNext" class="go" style="min-width:110px">' + (i === TOUR.length - 1 ? 'Got it' : 'Next ›') + '</button></div></div>';
+  $('tourNext').onclick = () => startTour(i + 1);
+  $('tourSkip').onclick = () => startTour(TOUR.length);
+}
+function maybeTour() { if (!localStorage.getItem('motes.tour')) setTimeout(() => startTour(0), 500); }
+if (!firstRun) maybeTour();
 addEventListener('keydown', e => { if (e.code === 'Space') { $('bPause').click(); e.preventDefault(); } });
 
+// the dish tells you what is happening: new species, disasters, firsts and records pop up as a short message
+let lastToastT = -1, lastToastAt = 0;
+function toastFeed() {
+  if (lastToastT < 0 || w.t < lastToastT) { lastToastT = w.t; return; }
+  if (menu.style.display === 'flex' || performance.now() - lastToastAt < 6000 || hintEl.style.opacity === '1') return;
+  const fresh = w.log.slice(-6).concat(w.keep.slice(-6)).filter(e => e.t > lastToastT && ['species', 'event', 'first', 'fav', 'year'].includes(e.kind)).sort((a, b) => a.t - b.t);
+  if (!fresh.length) return;
+  lastToastT = fresh[0].t; lastToastAt = performance.now(); showHint('', (fresh[0].kind === 'species' ? '🧬 ' : fresh[0].kind === 'event' ? '⚡ ' : fresh[0].kind === 'fav' ? '★ ' : '📓 ') + fresh[0].text);
+}
 // what a power just did: counts, a ring on the dish, a message
 // the brush is at least its S/M/L size in screen pixels, so it stays thumb-sized when the map is zoomed out
 function BR() { return brush * Math.max(1, 1 / cam.z); }
@@ -203,16 +261,17 @@ function feedback(t, wx, wy) {
 // ---------- camera / input ----------
 const s2w = (sx, sy) => [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y];
 const ptrs = new Map();
-let pinch = null, downAt = null, painting = null, panning = null;
+let pinch = null, downAt = null, painting = null, panning = null, gesturePushed = false;
 cv.addEventListener('pointerdown', e => {
   if (sheet.style.display === 'block') { closeSheet(); return; }
   try { cv.setPointerCapture(e.pointerId); } catch (_) { /* synthetic or already-released pointer */ }
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return; }
-  downAt = { x: e.clientX, y: e.clientY, moved: false };
+  if (ptrs.size >= 2) { if (gesturePushed) { undoStack.pop(); gesturePushed = false; } const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return; }
+  downAt = { x: e.clientX, y: e.clientY, moved: false }; camGoal = null;
   if (e.button === 1 || e.button === 2 || tool === 'look') { panning = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; return; }
   const [wx, wy] = s2w(e.clientX, e.clientY);
   painting = { x: wx, y: wy };
+  if (UNDOABLE.has(tool)) { undoStack.push({ w, f: S.snapshotFields(w) }); gesturePushed = true; if (undoStack.length > 10) undoStack.shift(); lastUndoAt = Date.now(); renderStrip(); }
   if (tool === 'smite' || tool === 'plague') feedback(tool, wx, wy);
   if (tool === 'spark') { const nm = S.spark(w, wx, wy); painting = null; fx.push({ x: wx, y: wy, r: 40, c: '255,255,160', t: 0 }); showHint('', '✨ A new creature appeared: ' + ((w.species.get(nm.sp) || {}).name || 'unknown') + '. Tap it with 👆 Look to see its brain.'); sfx('spark'); buzz(15); }
   if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 100); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 100, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
@@ -235,7 +294,7 @@ function up(e) {
   if (ptrs.size < 2) pinch = null;
   if (ptrs.size === 0) {
     if (downAt && !downAt.moved && tool === 'look' && e.type === 'pointerup') { const [wx, wy] = s2w(e.clientX, e.clientY); pick(wx, wy); }
-    painting = null; panning = null; downAt = null;
+    painting = null; panning = null; downAt = null; gesturePushed = false;
   }
 }
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -247,6 +306,7 @@ function pick(wx, wy) {
   for (const m of w.motes) { const d = (m.x - wx) ** 2 + (m.y - wy) ** 2; if (d < bd) { bd = d; best = m; } }
   if (!best && follow && selected()) return;                 // while following, tapping empty water keeps following
   selId = best ? best.id : 0; follow = false; inspHidden = false; renderInsp(true); updChip();
+  if (best) camGoal = { x: best.x, y: best.y + (H * 0.2) / cam.z };
 }
 // Follow mode: the info panel can be hidden while the camera keeps tracking; a small chip stays on screen.
 let inspHidden = false;
@@ -267,10 +327,15 @@ const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.
 const insp = $('insp');
 insp.innerHTML = '<div id="ibody"></div><canvas id="brain"></canvas>';
 const ib = $('ibody'), bc = $('brain'), bctx = bc.getContext('2d');
-let lastInsp = 0, showBrain = false, showMore = false;
+let lastInsp = 0, showBrain = false, showMore = false, inspDown = false;
+insp.addEventListener('pointerdown', () => { inspDown = true; });
+addEventListener('pointerup', () => setTimeout(() => { inspDown = false; }, 80));
+addEventListener('pointercancel', () => { inspDown = false; });
 const dietLabel = d => d < 0.2 ? 'Grazer' : d < 0.45 ? 'Forager' : d < 0.7 ? 'Omnivore' : 'Hunter';
 function bar(label, v, max = 1) { return `<span>${label}</span><i><b style="width:${Math.max(0, Math.min(100, v / max * 100))}%"></b></i>`; }
 function renderInsp(force) {
+  if (!force && inspDown) return;
+  if (sheet.style.display === 'block') { insp.style.display = 'none'; return; }
   const m = selected();
   if (!selId) { insp.style.display = 'none'; return; }
   if (inspHidden && m) { insp.style.display = 'none'; return; }
@@ -282,15 +347,17 @@ function renderInsp(force) {
   const sp = w.species.get(m.sp), b = m.g.b;
   const kinds = [];
   if (m.sick > 0) kinds.push('sick'); if (m.imm > 0) kinds.push('immune');
+  const cap = captionFor(m);
   const more = showMore ? `${m.anc.length ? `<div class="dim" style="margin-top:6px">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
   ${socialText(m)}
   <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
-  <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Doing now: ${topOut(m)}</div>
+  <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
   <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
-  <div class="bars" style="margin-top:4px">${bar('energy', m.e, m.cap)}</div>
+  <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
+  <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
   <button data-a="more" style="width:100%;margin-top:8px;min-height:44px">${showMore ? '▴ Fewer details' : '▾ More details'}</button>${more}`;
 }
 function socialText(m) {
@@ -319,7 +386,7 @@ insp.addEventListener('click', e => {
     if (a === 'fav') S.toggleFav(w, m);
     if (a === 'feed') S.feedMote(m);
     if (a === 'clone') { const c = S.cloneMote(w, m); selId = c.id; }
-    if (a === 'rename') { const n = prompt('Name', m.name); if (n) { m.name = n.slice(0, 20); const f = w.favs.find(f => f.id === m.id); if (f) f.name = m.name; } }
+    if (a === 'rename') { const n = prompt('Name', m.name); if (n) { m.name = n.slice(0, 28); const f = w.favs.find(f => f.id === m.id); if (f) f.name = m.name; } }
     renderInsp(true);
   }
 });
@@ -355,14 +422,19 @@ function drawBrain() {
 const menu = $('menu'), mbody = $('mbody');
 const PAGES = [
   ['guide', '📖', 'How it works', 'Plain-English guide to everything'],
-  ['species', '🧬', 'Species', 'Who is alive. 🔦 finds them on the dish'],
-  ['tree', '🌳', 'Family tree', 'How species split from each other'],
-  ['diary', '📓', 'Diary', 'Everything notable that happened'],
-  ['stats', '📊', 'Stats', 'Population graph and records'],
-  ['stars', '⭐', 'Starred motes', 'The ones you are keeping an eye on'],
-  ['dish', '⚙️', 'Dish and saving', 'Disasters, load another dish, share or save'],
+  ['species', '🧬', 'The creatures', 'Species, family tree and stats'],
+  ['diary', '📓', 'The story', 'Diary of everything that happened, and starred creatures'],
+  ['dish', '⚙️', 'Dish and saving', 'Load a world, share, save a picture'],
   ['install', '📲', 'Put it on your phone', 'Add it to your home screen as an app'],
+  ['tour', '🎓', 'Show me around', 'A 20-second tour of the buttons'],
 ];
+const GROUPPAGES = { life: ['species', 'tree', 'stats'], story: ['diary', 'stars'] };
+const SUBNAMES = { species: 'Species', tree: '🌳 Family tree', stats: 'Stats', diary: 'Diary', stars: '⭐ Starred' };
+function groupOf(t) { return t === 'species' || t === 'tree' || t === 'stats' ? 'life' : t === 'diary' || t === 'stars' ? 'story' : ''; }
+function subnav() {
+  const g = groupOf(menuTab); if (!g) return '';
+  return '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">' + GROUPPAGES[g].map(t => '<button data-sub="' + t + '" class="' + (menuTab === t ? 'on' : '') + '">' + SUBNAMES[t] + '</button>').join('') + '</div>';
+}
 $('mClose').onclick = () => { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; };
 $('mBack').onclick = () => { menuTab = 'home'; mbody.scrollTop = 0; renderMenu(); };
 function openMenu() { menu.style.display = 'flex'; if (sheetFor) closeSheet(); renderMenu(); }
@@ -370,13 +442,13 @@ const dayOf = t => Math.floor(t / DAY) + 1;
 const stamp = t => `Year ${Math.floor(t / S.YEAR) + 1}, day ${Math.floor((t % S.YEAR) / DAY) + 1}`;
 let diaryFilter = 'all', spot = 0, shake = 0;
 function renderMenu() {
-  const home = menuTab === 'home', pg = PAGES.find(p => p[0] === menuTab);
+  const home = menuTab === 'home', pg = PAGES.find(p => p[0] === menuTab && !groupOf(p[0]));
   $('mBack').style.visibility = home ? 'hidden' : 'visible';
-  $('mTitle').textContent = home ? 'Menu' : pg ? pg[2] : '';
+  $('mTitle').textContent = home ? 'Menu' : pg ? pg[2] : groupOf(menuTab) === 'life' ? 'The creatures' : groupOf(menuTab) === 'story' ? 'The story' : '';
   if (home) {
     mbody.dataset.tab = '';
     mbody.innerHTML = '<div class="cards">' + PAGES.map(p => `<button class="card" data-pg="${p[0]}"><span class="ic">${p[1]}</span><b>${p[2]}</b><small>${p[3]}</small></button>`).join('') + '</div>';
-    mbody.onclick = e => { const c = e.target.closest('[data-pg]'); if (c) { menuTab = c.dataset.pg; mbody.scrollTop = 0; renderMenu(); } };
+    mbody.onclick = e => { const c = e.target.closest('[data-pg]'); if (!c) return; if (c.dataset.pg === 'tour') { menu.style.display = 'none'; startTour(0); return; } menuTab = c.dataset.pg; mbody.scrollTop = 0; renderMenu(); };
     return;
   }
   if (menuTab === 'guide') {
@@ -404,7 +476,7 @@ function renderMenu() {
     const FILT = [['all', 'Everything'], ['year', 'Years'], ['first', 'Firsts'], ['species', 'Species'], ['event', 'Events'], ['fav', 'Stars']];
     const rows = S.allLog(w).filter(l => diaryFilter === 'all' || l.kind === diaryFilter).reverse().slice(0, 300);
     mbody.innerHTML = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${FILT.map(([k, l]) => `<button data-df="${k}" class="${diaryFilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>` +
-      (rows.map(l => `<div class="row k-${l.kind}"><span class="dim">${stamp(l.t)}</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Nothing here yet.</div>');
+      (rows.map(l => `<div class="row k-${String(l.kind).replace(/\W/g, '')}"><span class="dim">${stamp(l.t)}</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Nothing here yet.</div>');
     mbody.onclick = e => { const k = e.target.dataset && e.target.dataset.df; if (k) { diaryFilter = k; renderMenu(); } };
   } else if (menuTab === 'stats') {
     mbody.onclick = null;
@@ -431,7 +503,7 @@ function renderMenu() {
     <h4>Save or share this dish (phone ⇄ computer)</h4>
     <div style="display:flex;gap:4px;flex-wrap:wrap"><button id="xDown">Download dish file</button><button id="xCopy">Copy dish code</button><label style="display:inline"><input id="xFile" type="file" accept=".json,.motes" hidden><button id="xUp" type="button">Load dish file</button></label></div>
     <textarea id="xText" placeholder="Paste a dish code here, then tap Load pasted code"></textarea><button id="xPaste">Load pasted code</button>
-    <h4>Start over</h4><div class="dim">Pre-evolved dishes: each was fast-forwarded about 4 dish-years on a computer while the motes evolved. Loading one erases this dish.</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"><button id="nStarter">🏗️ Builders (smartest, spread out)</button><button id="nBuild">🦈 Predators (6 species)</button><button id="nCycle">🐝 The Swarm (predator ball)</button></div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="nNew">New primordial dish (erases this one)</button></div>
+    <h4>Start over</h4><div class="dim">Optional: worlds that were fast-forwarded for 3 dish-years on a computer while the creatures evolved. Loading one erases this dish.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><button id="nStarter">🌍 Evolved world A</button><button id="nBuild">🌍 Evolved world B</button></div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="nBest">🌱 Fresh Day 1 (the best start)</button><button id="nNew">🎲 Fresh Day 1 (random)</button></div>
     <p class="dim">Dish saves automatically on this device. While you're away it keeps living at a slow pace, up to about 40 minutes of dish time, and the last few motes are protected so you never come back to an empty dish.</p>`;
     const g = id => $(id);
     g('sMax').oninput = e => { w.maxPop = +e.target.value; g('vMax').textContent = w.maxPop; };
@@ -445,8 +517,14 @@ function renderMenu() {
     g('xUp').onclick = () => g('xFile').click();
     g('xFile').onchange = async e => { const f = e.target.files[0]; if (f) importStr(await f.text()); };
     g('xPaste').onclick = () => importStr(g('xText').value.trim());
-    for (const [id, nm] of [['nStarter', 'dish'], ['nBuild', 'predators'], ['nCycle', 'swarm']]) g(id).onclick = async () => { if (confirm('Replace this dish with this pre-evolved one?')) { if (await loadStarter(false, nm)) menu.style.display = 'none'; else alert('Could not load it (are you offline?)'); } };
-    g('nNew').onclick =() => { if (confirm('Erase this dish and start a new one?')) { w = S.createWorld((Date.now() & 0x7fffffff) || 9); selId = 0; save(); menu.style.display = 'none'; } };
+    for (const [id, nm] of [['nStarter', 'dish'], ['nBuild', 'world2']]) g(id).onclick = async () => { if (confirm('Replace this dish with this pre-evolved one?')) { if (await loadStarter(false, nm)) menu.style.display = 'none'; else alert('Could not load it (are you offline?)'); } };
+    g('nNew').onclick = () => { if (confirm('Erase this dish and start a new one?')) { setWorld(S.createWorld((Date.now() & 0x7fffffff) || 9)); save(); menu.style.display = 'none'; } };
+    g('nBest').onclick = () => { if (confirm('Erase this dish and start the best Day 1 dish?')) { setWorld(S.createWorld(S.BEST_SEED)); save(); menu.style.display = 'none'; } };
+  }
+  if (groupOf(menuTab)) {
+    mbody.insertAdjacentHTML('afterbegin', subnav());
+    const prev = mbody.onclick;
+    mbody.onclick = e => { const b = e.target.closest('[data-sub]'); if (b) { menuTab = b.dataset.sub; mbody.scrollTop = 0; renderMenu(); return; } if (prev) prev(e); };
   }
 }
 // ---------- family tree of species ----------
@@ -479,8 +557,9 @@ function renderTree() {
 let sndOn = localStorage.getItem('motes.snd') === '1', AC = null; const lastSfx = {};
 function setSound(on) { sndOn = on; try { localStorage.setItem('motes.snd', on ? '1' : '0'); } catch (_) {} if (on) { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); sfx('spark'); } catch (_) { sndOn = false; } } }
 function tone(f0, f1, dur, type, vol) { const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + 0.02); }
+addEventListener('pointerdown', () => { if (sndOn && !AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {} } if (AC && AC.state === 'suspended') AC.resume(); }, { passive: true });
 function sfx(k) {
-  if (!sndOn) return; if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { return; } }
+  if (!sndOn || !AC || AC.state !== 'running') return;
   const now = performance.now(); if (now - (lastSfx[k] || 0) < (k === 'birth' ? 120 : 60)) return; lastSfx[k] = now;
   try {
     if (k === 'birth') tone(520 + Math.random() * 380, 900 + Math.random() * 300, 0.12, 'sine', 0.04);
@@ -499,7 +578,12 @@ function soundTick() {
   if (lastC && sndOn) { if (cur.b > lastC.b) sfx('birth'); if (cur.k > lastC.k) sfx('kill'); if (cur.s > lastC.s) sfx('species'); if (cur.p > lastC.p) sfx('sick'); }
   lastC = cur;
 }
-function importStr(s) { try { const nw = S.deserialize(s); w = nw; selId = 0; save(); menu.style.display = 'none'; } catch (e) { alert('That does not look like a dish.'); } }
+function setWorld(nw) {
+  w = nw; selId = 0; follow = false; inspHidden = false; spot = 0; camGoal = null; undoStack.length = 0; lastC = null; lastToastT = -1;
+  if (matchMedia('(pointer:coarse)').matches && w.maxPop > 450) w.maxPop = 450;
+  insp.style.display = 'none'; updChip();
+}
+function importStr(s) { try { const nw = S.deserialize(s); setWorld(nw); save(); menu.style.display = 'none'; } catch (e) { alert('That does not look like a dish.'); } }
 function drawGraph() {
   const g = $('graph'); if (!g) return;
   const cw = g.clientWidth, ch = g.clientHeight; g.width = cw * dpr; g.height = ch * dpr;
@@ -527,12 +611,58 @@ function updOverlay() {
   }
   octx.putImageData(oimg, 0, 0);
 }
+// one icon over a creature's head says what it is doing right now (highest priority wins; it stays at least 0.7 s so it does not flicker)
+function glyphFor(m, now) {
+  const o = m.o; let g = '';
+  if (m.hurt > 0.3) g = m.why2 === 'toxin' ? '☠️' : '💢';
+  else if (m.sick > 0) g = '🤢';
+  else if (o[S.OUT.BITE] > 0.3 && m.diet > 0.3) g = '😈';
+  else if (o[S.OUT.XFER] < -0.25) g = '😠';
+  else if (o[S.OUT.XFER] > 0.25) g = '💛';
+  else if (o[S.OUT.MATE] > 0.3 && m.age > m.matureAge && m.e >= m.thr) g = '❤️';
+  else if (m.cdB > 1.5) g = '🔨';
+  else if (m.e < m.cap * 0.22) g = '🍽️';
+  else if (m.pod && m.id < m.pod) g = '🤝';
+  if (g !== m._gl && now - (m._glT || 0) > 700) { m._gl = g; m._glT = now; }
+  return m._gl || '';
+}
+// plain-words caption for the selected creature: what it is DOING and how it is FEELING
+function captionFor(m) {
+  const sn = n => String(n).split(' ')[0]; const o = m.o, OUT = S.OUT; let near = null, nd = 1e9;
+  for (const q of w.motes) { if (q === m) continue; const d = Math.hypot(q.x - m.x, q.y - m.y) - m.r - q.r; if (d < nd) { nd = d; near = q; } }
+  const contact = near && nd < 4;
+  let bk = -1, bv = 0.5; for (let k = 0; k < 4; k++) if (o[OUT.B_WALL + k] > bv) { bv = o[OUT.B_WALL + k]; bk = k; }
+  let doing;
+  if (m.hurt > 0.3) doing = m.why2 === 'toxin' ? 'Hurting: standing in poison' : m.why2 === 'heat' ? 'Hurting: too hot' : m.why2 === 'cold' ? 'Hurting: too cold' : m.why2 === 'plague' ? 'Weak from sickness' : 'Being attacked!';
+  else if (m.e < m.cap * 0.1) doing = 'Starving';
+  else if (o[OUT.BITE] > 0.3 && contact) doing = 'Attacking ' + sn(near.name);
+  else if (o[OUT.BITE] > 0.3) doing = 'Hunting';
+  else if (o[OUT.XFER] > 0.25 && contact) doing = 'Giving energy to ' + sn(near.name) + (S.relOf(m, near) > 0 ? ' (family)' : '');
+  else if (o[OUT.XFER] < -0.25 && contact) doing = 'Stealing energy from ' + sn(near.name);
+  else if (bk >= 0 && m.cdB > 1) doing = 'Building a ' + ['wall', 'farm', 'nest', 'granary'][bk];
+  else if (o[OUT.DIG] > 0.5) doing = 'Tearing down a structure';
+  else if (o[OUT.MATE] > 0.3 && m.age > m.matureAge && m.e >= m.thr) doing = 'Looking for a mate';
+  else if (m.sick > 0) doing = 'Fighting off a sickness';
+  else if (m.v < m.maxSp * 0.1) doing = 'Resting';
+  else doing = 'Wandering';
+  let feeling, bf = null, bs = 0.3;
+  for (const [id, sc] of m.fr) { const f = w.byId.get(id); if (f && sc > bs && Math.hypot(f.x - m.x, f.y - m.y) < 200) { bs = sc; bf = f; } }
+  if (m.e < m.cap * 0.25) feeling = m.mem[2] > 0.05 ? 'Hungry, heading for food it remembers' : 'Hungry, searching for food';
+  else if (m.mem[5] > 0.05) feeling = 'Wary: avoiding where it got hurt';
+  else if (m.pod && w.byId.get(m.pod)) feeling = 'Sticking close to ' + sn(w.byId.get(m.pod).name);
+  else if (bf) feeling = 'Happy near its friend ' + sn(bf.name);
+  else if (m.crowd > 8) feeling = 'Feels crowded';
+  else if (m.mood > 0.5) feeling = 'Content and well fed';
+  else if (m.mood < -0.4) feeling = 'Gloomy';
+  else feeling = 'Calm';
+  return [doing, feeling];
+}
 const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
 // A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
 const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
 function drawSquiggle(m, dtv) {
   const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
-  if (cam.z < 0.16) { ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * (0.8 + m.segs * 0.12), 0, 7); ctx.fill(); return; }
+  if (cam.z < 0.32) { ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * (0.8 + m.segs * 0.12), 0, 7); ctx.fill(); return; }
   m.ph += dtv * (1.5 + m.wfreq * 9) * (0.25 + m.v / m.maxSp);
   const n = m.segs, segLen = m.r * 0.8 * m.lenF;
   let x = m.x, y = m.y, a = m.h + Math.PI;
@@ -661,27 +791,46 @@ function draw() {
   for (const f of w.food) if (f.k === 1) { ctx.moveTo(f.x + 2.2, f.y); ctx.arc(f.x, f.y, 2.2, 0, 7); }
   ctx.fill();
   // motes
+  const nowMs = performance.now(), showG = cam.z >= 0.9;
+  const vx0 = cam.x - W / 2 / cam.z - 40, vx1 = cam.x + W / 2 / cam.z + 40, vy0 = cam.y - H / 2 / cam.z - 40, vy1 = cam.y + H / 2 / cam.z + 40;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const m of w.motes) {
     if (spot) ctx.globalAlpha = m.sp === spot ? 1 : 0.28;
     drawSquiggle(m, dtv);
-    if (spot && m.sp === spot) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6 / cam.z + 0.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2.2 + 4 + Math.sin(performance.now() / 250) * 1.5, 0, 7); ctx.stroke(); }
+    if (spot && m.sp === spot) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6 / cam.z + 0.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2.2 + 4 + Math.sin(nowMs / 250) * 1.5, 0, 7); ctx.stroke(); }
     ctx.globalAlpha = 1;
-    if (m.pod && m.id < m.pod) { const po = w.byId.get(m.pod); if (po) { ctx.strokeStyle = '#ffe14d70'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(po.x, po.y); ctx.stroke(); } }
-    if (m.hurt > 0 && m.why2 === 'toxin') { ctx.strokeStyle = '#c6f'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + Math.sin(performance.now() / 70) * 1.5, 0, 7); ctx.stroke(); }
-    for (let k = 0; k < 3; k++) { const e = m.o[S.OUT.EMIT_A + k]; if (e > 0.05) { const ph = ((performance.now() / 700 + m.id * 0.37 + k * 0.33) % 1); ctx.strokeStyle = ['#ff4646', '#46ff6e', '#5a8cff'][k]; ctx.globalAlpha = (1 - ph) * 0.8; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + ph * 22, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
-    if (m.sick > 0) { const pu = 0.5 + 0.5 * Math.sin(performance.now() / 160 + m.id); ctx.fillStyle = `rgba(120,255,90,${0.15 + 0.2 * pu})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3, 0, 7); ctx.fill(); ctx.strokeStyle = '#9f4'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3 + pu * 2, 0, 7); ctx.stroke(); }
-    if (m.fav) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3, 0, 7); ctx.stroke(); }
-    if (m.o[S.OUT.BITE] > 0.3 && m.hurt < 0.1) { ctx.fillStyle = '#ff0'; ctx.fillRect(m.x - 1, m.y - m.r - 4, 2, 2); }
+    if (m.x < vx0 || m.x > vx1 || m.y < vy0 || m.y > vy1) continue;
+    if (showSignals) {      // optional: coloured ripples when a mote releases a smell, and a thread between pod-mates
+      if (m.pod && m.id < m.pod) { const po = w.byId.get(m.pod); if (po) { ctx.strokeStyle = '#ffe14d70'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(po.x, po.y); ctx.stroke(); } }
+      for (let k = 0; k < 3; k++) { const e = m.o[S.OUT.EMIT_A + k]; if (e > 0.05) { const ph = ((nowMs / 700 + m.id * 0.37 + k * 0.33) % 1); ctx.strokeStyle = ['#ff4646', '#46ff6e', '#5a8cff'][k]; ctx.globalAlpha = (1 - ph) * 0.8; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + ph * 22, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
+    }
+    if (m.sick > 0) { const pu = 0.5 + 0.5 * Math.sin(nowMs / 160 + m.id); ctx.fillStyle = `rgba(120,255,90,${0.14 + 0.2 * pu})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3, 0, 7); ctx.fill(); }
+    if (cam.z >= 0.45) {
+      const gl = showG ? glyphFor(m, nowMs) : '';
+      const sz = Math.max(10, m.r * 1.8);
+      if (m.fav) { ctx.font = sz + 'px sans-serif'; ctx.fillStyle = '#ffe14d'; ctx.fillText('★', m.x - (gl ? sz * 0.7 : 0), m.y - m.r * 2.3 - 2); }
+      if (gl) { ctx.font = sz + 'px sans-serif'; ctx.fillText(gl, m.x + (m.fav ? sz * 0.5 : 0), m.y - m.r * 2.3 - 2 - Math.sin(nowMs / 300 + m.id) * 1); }
+    }
   }
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dtv; if (f.t > 0.7) { fx.splice(i, 1); continue; } const k = f.t / 0.7; ctx.strokeStyle = `rgba(${f.c},${1 - k})`; ctx.lineWidth = 3 / cam.z + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.9 * k), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.c},${0.25 * (1 - k)})`; ctx.fill(); }
   const sm = selected();
   if (sm) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / cam.z + 0.5; ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r + 5, 0, 7); ctx.stroke();
-    ctx.lineWidth = 1.2 / cam.z + 0.4;
-    for (const o of w.motes) { if (o !== sm && S.relOf(sm, o) > 0) { ctx.strokeStyle = '#ffd24acc'; ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(o.x, o.y); ctx.stroke(); } }
-    for (const [id, s] of sm.fr) { const o = w.byId.get(id); if (!o) continue; ctx.strokeStyle = s < 0 ? '#ff4a4acc' : `rgba(90,220,140,${0.3 + 0.6 * s})`; ctx.setLineDash(s < 0 ? [3, 3] : []); ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(o.x, o.y); ctx.stroke(); }
-    ctx.setLineDash([]);
-    ctx.strokeStyle = '#ffffff30'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.senseR, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth = 1.4 / cam.z + 0.5;
+    const rel = [];                                             // best friend, worst rival, two nearest relatives: nothing else
+    let bf = null, bfs = 0, rv = null, rvs = 0;
+    for (const [id, sc] of sm.fr) { const o = w.byId.get(id); if (!o) continue; if (sc > bfs) { bfs = sc; bf = o; } if (sc < rvs) { rvs = sc; rv = o; } }
+    if (bf) rel.push([bf, '#5adc8c', [], '💚']);
+    if (rv) rel.push([rv, '#ff5a5a', [4, 4], '💢']);
+    const fam = []; for (const o of w.motes) if (o !== sm && S.relOf(sm, o) > 0 && o !== bf && o !== rv) fam.push([Math.hypot(o.x - sm.x, o.y - sm.y), o]);
+    fam.sort((a, b) => a[0] - b[0]); for (const [, o] of fam.slice(0, 2)) rel.push([o, '#ffd24a', [1, 4], '🏠']);
+    ctx.font = Math.max(11, 13 / cam.z) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const [o, col, dash, ic] of rel) {
+      const d = Math.hypot(o.x - sm.x, o.y - sm.y), fade = Math.max(0.25, 1 - d / 900);
+      ctx.strokeStyle = col; ctx.globalAlpha = fade; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(o.x, o.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff'; ctx.fillText(ic + ' ' + o.name.split(' ')[0], o.x, o.y - o.r * 2.6 - 3);
+    }
+    if (showMore) { ctx.strokeStyle = '#ffffff30'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.senseR, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
     if (sm.mem[2] > 0.05) { ctx.strokeStyle = '#7fe08acc'; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(sm.mem[0], sm.mem[1]); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(sm.mem[0], sm.mem[1], 4, 0, 7); ctx.stroke(); }
     if (sm.mem[5] > 0.05) { ctx.strokeStyle = '#ff6a6acc'; ctx.beginPath(); ctx.arc(sm.mem[3], sm.mem[4], 5, 0, 7); ctx.stroke(); }
     if (sm.pod) { const po = w.byId.get(sm.pod); if (po) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 2.2 / cam.z + 0.6; ctx.beginPath(); ctx.moveTo(sm.x, sm.y); ctx.lineTo(po.x, po.y); ctx.stroke(); } }
@@ -708,6 +857,7 @@ function frame(now) {
     if (acc > 0.5) acc = 0;
   }
   if (painting && tool !== 'look' && tool !== 'spark' && !catching) { S.paint(w, tool, painting.x, painting.y, BR(), Math.max(0.02, rdt)); if (tool === 'erase' || tool === 'food') S.cleanFood(w); }
+  if (camGoal) { const sm0 = selected(); if (sm0) { camGoal.x = sm0.x; camGoal.y = sm0.y + (H * 0.2) / cam.z; } cam.x += (camGoal.x - cam.x) * 0.18; cam.y += (camGoal.y - cam.y) * 0.18; if (Math.abs(camGoal.x - cam.x) + Math.abs(camGoal.y - cam.y) < 1 || !sm0) camGoal = null; }
   const sm = selected();
   if (follow && sm) { cam.x += (sm.x - cam.x) * 0.15; cam.y += (sm.y - cam.y) * 0.15; }
   if (!catching) soundTick();
@@ -715,13 +865,14 @@ function frame(now) {
   if (now - hudT > 400) {
     hudT = now;
     const s = w.stats, tod = ((w.t % DAY) / DAY), moon = w.light < 0.5 ? '🌙' : '☀️';
-    $('hud').textContent = `${moon} Y${Math.floor(w.t / S.YEAR) + 1} D${Math.floor((w.t % S.YEAR) / DAY) + 1} · 🧫 ${w.motes.length} · 🧬 ${s.species} species · 🍃 ${w.food.length}` + (w.sick > 0 ? ` · 🦠 ${w.sick}` : '');
+    const dy = Math.floor(w.t / S.YEAR) + 1, dd = Math.floor((w.t % S.YEAR) / DAY) + 1;
+    $('hud').textContent = `${moon} ${dy > 1 ? 'Year ' + dy + ', day ' + dd : 'Day ' + dd} · ${w.motes.length} creatures · ${s.species} kinds` + (w.sick > 0 ? ` · 🦠 ${w.sick} sick` : '');
+    toastFeed();
     if (selId) renderInsp(false);
     if (follow && !selected()) { follow = false; inspHidden = false; renderInsp(true); }
     updChip();
-    if (!w.motes.length && !catching && $('over').style.display !== 'flex') { const o = $('over'); o.style.display = 'flex'; o.innerHTML = '<div style="font-size:18px">The dish is empty.</div><div class="dim">Every mote is gone. Seed new life, or start fresh.</div><button id="seed">Seed new life</button><button id="fresh">New dish</button>'; $('seed').onclick = () => { for (let i = 0; i < 6; i++) { const a = Math.random() * 6.28, d = Math.random() * 400; S.spark(w, Math.cos(a) * d, Math.sin(a) * d); } o.style.display = 'none'; }; $('fresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 5); o.style.display = 'none'; }; }
+    if (!w.motes.length && !catching && $('over').style.display !== 'flex') { const o = $('over'); o.style.display = 'flex'; o.innerHTML = '<div style="font-size:18px">The dish is empty.</div><div class="dim">Every creature is gone. You can seed new founders, or start a fresh Day 1.</div><button id="seed" class="go">🌱 Seed new founders</button><button id="fresh">Fresh Day 1</button>'; $('seed').onclick = () => { S.reseed(w); o.style.display = 'none'; }; $('fresh').onclick = () => { setWorld(S.createWorld(S.BEST_SEED)); o.style.display = 'none'; }; }
   }
-  if (menu.style.display === 'flex' && now - menuT > 1000 && ['species', 'stats'].includes(menuTab) && !document.activeElement.matches('input,textarea')) { menuT = now; renderMenu(); }
   drawBrain();
   requestAnimationFrame(frame);
 }
