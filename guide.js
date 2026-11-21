@@ -36,6 +36,51 @@ const ACTION = {
 };
 const li = (o, k) => `<li><b>${k}</b> — ${o[k] || ''}</li>`;
 
+// Install steps for every common device. `dev` is the detected device so we can mark and open "your" section.
+export function installHTML(dev, standalone) {
+  const mark = d => (d === dev ? ' <span style="color:#58c08a">← this is you</span>' : '');
+  const open = d => (d === dev ? ' open' : '');
+  const S = (d, title, steps, note = '') => `<details${open(d)}><summary>${title}${mark(d)}</summary><ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol>${note ? `<p class="dim">${note}</p>` : ''}</details>`;
+  return `
+${standalone ? '<p style="color:#58c08a"><b>✔ You are already using the installed app.</b> Nothing more to do.</p>' : '<p>Motes is a <b>web app</b>: there is nothing to download from a store. Open the link in your phone\'s browser, then add it to your home screen. It then opens full-screen like any app, has its own icon, and <b>works offline</b>. It is free and nothing is uploaded anywhere.</p>'}
+<div id="installNative"></div>
+${S('android', 'Android phones (Pixel, OnePlus, Motorola… using Chrome)', [
+    'Open <b>https://capsail.github.io/motes/</b> in <b>Chrome</b>.',
+    'Tap the <b>⋮</b> menu (top right).',
+    'Tap <b>Install app</b> (or <b>Add to Home screen</b>).',
+    'Tap <b>Install</b>, then <b>Add</b> if it asks. The Motes icon appears on your home screen.',
+  ], 'If you do not see Install, reload the page once and wait a few seconds, then try the ⋮ menu again.')}
+${S('samsung', 'Samsung Galaxy (Samsung Internet)', [
+    'Open the link in <b>Samsung Internet</b>.',
+    'Tap the <b>≡</b> menu (bottom right).',
+    'Tap <b>Add page to</b>, then <b>Home screen</b>.',
+    'Tap <b>Add</b>.',
+  ], 'On a Galaxy you can also use Chrome: follow the Android steps above.')}
+${S('ios', 'iPhone and iPad (Safari)', [
+    'Open the link in <b>Safari</b> (the blue compass icon).',
+    'Tap the <b>Share</b> button: the square with an arrow pointing up (bottom middle on iPhone, top right on iPad).',
+    'Scroll down and tap <b>Add to Home Screen</b>.',
+    'Tap <b>Add</b> (top right). The icon appears on your home screen.',
+  ], 'Heads up: an iPhone keeps the home-screen app\'s saves <b>separate</b> from the Safari tab. Start from the home-screen icon and stay there. To move a dish between them, use Menu → Dish → Copy dish code, and paste it into the other one. On newer iOS you can also add from Chrome or Edge using their Share menu.')}
+${S('firefox', 'Firefox on Android', [
+    'Open the link in <b>Firefox</b>.',
+    'Tap the <b>⋮</b> menu.',
+    'Tap <b>Install</b>, then confirm.',
+  ])}
+${S('desktop', 'Computer (Chrome, Edge, Brave)', [
+    'Open the link in your browser.',
+    'Click the <b>install icon</b> at the right end of the address bar (a monitor with a down arrow), or open <b>⋮ → Cast, save and share → Install page as app</b> (Edge: <b>… → Apps → Install this site as an app</b>).',
+    'Click <b>Install</b>. It opens in its own window and gets a shortcut.',
+  ], 'On a Mac in Safari: File → Add to Dock.')}
+<h4>Sharing it</h4>
+<p>Send people the link <b>https://capsail.github.io/motes/</b> and point them to <b>? → Guide</b> or <b>☰ → 📲 Install</b>. Everyone gets their own dish that lives on their own device.</p>
+<h4>Trouble?</h4>
+<ul><li><b>No install option:</b> make sure you are in the browser itself (not inside another app's built-in browser such as Facebook or Messenger). Use "Open in browser" first.</li>
+<li><b>Saves are separate per device and per install.</b> Menu → Dish has Download dish file and Copy dish code to move one.</li>
+<li><b>Update the app:</b> just open it while online; it refreshes itself the next time you launch.</li>
+<li><b>Remove it:</b> press and hold the icon, then Uninstall / Remove. The dish on that device goes with it, so copy the dish code first if you care.</li></ul>`;
+}
+
 export function guideHTML() {
   return `
 <p>Welcome to <b>Motes</b>: a petri dish of tiny digital creatures that live, eat, breed, build, fight, cooperate and evolve on their own. You are not the boss of them. You are the weather, the gardener and the meddling giant hand. Nothing in here is scripted past the first six founders; everything you see them do was discovered by evolution.</p>

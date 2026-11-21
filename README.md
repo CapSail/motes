@@ -22,5 +22,13 @@ Files: `sim.js` (the engine, pure JS), `ui.js` + `index.html` (plain UI), `sw.js
 - **While you are away** the dish keeps living (1 away-second = 0.25 dish-seconds, capped at 40 dish-minutes), with a welcome-back report. The last few motes are protected during catch-up.
 - Dish is saved on the device. Export/import a dish file or code to move it between phone and PC.
 
+## Install it as an app
+Open https://capsail.github.io/motes/ and add it to your home screen. It then runs full-screen and offline. The app also has these steps built in (☰ → 📲 Install), and shows a one-tap Install button where the browser allows it.
+- **Android (Chrome):** ⋮ menu → Install app (or Add to Home screen) → Install.
+- **Samsung Galaxy (Samsung Internet):** ≡ menu → Add page to → Home screen → Add.
+- **iPhone / iPad (Safari):** Share button (square with up arrow) → Add to Home Screen → Add. The home-screen app keeps saves separate from the Safari tab; use Menu → Dish → Copy dish code to move a dish.
+- **Firefox Android:** ⋮ menu → Install.
+- **Computer (Chrome / Edge):** install icon at the right end of the address bar, or ⋮ → Cast, save and share → Install page as app.
+
 ## Status
 Local only. Nothing is deployed or pushed. See `HANDOFF.md`.

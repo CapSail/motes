@@ -1,5 +1,12 @@
 import * as S from './sim.js';
-import { guideHTML } from './guide.js';
+import { guideHTML, installHTML } from './guide.js';
+// Install help: which device is this, are we already installed, and can the browser offer a one-tap install?
+const UA = navigator.userAgent;
+const device = /SamsungBrowser/i.test(UA) ? 'samsung' : /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/i.test(UA) && navigator.maxTouchPoints > 1) ? 'ios' : /Android/i.test(UA) ? (/Firefox/i.test(UA) ? 'firefox' : 'android') : 'desktop';
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let deferredInstall = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; if (menuTab === 'install') renderMenu(); });
+addEventListener('appinstalled', () => { deferredInstall = null; if (menuTab === 'install') renderMenu(); });
 const { R, CELL, GN, DAY } = S;
 
 const $ = id => document.getElementById(id);
@@ -26,8 +33,9 @@ async function loadStarter(intro) {
     if (intro) {
       const o = $('over'); o.style.display = 'flex';
       const yrs = (w.t / S.YEAR).toFixed(1);
-      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Read the Diary (☰) to see what happened, tap ? for the Guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>`;
+      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Read the Diary (☰) to see what happened, tap ? for the Guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
       $('stWatch').onclick = () => { o.style.display = 'none'; };
+      if ($('stInstall')) $('stInstall').onclick = () => { o.style.display = 'none'; menuTab = 'install'; openMenu(); };
       $('stFresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 7); selId = 0; save(); o.style.display = 'none'; };
     }
     return true;
@@ -242,7 +250,7 @@ function drawBrain() {
 
 // ---------- menu ----------
 const menu = $('menu'), mbody = $('mbody'), tabsEl = $('tabs');
-const TABS = [['guide', 'Guide'], ['species', 'Species'], ['diary', 'Diary'], ['stats', 'Stats'], ['stars', 'Stars'], ['dish', 'Dish']];
+const TABS = [['guide', 'Guide'], ['install', '📲 Install'], ['species', 'Species'], ['diary', 'Diary'], ['stats', 'Stats'], ['stars', 'Stars'], ['dish', 'Dish']];
 tabsEl.innerHTML = TABS.map(([id, l]) => `<button data-tab="${id}">${l}</button>`).join('') + '<button data-tab="close" style="margin-left:auto">✕ Close</button>';
 tabsEl.onclick = e => { const t = e.target.dataset.tab; if (!t) return; if (t === 'close') { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; } else { menuTab = t; renderMenu(); } };
 function openMenu() { menu.style.display = 'flex'; renderMenu(); }
@@ -257,6 +265,15 @@ function renderMenu() {
     return;
   }
   mbody.dataset.tab = '';
+  if (menuTab === 'install') {
+    mbody.onclick = null;
+    mbody.innerHTML = installHTML(device, isStandalone());
+    if (deferredInstall && !isStandalone()) {
+      const n = $('installNative'); n.innerHTML = '<button id="doInstall" class="on" style="font-size:15px;padding:10px 16px">📲 Install Motes now</button><p class="dim">Your browser can install it with one tap.</p>';
+      $('doInstall').onclick = async () => { deferredInstall.prompt(); try { await deferredInstall.userChoice; } catch (_) {} deferredInstall = null; renderMenu(); };
+    }
+    return;
+  }
   if (menuTab === 'species') {
     const list = [...w.species.values()].sort((a, b) => (b.count - a.count) || (a.ext - b.ext));
     mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : ''}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');

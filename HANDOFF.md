@@ -27,3 +27,6 @@
 - **Follow mode**: Follow hides the info panel and leaves a "Following ... info / stop" chip; tapping empty water or pinching keeps following; dragging the map stops it.
 - Test tip: the app saves on page leave, so to test the first-visit flow in a browser run `localStorage.clear(); Storage.prototype.setItem=()=>{}` before reloading.
 - `prompt()` (Rename) does not work in the Claude browser pane but is fine in real browsers.
+
+## 2026-11-20 (late): install instructions for every phone type
+- Cap wanted instructions for new users on making it an app for each phone type. Added a **📲 Install** menu tab (detects Android Chrome, Samsung Internet, iPhone/iPad Safari, Firefox Android, desktop; opens and marks the visitor's own section; shows a one-tap "Install Motes now" button when the browser fires `beforeinstallprompt`; says "already installed" in standalone mode), an "Install it as an app" button on the first-visit screen, and an Install section in `README.md`. Checked with Android emulation in the browser pane. iOS and Samsung steps are written from known behaviour, not tested on those devices.
