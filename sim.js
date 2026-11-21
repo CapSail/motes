@@ -47,8 +47,10 @@ export const B = {
   // shape genes: a procedural squiggle (spine of segments, curl, wiggle, limbs). They change how it moves, too.
   SEGS: 20, LEN: 21, TAPER: 22, CURL: 23, WAMP: 24, WFREQ: 25, LIMBS: 26, LIMBLEN: 27,
   BOND: 28,   // how easily it makes friends
+  // look genes: skin pattern, accent colour, antennae, tail fin
+  PATTERN: 29, ACCENT: 30, ANTENNA: 31, FIN: 32,
 };
-export const NB = 29;
+export const NB = 33;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -122,7 +124,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
+const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS, B.PATTERN, B.FIN];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -201,7 +203,7 @@ const FAMILY = [
   [IN.MOTE_REL, 'care', 2.5], [IN.MOTE_FRIEND, 'care', 1.5], [IN.ENERGY, 'care', 2.2], [IN.CONTACT, 'care', 1.5], [IN.MOTE_E, 'care', -2.4], [IN.BIAS, 'care', -4.4], ['care', O(OUT.XFER), 2.2],
 ];
 function grazer(hue) {
-  return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4 }), [
+  return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4, PATTERN: 0.3, ACCENT: 0.3, ANTENNA: 0.3, FIN: 0.2 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.PLANT_F, O(OUT.THRUST), 1.3], [IN.ENERGY, O(OUT.THRUST), -0.6],
     [IN.PLANT_S, O(OUT.TURN), 2.3], [IN.KIN_S, O(OUT.TURN), 0.45],
     ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY,
@@ -212,7 +214,7 @@ function grazer(hue) {
   ]);
 }
 function hunter(hue) {
-  return wire(bodyOf({ SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3 }), [
+  return wire(bodyOf({ SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3, PATTERN: 0.6, ACCENT: 0.8, ANTENNA: 0.1, FIN: 0.8 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.MEAT_F, O(OUT.THRUST), 0.9], [IN.MEAT_S, O(OUT.TURN), 1.8],
     ...WANDER, ...WALLAVOID, ...MATEING,
     [IN.MOTE_P, 'hu', 2.2], [IN.MOTE_KIN, 'hu', -1.6], [IN.MOTE_SIZE, 'hu', -1.3], [IN.BIAS, 'hu', -1.1],
@@ -223,7 +225,7 @@ function hunter(hue) {
   ]);
 }
 function weaver(hue) {
-  return wire(bodyOf({ SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7 }), [
+  return wire(bodyOf({ SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7, PATTERN: 0.9, ACCENT: 0.5, ANTENNA: 0.9, FIN: 0.1 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.PLANT_F, O(OUT.THRUST), 1.2], [IN.PLANT_S, O(OUT.TURN), 2.2], [IN.KIN_S, O(OUT.TURN), 0.4],
     ...WANDER, ...WALLAVOID, ...MATEING,
     [IN.ENERGY, O(OUT.B_NEST), 4.4], [IN.BIAS, O(OUT.B_NEST), -3.3],
@@ -236,20 +238,20 @@ function weaver(hue) {
   ]);
 }
 function scavenger(hue) {
-  return wire(bodyOf({ SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue, SEGS: 0.6, LEN: 0.55, TAPER: 0.5, CURL: 0.92, WAMP: 0.55, WFREQ: 0.55, LIMBS: 0.5, LIMBLEN: 0.5 }), [
+  return wire(bodyOf({ SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue, SEGS: 0.6, LEN: 0.55, TAPER: 0.5, CURL: 0.92, WAMP: 0.55, WFREQ: 0.55, LIMBS: 0.5, LIMBLEN: 0.5, PATTERN: 0.75, ACCENT: 0.15, ANTENNA: 0.6, FIN: 0.4 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.MEAT_F, O(OUT.THRUST), 1.0], [IN.PLANT_F, O(OUT.THRUST), 0.7],
     [IN.MEAT_S, O(OUT.TURN), 2.2], [IN.PLANT_S, O(OUT.TURN), 1.1], [IN.KIN_S, O(OUT.TURN), 0.3],
     ...WANDER, ...WALLAVOID, ...MATEING,
   ]);
 }
 function drifter(hue) {
-  return wire(bodyOf({ SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7, SEGS: 0.2, LEN: 0.15, TAPER: 0.2, CURL: 0.4, WAMP: 0.15, WFREQ: 0.2, LIMBS: 1, LIMBLEN: 0.9 }), [
+  return wire(bodyOf({ SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7, SEGS: 0.2, LEN: 0.15, TAPER: 0.2, CURL: 0.4, WAMP: 0.15, WFREQ: 0.2, LIMBS: 1, LIMBLEN: 0.9, PATTERN: 0.1, ACCENT: 0.6, ANTENNA: 0.0, FIN: 0.95 }), [
     [IN.BIAS, O(OUT.THRUST), -0.4], [IN.PLANT_F, O(OUT.THRUST), 0.5], [IN.ENERGY, O(OUT.THRUST), -0.4],
     ...WANDER, ...WALLAVOID, ...MATEING, [IN.LIGHT, O(OUT.MATE), 0.0],
   ]);
 }
 function wild(hue) {
-  const body = bodyOf({ SIZE: 0.2 + rand() * 0.6, SPEED: 0.2 + rand() * 0.6, SENSE: 0.3 + rand() * 0.5, DIET: rand(), HUE: hue, PHOTO: rand() * 0.3, SEGS: rand(), LEN: rand(), TAPER: rand(), CURL: rand(), WAMP: rand(), WFREQ: rand(), LIMBS: rand(), LIMBLEN: rand() });
+  const body = bodyOf({ SIZE: 0.2 + rand() * 0.6, SPEED: 0.2 + rand() * 0.6, SENSE: 0.3 + rand() * 0.5, DIET: rand(), HUE: hue, PHOTO: rand() * 0.3, SEGS: rand(), LEN: rand(), TAPER: rand(), CURL: rand(), WAMP: rand(), WFREQ: rand(), LIMBS: rand(), LIMBLEN: rand(), PATTERN: rand(), ACCENT: rand(), ANTENNA: rand(), FIN: rand() });
   const links = [...WALLAVOID, ...MATEING, [IN.BIAS, O(OUT.THRUST), 0.3]];
   const ins = [IN.PLANT_F, IN.PLANT_S, IN.MEAT_F, IN.MEAT_S, IN.MOTE_F, IN.MOTE_S, IN.MOTE_P, IN.KIN_S, IN.CH_A, IN.CH_B, IN.GA_S, IN.CLOCK, IN.NOISE];
   const outs = [OUT.THRUST, OUT.TURN, OUT.BITE, OUT.EMIT_A, OUT.EMIT_B, OUT.B_NEST, OUT.XFER];
@@ -271,7 +273,7 @@ export function createWorld(seed = 1) {
     heat: new Float32Array(N), tox: new Float32Array(N),
     chem: [new Float32Array(N), new Float32Array(N), new Float32Array(N)],
     light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, thinkMask: 1,
-    log: [], hist: [], fame: {}, favs: [], milestones: {},
+    log: [], keep: [], lastYear: 0, snap: null, hist: [], fame: {}, favs: [], milestones: {},
     byId: new Map(),
     counters: { friends: 0, grudges: 0, famGifts: 0, inbred: 0, devoted: 0, births: 0, deaths: 0, kills: 0, built: 0, sexual: 0, asexual: 0, newSpecies: 0, extinct: 0, plagues: 0, dug: 0, stolen: 0, shared: 0, stored: 0 },
     maxPop: 600, foodMax: 1500, fert: 1, events: true, mercy: false,
@@ -331,6 +333,10 @@ function derive(m) {
   m.maxSp *= 0.85 + 0.4 * b[B.LEN];
   m.turnRate = 4.5 * (1.25 - 0.5 * b[B.LEN]) * (0.8 + 0.1 * m.limbs);
   m.mvMul = (1.25 - 0.5 * m.wamp) * (1 + 0.08 * m.limbs * (0.5 + m.limbLen));
+  // looks with small consequences: a tail fin makes swimming cheaper, antennae see a bit further but cost a little to keep
+  m.pat = Math.floor(b[B.PATTERN] * 3.99); m.accent = (m.hue + 0.25 + b[B.ACCENT] * 0.5) % 1;
+  m.ant = Math.floor(b[B.ANTENNA] * 3.99); m.fin = b[B.FIN];
+  m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= 1 + 0.05 * m.ant; m.basal += 0.025 * m.ant + 0.05 * m.fin;
 }
 function makeMote(w, g, x, y, e, gen) {
   const m = {
@@ -340,7 +346,7 @@ function makeMote(w, g, x, y, e, gen) {
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
     plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
-    segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
+    pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
   m.e = e || m.cap * 0.4;
@@ -392,9 +398,26 @@ export function cidx(x, y) {
   return gy * GN + gx;
 }
 function solidAt(w, x, y) { const i = cidx(x, y); if (i < 0) return true; const s = w.st[i]; return s === 1 || s === 255; }
+export const YEAR = 365 * DAY;
+const KEEP = new Set(['first', 'year', 'fav']);
 export function log(w, text, kind) {
-  w.log.push({ t: w.t, text, kind: kind || 'info' });
+  const e = { t: w.t, text, kind: kind || 'info' };
+  if (KEEP.has(e.kind)) { w.keep.push(e); if (w.keep.length > 400) w.keep.splice(0, 50); return; }   // the big moments are never pushed out
+  w.log.push(e);
   if (w.log.length > 220) w.log.splice(0, w.log.length - 180);
+}
+export function allLog(w) { return w.keep.concat(w.log).sort((a, b) => a.t - b.t); }
+function yearReview(w) {
+  const c = w.counters, s = w.snap || { newSpecies: 0, extinct: 0, births: 0, kills: 0, friends: 0 };
+  let top = null; for (const sp of w.species.values()) if (sp.count > 0 && (!top || sp.count > top.count)) top = sp;
+  const f = w.fame, bits = [];
+  bits.push(`population ${w.motes.length}, ${w.stats.species} species alive`);
+  bits.push(`${c.newSpecies - s.newSpecies} species born, ${c.extinct - s.extinct} went extinct`);
+  bits.push(`${c.births - s.births} births, ${c.kills - s.kills} kills, ${c.friends - s.friends} friendships`);
+  if (top) bits.push(`the ${top.name}s lead with ${top.count}`);
+  if (f.gen) bits.push(`deepest line: generation ${Math.round(f.gen.val)}`);
+  log(w, `Year ${w.lastYear} in review: ${bits.join('; ')}.`, 'year');
+  w.snap = { newSpecies: c.newSpecies, extinct: c.extinct, births: c.births, kills: c.kills, friends: c.friends };
 }
 function milestone(w, key, text) { if (!w.milestones[key]) { w.milestones[key] = w.t; log(w, text, 'first'); } }
 function infect(w, m) {
@@ -646,7 +669,7 @@ function think(w, m, i, dtt) {
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
       if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone(w, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone(w, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = Math.min(tgt.e * 0.3, 4 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.65; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      else { const a = Math.min(tgt.e * 0.3, 2.6 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.5; m.e -= 0.35 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -810,6 +833,8 @@ function sample(w) {
   const n = ms.length || 1;
   w.stats = { pop: ms.length, species: alive, food: w.food.length, r: sumR / n, diet: sumDiet / n, conns: sumC / n, hid: sumH / n, photo: sumPhoto / n, struct: w.stCount || 0, sick: w.sick };
   w.hist.push([w.t, ms.length, alive, sumC / n, sumDiet / n, w.stCount || 0]);
+  const yr = Math.floor(w.t / YEAR);
+  if (yr > w.lastYear) { w.lastYear = yr; if (!w.noLog) yearReview(w); }
   if (w.hist.length > 300) w.hist.shift();
 }
 function isParent(w, id) { for (const s of w.species.values()) if (s.par === id && !s.ext) return true; return false; }
@@ -911,7 +936,7 @@ export function serialize(w) {
     v: 1, t: w.t, tick: w.tick, rng: RS, innov: INNOV, nextId: w.nextId, nextSp: w.nextSp,
     light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, evTimer: w.evTimer, bloom: w.bloom,
     maxPop: w.maxPop, foodMax: w.foodMax, fert: w.fert, events: w.events,
-    counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), hist: w.hist,
+    counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
     sick: w.sick, plagueOn: w.plagueOn, plagueDead: w.plagueDead,
     st: u8b64(w.st), hp: u8b64(w.hp), store: u8b64(q8(w.store, 1)), heat: u8b64(q8(w.heat, 100, 128)), tox: u8b64(q8(w.tox, 255)),
     chem: w.chem.map(c => u8b64(q8(c, 80))),
@@ -925,7 +950,7 @@ export function deserialize(str) {
   const w = createWorld(1);                     // allocates grids; then we overwrite everything
   w.motes.length = 0; w.food.length = 0; w.species.clear(); w.log.length = 0;
   RS = d.rng | 0 || 1; INNOV = d.innov || 1000;
-  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
+  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
   w.st.set(b64u8(d.st)); w.hp.set(b64u8(d.hp)); w.store.set(f8(b64u8(d.store), 1));
   w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255));
   d.chem.forEach((c, k) => w.chem[k].set(f8(b64u8(c), 80)));

@@ -79,6 +79,8 @@ export function guideHTML() {
 <li><b>Taper</b> — how much it narrows toward the tail. <b>Curl</b> — how much the spine bends at rest.</li>
 <li><b>Wiggle strength</b> and <b>wiggle speed</b> — how much it undulates while swimming.</li>
 <li><b>Limbs</b> (0–4 pairs) and <b>limb length</b>.</li>
+<li><b>Skin pattern</b>: plain, spots, stripes or rainbow bands, with an evolving <b>accent colour</b>.</li>
+<li><b>Antennae</b> (0–3, with glowing tips) and a <b>tail fin</b> (a translucent fan). Antennae see a little further but cost a little to keep; a big fin makes swimming cheaper.</li>
 </ul>
 <p>Shape is not just looks:</p>
 <ul>
@@ -134,6 +136,7 @@ export function guideHTML() {
 
 <details><summary>Species, favorites and records</summary>
 <ul>
+<li><b>Diary</b> (menu): the journal of the dish, stamped with the dish year and day. Filter it by Years (an "in review" entry is written at the end of every dish-year), Firsts (first kill, first granary, first best friends…), Species, Events and Stars. Firsts, year reviews and star stories are never pushed out; smaller news scrolls away.</li>
 <li><b>Species</b> (menu): everyone alive and extinct, with population, peak, birth day and parent species. Tap one to jump to a member.</li>
 <li><b>Stars</b>: star any mote and its story is kept even after it dies (age, children, how it died).</li>
 <li><b>Stats → Records</b>: oldest, most children, most kills, biggest brain, deepest generation.</li>
@@ -145,6 +148,7 @@ export function guideHTML() {
 <li>When you come back after a while, the dish <b>fast-forwards</b>: 1 second away is 0.25 seconds of dish time, up to about 40 dish-minutes, and you get a welcome-back report (births, deaths, new species, structures). The last dozen motes are protected during the fast-forward so you never return to an empty dish. You can tap <b>Skip ahead</b> to stop early.</li>
 <li><b>Phone ↔ PC:</b> Menu → Dish → <b>Download dish file</b> or <b>Copy dish code</b>, then <b>Load</b> it on the other device. Each device keeps its own copy.</li>
 <li><b>Dish settings:</b> max population (lower on slow phones), food abundance, random events on or off, and a New dish button (erases the current one).</li>
+<li><b>The first dish you see is not new.</b> Before shipping, it was fast-forwarded on the developer's PC for several dish-years (a dish-year is 365 days of 200 seconds, about 20 hours) so the motes had already evolved. Its Diary holds those years. You can start over from the first six founders any time (Menu → Dish) or reload the pre-evolved dish.</li>
 <li>Install: open the site in Chrome, choose <b>Add to Home screen</b>. It then works offline.</li>
 </ul></details>
 

@@ -11,11 +11,29 @@ let W = 0, H = 0, dpr = 1;
 let catching = null;
 
 // ---------- boot ----------
+let firstRun = false;
 function load() {
   try { const s = localStorage.getItem(SAVE); if (s) return S.deserialize(s); } catch (e) { console.warn('load failed', e); }
+  firstRun = true;
   return S.createWorld((Date.now() & 0x7fffffff) || 7);
 }
 w = load();
+// First visit: offer the pre-evolved dish (simulated for years on the dev machine before shipping).
+async function loadStarter(intro) {
+  try {
+    const r = await fetch('starter/dish.json'); if (!r.ok) throw new Error('no starter');
+    w = S.deserialize(await r.text()); selId = 0; localStorage.setItem(SAVED_AT, String(Date.now())); save();
+    if (intro) {
+      const o = $('over'); o.style.display = 'flex';
+      const yrs = (w.t / S.YEAR).toFixed(1);
+      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Read the Diary (☰) to see what happened, tap ? for the Guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>`;
+      $('stWatch').onclick = () => { o.style.display = 'none'; };
+      $('stFresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 7); selId = 0; save(); o.style.display = 'none'; };
+    }
+    return true;
+  } catch (e) { return false; }
+}
+if (firstRun) loadStarter(true);
 if (matchMedia('(pointer:coarse)').matches) { if (w.maxPop > 450) w.maxPop = 450; }
 let fitted = false;
 function resize() {
@@ -79,7 +97,7 @@ const VIEWS = ['View', 'Scent A', 'Scent B', 'Scent C', 'Heat', 'Toxin'];
 $('bView').onclick = () => { view = (view + 1) % VIEWS.length; $('bView').textContent = VIEWS[view]; };
 $('bMenu').onclick = () => { openMenu(); };
 $('bHelp').onclick = () => { menuTab = 'guide'; openMenu(); };
-if (!localStorage.getItem('motes.seenGuide')) { localStorage.setItem('motes.seenGuide', '1'); setTimeout(() => { menuTab = 'guide'; openMenu(); }, 400); }
+if (!localStorage.getItem('motes.seenGuide') && !firstRun) { localStorage.setItem('motes.seenGuide', '1'); setTimeout(() => { menuTab = 'guide'; openMenu(); }, 400); }
 addEventListener('keydown', e => { if (e.code === 'Space') { $('bPause').click(); e.preventDefault(); } });
 
 // ---------- camera / input ----------
@@ -102,8 +120,8 @@ cv.addEventListener('pointermove', e => {
   if (pinch && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
     cam.z = Math.max(0.15, Math.min(8, pinch.z * d / pinch.d));
-    cam.x = pinch.cx - ((a.x + b.x) / 2 - pinch.mx) / cam.z; cam.y = pinch.cy - ((a.y + b.y) / 2 - pinch.my) / cam.z;
-    follow = false; return;
+    if (!follow) { cam.x = pinch.cx - ((a.x + b.x) / 2 - pinch.mx) / cam.z; cam.y = pinch.cy - ((a.y + b.y) / 2 - pinch.my) / cam.z; }
+    return;
   }
   if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) downAt.moved = true;
   if (panning) { if (downAt && downAt.moved) { cam.x = panning.cx - (e.clientX - panning.x) / cam.z; cam.y = panning.cy - (e.clientY - panning.y) / cam.z; follow = false; } }
@@ -124,8 +142,22 @@ cv.addEventListener('wheel', e => { e.preventDefault(); const [bx, by] = s2w(e.c
 function pick(wx, wy) {
   let best = null, bd = Math.pow(Math.max(14, 22 / cam.z), 2);
   for (const m of w.motes) { const d = (m.x - wx) ** 2 + (m.y - wy) ** 2; if (d < bd) { bd = d; best = m; } }
-  selId = best ? best.id : 0; follow = false; renderInsp(true);
+  if (!best && follow && selected()) return;                 // while following, tapping empty water keeps following
+  selId = best ? best.id : 0; follow = false; inspHidden = false; renderInsp(true); updChip();
 }
+// Follow mode: the info panel can be hidden while the camera keeps tracking; a small chip stays on screen.
+let inspHidden = false;
+const fchip = document.createElement('div');
+fchip.style.cssText = 'position:fixed;top:52px;left:50%;transform:translateX(-50%);background:#101722ee;border:1px solid #58c08a;border-radius:16px;padding:6px 12px;display:none;z-index:5;white-space:nowrap';
+document.body.appendChild(fchip);
+fchip.onclick = e => { if (e.target.dataset.x) { follow = false; inspHidden = false; renderInsp(true); } else { inspHidden = false; renderInsp(true); } updChip(); };
+function updChip() {
+  const m = selected();
+  const show = follow && inspHidden && m;
+  fchip.style.display = show ? 'block' : 'none';
+  if (show) fchip.innerHTML = `👁 Following <b>${esc(m.name)}</b> · <u>info</u> · <b data-x="1" style="padding-left:6px">✕ stop</b>`;
+}
+function startFollow(m) { selId = m.id; follow = true; inspHidden = true; cam.z = Math.max(cam.z, 2.2); renderInsp(true); updChip(); }
 const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.id === selId); return m || null; };
 
 // ---------- inspector ----------
@@ -138,7 +170,8 @@ function bar(label, v, max = 1) { return `<span>${label}</span><i><b style="widt
 function renderInsp(force) {
   const m = selected();
   if (!selId) { insp.style.display = 'none'; return; }
-  if (!m) { // died
+  if (inspHidden && m) { insp.style.display = 'none'; return; }
+  if (!m) { inspHidden = false; // died
     if (force || insp.dataset.dead !== String(selId)) { insp.dataset.dead = String(selId); ib.innerHTML = `<h3>That mote has died.</h3><button data-a="close">Close</button>`; bc.style.display = 'none'; }
     insp.style.display = 'block'; return;
   }
@@ -152,7 +185,7 @@ function renderInsp(force) {
   ${socialText(m)}
   <div class="bars">${bar('energy', m.e, m.cap)}${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
   <div class="dim">Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Output now: ${topOut(m)}</div>
-  <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button data-a="follow" class="${follow ? 'on' : ''}">Follow</button><button data-a="fav">${m.fav ? '★ Unstar' : '☆ Star'}</button><button data-a="feed">Feed</button><button data-a="clone">Clone</button><button data-a="rename">Rename</button><button data-a="close">Close</button></div>`;
+  <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button data-a="follow" class="${follow ? 'on' : ''}">Follow</button><button data-a="fav">${m.fav ? '★ Unstar' : '☆ Star'}</button><button data-a="feed">Feed</button><button data-a="clone">Clone</button><button data-a="rename">Rename</button><button data-a="close">${follow ? 'Hide' : 'Close'}</button></div>`;
 }
 function socialText(m) {
   const fam = [], fr = [], gr = [];
@@ -169,9 +202,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 insp.addEventListener('click', e => {
   const a = e.target.dataset && e.target.dataset.a; if (!a) return;
   const m = selected();
-  if (a === 'close') { selId = 0; follow = false; insp.style.display = 'none'; }
+  if (a === 'close') { if (follow && m) { inspHidden = true; insp.style.display = 'none'; updChip(); } else { selId = 0; follow = false; insp.style.display = 'none'; } }
   else if (m) {
-    if (a === 'follow') follow = !follow;
+    if (a === 'follow') { if (!follow) { startFollow(m); return; } follow = false; }
     if (a === 'fav') S.toggleFav(w, m);
     if (a === 'feed') S.feedMote(m);
     if (a === 'clone') { const c = S.cloneMote(w, m); selId = c.id; }
@@ -214,6 +247,8 @@ tabsEl.innerHTML = TABS.map(([id, l]) => `<button data-tab="${id}">${l}</button>
 tabsEl.onclick = e => { const t = e.target.dataset.tab; if (!t) return; if (t === 'close') { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; } else { menuTab = t; renderMenu(); } };
 function openMenu() { menu.style.display = 'flex'; renderMenu(); }
 const dayOf = t => Math.floor(t / DAY) + 1;
+const stamp = t => `Year ${Math.floor(t / S.YEAR) + 1}, day ${Math.floor((t % S.YEAR) / DAY) + 1}`;
+let diaryFilter = 'all';
 function renderMenu() {
   for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === menuTab);
   if (menuTab === 'guide') {
@@ -225,10 +260,13 @@ function renderMenu() {
   if (menuTab === 'species') {
     const list = [...w.species.values()].sort((a, b) => (b.count - a.count) || (a.ext - b.ext));
     mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : ''}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
-    mbody.onclick = e => { const r = e.target.closest('[data-sp]'); if (!r) return; const id = +r.dataset.sp; const ms = w.motes.filter(m => m.sp === id); if (ms.length) { const m = ms[(Math.random() * ms.length) | 0]; selId = m.id; follow = true; cam.z = Math.max(cam.z, 2.2); menu.style.display = 'none'; renderInsp(true); } };
+    mbody.onclick = e => { const r = e.target.closest('[data-sp]'); if (!r) return; const id = +r.dataset.sp; const ms = w.motes.filter(m => m.sp === id); if (ms.length) { menu.style.display = 'none'; startFollow(ms[(Math.random() * ms.length) | 0]); } };
   } else if (menuTab === 'diary') {
-    mbody.onclick = null;
-    mbody.innerHTML = [...w.log].reverse().map(l => `<div class="row k-${l.kind}"><span class="dim">day ${dayOf(l.t)}</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Nothing yet.</div>';
+    const FILT = [['all', 'Everything'], ['year', 'Years'], ['first', 'Firsts'], ['species', 'Species'], ['event', 'Events'], ['fav', 'Stars']];
+    const rows = S.allLog(w).filter(l => diaryFilter === 'all' || l.kind === diaryFilter).reverse().slice(0, 300);
+    mbody.innerHTML = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${FILT.map(([k, l]) => `<button data-df="${k}" class="${diaryFilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>` +
+      (rows.map(l => `<div class="row k-${l.kind}"><span class="dim">${stamp(l.t)}</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Nothing here yet.</div>');
+    mbody.onclick = e => { const k = e.target.dataset && e.target.dataset.df; if (k) { diaryFilter = k; renderMenu(); } };
   } else if (menuTab === 'stats') {
     mbody.onclick = null;
     const c = w.counters, f = w.fame, st = w.stats;
@@ -243,7 +281,7 @@ function renderMenu() {
     drawGraph();
   } else if (menuTab === 'stars') {
     mbody.innerHTML = (w.favs.length ? w.favs.map(f => `<div class="row" data-fid="${f.id}"><span class="dot" style="background:hsl(${f.hue * 360},75%,${f.alive ? 60 : 25}%)"></span><b>${esc(f.name)}</b> <span class="dim">${f.alive ? 'alive' : 'died (' + f.why + ')'} · age ${Math.round(f.age)}s · gen ${f.gen} · kids ${f.kids}</span></div>`).join('') : '<div class="dim">Select a mote and tap ☆ Star to keep an eye on it. Its story is saved here, even after it dies.</div>');
-    mbody.onclick = e => { const r = e.target.closest('[data-fid]'); if (!r) return; const m = w.motes.find(m => m.id === +r.dataset.fid); if (m) { selId = m.id; follow = true; menu.style.display = 'none'; renderInsp(true); } };
+    mbody.onclick = e => { const r = e.target.closest('[data-fid]'); if (!r) return; const m = w.motes.find(m => m.id === +r.dataset.fid); if (m) { menu.style.display = 'none'; startFollow(m); } };
   } else if (menuTab === 'dish') {
     mbody.onclick = null;
     mbody.innerHTML = `<label>Max population <input id="sMax" type="range" min="100" max="1200" step="50" value="${w.maxPop}"><span id="vMax">${w.maxPop}</span></label>
@@ -253,7 +291,7 @@ function renderMenu() {
     <h4>Move this dish between phone and PC</h4>
     <div style="display:flex;gap:4px;flex-wrap:wrap"><button id="xDown">Download dish file</button><button id="xCopy">Copy dish code</button><label style="display:inline"><input id="xFile" type="file" accept=".json,.motes" hidden><button id="xUp" type="button">Load dish file</button></label></div>
     <textarea id="xText" placeholder="Paste a dish code here, then tap Load pasted code"></textarea><button id="xPaste">Load pasted code</button>
-    <h4>Danger</h4><button id="nNew">New dish (erases this one)</button>
+    <h4>Start over</h4><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="nStarter">Load the pre-evolved dish (erases this one)</button><button id="nNew">New primordial dish (erases this one)</button></div>
     <p class="dim">Dish saves automatically on this device. While you're away it keeps living at a slow pace, up to about 40 minutes of dish time, and the last few motes are protected so you never come back to an empty dish.</p>`;
     const g = id => $(id);
     g('sMax').oninput = e => { w.maxPop = +e.target.value; g('vMax').textContent = w.maxPop; };
@@ -265,7 +303,8 @@ function renderMenu() {
     g('xUp').onclick = () => g('xFile').click();
     g('xFile').onchange = async e => { const f = e.target.files[0]; if (f) importStr(await f.text()); };
     g('xPaste').onclick = () => importStr(g('xText').value.trim());
-    g('nNew').onclick = () => { if (confirm('Erase this dish and start a new one?')) { w = S.createWorld((Date.now() & 0x7fffffff) || 9); selId = 0; save(); menu.style.display = 'none'; } };
+    g('nStarter').onclick = async () => { if (confirm('Replace this dish with the pre-evolved one?')) { if (await loadStarter(false)) menu.style.display = 'none'; else alert('Could not load it (are you offline?)'); } };
+    g('nNew').onclick =() => { if (confirm('Erase this dish and start a new one?')) { w = S.createWorld((Date.now() & 0x7fffffff) || 9); selId = 0; save(); menu.style.display = 'none'; } };
   }
 }
 function importStr(s) { try { const nw = S.deserialize(s); w = nw; selId = 0; save(); menu.style.display = 'none'; } catch (e) { alert('That does not look like a dish.'); } }
@@ -320,10 +359,29 @@ function drawSquiggle(m, dtv) {
     }
     ctx.stroke();
   }
+  const acc = m.accent * 360;
+  if (m.fin > 0.15) {                       // tail fin: a translucent fan behind the last segment
+    const t = n - 1, fl = m.r * (0.8 + m.fin * 2.4), sw = Math.sin(m.ph * 1.2) * 0.25;
+    ctx.fillStyle = `hsla(${acc},80%,65%,0.55)`; ctx.beginPath(); ctx.moveTo(PX[t], PY[t]);
+    ctx.lineTo(PX[t] + Math.cos(PA[t] + 0.7 + sw) * fl, PY[t] + Math.sin(PA[t] + 0.7 + sw) * fl);
+    ctx.lineTo(PX[t] + Math.cos(PA[t] + sw) * fl * 1.25, PY[t] + Math.sin(PA[t] + sw) * fl * 1.25);
+    ctx.lineTo(PX[t] + Math.cos(PA[t] - 0.7 + sw) * fl, PY[t] + Math.sin(PA[t] - 0.7 + sw) * fl); ctx.closePath(); ctx.fill();
+  }
   for (let i = n - 1; i >= 0; i--) {
-    ctx.fillStyle = `hsl(${hh + i * 5},70%,${light - i * 1.5}%)`;
+    const stripe = m.pat === 2 && (i & 1), band = m.pat === 3;
+    ctx.fillStyle = stripe ? `hsl(${acc},75%,${light - 8}%)` : `hsl(${band ? hh + i * 24 : hh + i * 5},70%,${light - i * 1.5}%)`;
     ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i], 0, 7); ctx.fill();
-    if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 0.6 + m.armor * 1.6; ctx.stroke(); }
+    if (m.pat === 1) { ctx.fillStyle = `hsl(${acc},85%,72%)`; ctx.beginPath(); ctx.arc(PX[i] + PR[i] * 0.2, PY[i] - PR[i] * 0.15, PR[i] * 0.38, 0, 7); ctx.fill(); }
+    if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 0.6 + m.armor * 1.6; ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i], 0, 7); ctx.stroke(); }
+  }
+  if (m.ant > 0) {                          // antennae with little bulbs
+    ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;
+    for (let k = 0; k < m.ant; k++) {
+      const spread = m.ant === 1 ? 0 : (k / (m.ant - 1) - 0.5) * 1.1, ang = m.h + spread + Math.sin(m.ph * 0.8 + k) * 0.25, L = m.r * 1.7;
+      const ex = m.x + Math.cos(ang) * L, ey = m.y + Math.sin(ang) * L;
+      ctx.beginPath(); ctx.moveTo(m.x + Math.cos(m.h) * m.r * 0.6, m.y + Math.sin(m.h) * m.r * 0.6); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.beginPath(); ctx.arc(ex, ey, m.r * 0.18, 0, 7); ctx.fill();
+    }
   }
   const ch = Math.cos(m.h), sh = Math.sin(m.h), e = m.r * 0.42;
   ctx.fillStyle = '#fff';
@@ -398,8 +456,10 @@ function frame(now) {
   if (now - hudT > 400) {
     hudT = now;
     const s = w.stats, tod = ((w.t % DAY) / DAY), moon = w.light < 0.5 ? '🌙' : '☀️';
-    $('hud').textContent = `${moon} Day ${dayOf(w.t)} · 🧫 ${w.motes.length} · 🧬 ${s.species} species · 🍃 ${w.food.length}` + (w.sick > 0 ? ` · 🦠 ${w.sick}` : '');
+    $('hud').textContent = `${moon} Y${Math.floor(w.t / S.YEAR) + 1} D${Math.floor((w.t % S.YEAR) / DAY) + 1} · 🧫 ${w.motes.length} · 🧬 ${s.species} species · 🍃 ${w.food.length}` + (w.sick > 0 ? ` · 🦠 ${w.sick}` : '');
     if (selId) renderInsp(false);
+    if (follow && !selected()) { follow = false; inspHidden = false; renderInsp(true); }
+    updChip();
     if (!w.motes.length && !catching && $('over').style.display !== 'flex') { const o = $('over'); o.style.display = 'flex'; o.innerHTML = '<div style="font-size:18px">The dish is empty.</div><div class="dim">Every mote is gone. Seed new life, or start fresh.</div><button id="seed">Seed new life</button><button id="fresh">New dish</button>'; $('seed').onclick = () => { for (let i = 0; i < 6; i++) { const a = Math.random() * 6.28, d = Math.random() * 400; S.spark(w, Math.cos(a) * d, Math.sin(a) * d); } o.style.display = 'none'; }; $('fresh').onclick = () => { w = S.createWorld((Date.now() & 0x7fffffff) || 5); o.style.display = 'none'; }; }
   }
   if (menu.style.display === 'flex' && now - menuT > 1000 && ['species', 'stats'].includes(menuTab) && !document.activeElement.matches('input,textarea')) { menuT = now; renderMenu(); }

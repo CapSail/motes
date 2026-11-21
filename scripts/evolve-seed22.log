@@ -1,0 +1,13 @@
+y0.00 pop=74 sp=6 plans=14 conns=26 hid=2.0 diet=0.26 struct=undefined born=0 kills=0 fr=0 famGifts=0 stolen=0 shared=0 newsp=0 0s
+y0.25 pop=499 sp=22 plans=27 conns=24 hid=2.2 diet=0.02 struct=45 born=28021 kills=6493 fr=21019 famGifts=14829 stolen=52849 shared=21336 newsp=752 34s
+y0.50 pop=499 sp=28 plans=46 conns=29 hid=7.0 diet=0.03 struct=55 born=58897 kills=8222 fr=60346 famGifts=42527 stolen=61720 shared=81647 newsp=1241 93s
+y0.75 pop=500 sp=22 plans=28 conns=36 hid=7.8 diet=0.07 struct=218 born=84617 kills=9500 fr=94951 famGifts=50069 stolen=73955 shared=104260 newsp=1556 159s
+y1.00 pop=500 sp=15 plans=24 conns=45 hid=10.0 diet=0.08 struct=69 born=110455 kills=18021 fr=131899 famGifts=56730 stolen=91475 shared=121073 newsp=1824 220s
+y1.25 pop=500 sp=6 plans=19 conns=68 hid=20.0 diet=0.07 struct=3 born=145081 kills=33876 fr=162058 famGifts=63474 stolen=104964 shared=150889 newsp=1951 304s
+y1.50 pop=500 sp=7 plans=14 conns=78 hid=25.2 diet=0.04 struct=43 born=176351 kills=37754 fr=196705 famGifts=74588 stolen=129976 shared=185676 newsp=2038 347s
+y1.75 pop=500 sp=9 plans=15 conns=87 hid=29.4 diet=0.15 struct=83 born=208700 kills=39573 fr=232831 famGifts=112491 stolen=640224 shared=338647 newsp=2167 397s
+y2.00 pop=371 sp=7 plans=18 conns=89 hid=30.0 diet=0.17 struct=95 born=239964 kills=42776 fr=264505 famGifts=151394 stolen=870698 shared=482535 newsp=2237 495s
+y2.25 pop=500 sp=9 plans=17 conns=98 hid=32.8 diet=0.17 struct=35 born=272268 kills=45382 fr=305567 famGifts=188894 stolen=1056738 shared=601633 newsp=2297 571s
+y2.50 pop=499 sp=10 plans=18 conns=99 hid=32.3 diet=0.17 struct=47 born=306918 kills=49790 fr=363509 famGifts=250265 stolen=1400538 shared=923837 newsp=2385 622s
+y2.75 pop=498 sp=11 plans=20 conns=104 hid=33.3 diet=0.07 struct=57 born=341786 kills=54476 fr=390931 famGifts=284923 stolen=2053630 shared=1046991 newsp=2438 672s
+done starter/final22.json 1346KB
