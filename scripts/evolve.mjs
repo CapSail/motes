@@ -1,10 +1,13 @@
 // Fast-forward a dish for many dish-years, headless. node scripts/evolve.mjs <seed> <years> <out.json> [maxPop]
 // 1 dish-year = 365 days x 200 s = 73,000 sim-seconds.
-import { createWorld, step, serialize } from '../sim.js';
-import { writeFileSync } from 'node:fs';
+if (process.env.NOMEM) globalThis.__NOMEM = 1; if (process.env.NOREFLEX) globalThis.__NOREFLEX = 1; if (process.env.BG) globalThis.__BG = +process.env.BG;
+import { createWorld, step, serialize, deserialize } from '../sim.js';
+import { writeFileSync, readFileSync } from 'node:fs';
 const seed = +process.argv[2] || 1, years = +process.argv[3] || 1, out = process.argv[4], maxPop = +process.argv[5] || 500;
 const YEAR = 365 * 200, dt = 0.2;
-const w = createWorld(seed); w.maxPop = maxPop; w.mercy = true;
+const w = process.argv[6] ? deserialize(readFileSync(process.argv[6], 'utf8')) : createWorld(seed);   // optional 6th arg: continue an earlier dish
+if (process.argv[6]) console.log('resuming at dish-year', (w.t / (365 * 200)).toFixed(2));
+ w.maxPop = maxPop; w.mercy = true;
 const t0 = Date.now(); let next = 0;
 for (let t = 0; t < years * YEAR; t += dt) {
   step(w, dt);

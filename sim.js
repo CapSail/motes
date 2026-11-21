@@ -28,8 +28,10 @@ export const IN = {
   CLOCK: 39, NOISE: 40, HURT: 41, CONTACT: 42, MOTE_ARMOR: 43, MOTE_BITE: 44,
   // social senses: family (parent/child +1, sibling +0.5), friendship (+) or grudge (-), direction to nearest friend / family
   MOTE_REL: 45, MOTE_FRIEND: 46, FRIEND_F: 47, FRIEND_S: 48, FAM_F: 49, FAM_S: 50, FAMCOUNT: 51,
+  // short-term memory: where it last saw food and where it last got hurt, fading over about 15 seconds, plus a slow 'recently fed / hurt' mood
+  MEM_FOOD_F: 52, MEM_FOOD_S: 53, MEM_FOOD_T: 54, MEM_FOE_F: 55, MEM_FOE_S: 56, MEM_FOE_T: 57, MOOD: 58,
 };
-export const NI = 52;
+export const NI = 59;
 export const OUT = {
   THRUST: 0, TURN: 1, BITE: 2, EMIT_A: 3, EMIT_B: 4, EMIT_C: 5,
   B_WALL: 6, B_FARM: 7, B_NEST: 8, B_GRAN: 9, DIG: 10, XFER: 11, MATE: 12,
@@ -51,8 +53,10 @@ export const B = {
   PATTERN: 29, ACCENT: 30, ANTENNA: 31, FIN: 32,
   // smell genes: how strongly it is drawn to (above 0.5) or repelled by (below 0.5) each of the three scents
   SC_A: 33, SC_B: 34, SC_C: 35,
+  // more looks: body style (beads / smooth tube / diamonds / stars / rings / leaves), spikes, eyes, dorsal frill, glow
+  STYLE: 36, SPIKE: 37, EYES: 38, FRILL: 39, GLOW: 40,
 };
-export const NB = 36;
+export const NB = 41;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -126,7 +130,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS, B.PATTERN, B.FIN];
+const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS, B.PATTERN, B.FIN, B.STYLE, B.SPIKE, B.EYES];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -139,7 +143,7 @@ function dist(a, b) {
   const miss = 1 - match / total;
   return 1.6 * bd + 0.8 * hd + 0.7 * miss + (match ? 0.12 * (wd / match) : 0);
 }
-export const SPLIT = 0.42;
+export const SPLIT = 0.56;
 
 function mutateG(g) {
   const b = g.b, mu = b[B.MUT];
@@ -194,6 +198,7 @@ function bodyOf(o) {
   b[B.MUT] = 0.45; b[B.BRAINMUT] = 0.45; b[B.REPRO] = 0.4; b[B.INVEST] = 0.5; b[B.LIFE] = 0.5; b[B.MATURE] = 0.3; b[B.EFFIC] = 0.5;
   b[B.TOXR] = 0.15; b[B.DISR] = 0.2; b[B.ARMOR] = 0.1; b[B.PHOTO] = 0.0; b[B.FAT] = 0.4; b[B.TTOL] = 0.55;
   for (let k = 0; k < 3; k++) b[B.SC_A + k] = 0.5 + (rand() < 0.5 ? -1 : 1) * (0.25 + rand() * 0.25);
+  for (let k = B.STYLE; k <= B.GLOW; k++) b[k] = rand();
   for (const k in o) b[B[k]] = o[k];
   return b;
 }
@@ -201,15 +206,16 @@ const WALLAVOID = [[IN.WALL_L, O(OUT.TURN), -1.6], [IN.WALL_R, O(OUT.TURN), 1.6]
 const WANDER = [[IN.NOISE, O(OUT.TURN), 0.9]];
 const MATEING = [[IN.ENERGY, O(OUT.MATE), 4.2], [IN.BIAS, O(OUT.MATE), -2.7]];
 // family instincts: drift toward friends and family, and feed a hungry relative or friend who is touching me when I am full
+const MEMORY = [[IN.MEM_FOOD_S, O(OUT.TURN), 1.0], [IN.MEM_FOOD_F, O(OUT.THRUST), 0.35], [IN.MEM_FOE_S, O(OUT.TURN), -0.5]];
 const FAMILY = [
   [IN.FRIEND_S, O(OUT.TURN), 0.5], [IN.FAM_S, O(OUT.TURN), 0.5], [IN.FRIEND_F, O(OUT.THRUST), 0.25],
   [IN.MOTE_REL, 'care', 2.5], [IN.MOTE_FRIEND, 'care', 1.5], [IN.ENERGY, 'care', 2.2], [IN.CONTACT, 'care', 1.5], [IN.MOTE_E, 'care', -2.4], [IN.BIAS, 'care', -4.4], ['care', O(OUT.XFER), 2.2],
 ];
 function grazer(hue) {
-  return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4, PATTERN: 0.3, ACCENT: 0.3, ANTENNA: 0.3, FIN: 0.2 }), [
+  return wire(bodyOf({ STYLE: 0.08, SPIKE: 0.0, EYES: 0.55, FRILL: 0.1, GLOW: 0.2, SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4, PATTERN: 0.3, ACCENT: 0.3, ANTENNA: 0.3, FIN: 0.2 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.PLANT_F, O(OUT.THRUST), 1.3], [IN.ENERGY, O(OUT.THRUST), -0.6],
     [IN.PLANT_S, O(OUT.TURN), 2.3], [IN.KIN_S, O(OUT.TURN), 0.45],
-    ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY, ...MEMORY,
     [IN.MOTE_P, 'fl', 2.0], [IN.MOTE_DIET, 'fl', 2.6], [IN.BIAS, 'fl', -3.1],                 // a hungry-looking neighbour close by
     ['fl', 'tl', 2.6], [IN.MOTE_S, 'tl', 2.6], [IN.BIAS, 'tl', -2.6],
     ['fl', 'tr', 2.6], [IN.MOTE_S, 'tr', -2.6], [IN.BIAS, 'tr', -2.6],
@@ -217,9 +223,9 @@ function grazer(hue) {
   ]);
 }
 function hunter(hue) {
-  return wire(bodyOf({ SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3, PATTERN: 0.6, ACCENT: 0.8, ANTENNA: 0.1, FIN: 0.8 }), [
+  return wire(bodyOf({ STYLE: 0.5, SPIKE: 0.7, EYES: 0.8, FRILL: 0.7, GLOW: 0.5, SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3, PATTERN: 0.6, ACCENT: 0.8, ANTENNA: 0.1, FIN: 0.8 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.MEAT_F, O(OUT.THRUST), 0.9], [IN.MEAT_S, O(OUT.TURN), 1.8],
-    ...WANDER, ...WALLAVOID, ...MATEING,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY,
     [IN.MOTE_P, 'hu', 2.2], [IN.MOTE_KIN, 'hu', -1.6], [IN.MOTE_SIZE, 'hu', -1.3], [IN.BIAS, 'hu', -1.1],
     ['hu', 'hl', 2.4], [IN.MOTE_S, 'hl', 2.6], [IN.BIAS, 'hl', -2.6],
     ['hu', 'hr', 2.4], [IN.MOTE_S, 'hr', -2.6], [IN.BIAS, 'hr', -2.6],
@@ -228,9 +234,9 @@ function hunter(hue) {
   ]);
 }
 function weaver(hue) {
-  return wire(bodyOf({ SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7, PATTERN: 0.9, ACCENT: 0.5, ANTENNA: 0.9, FIN: 0.1 }), [
+  return wire(bodyOf({ STYLE: 0.83, SPIKE: 0.2, EYES: 0.3, FRILL: 0.4, GLOW: 0.8, SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7, PATTERN: 0.9, ACCENT: 0.5, ANTENNA: 0.9, FIN: 0.1 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.PLANT_F, O(OUT.THRUST), 1.2], [IN.PLANT_S, O(OUT.TURN), 2.2], [IN.KIN_S, O(OUT.TURN), 0.4],
-    ...WANDER, ...WALLAVOID, ...MATEING,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY,
     [IN.ENERGY, O(OUT.B_NEST), 4.4], [IN.BIAS, O(OUT.B_NEST), -3.3],
     [IN.ENERGY, O(OUT.B_FARM), 4.4], [IN.BIAS, O(OUT.B_FARM), -3.4],
     [IN.ENERGY, O(OUT.B_WALL), 4.4], [IN.BIAS, O(OUT.B_WALL), -3.5], [IN.WALL_F, O(OUT.B_WALL), 1.0],
@@ -241,14 +247,14 @@ function weaver(hue) {
   ]);
 }
 function scavenger(hue) {
-  return wire(bodyOf({ SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue, SEGS: 0.6, LEN: 0.55, TAPER: 0.5, CURL: 0.92, WAMP: 0.55, WFREQ: 0.55, LIMBS: 0.5, LIMBLEN: 0.5, PATTERN: 0.75, ACCENT: 0.15, ANTENNA: 0.6, FIN: 0.4 }), [
+  return wire(bodyOf({ STYLE: 0.33, SPIKE: 0.4, EYES: 0.95, FRILL: 0.2, GLOW: 0.1, SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue, SEGS: 0.6, LEN: 0.55, TAPER: 0.5, CURL: 0.92, WAMP: 0.55, WFREQ: 0.55, LIMBS: 0.5, LIMBLEN: 0.5, PATTERN: 0.75, ACCENT: 0.15, ANTENNA: 0.6, FIN: 0.4 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.MEAT_F, O(OUT.THRUST), 1.0], [IN.PLANT_F, O(OUT.THRUST), 0.7],
     [IN.MEAT_S, O(OUT.TURN), 2.2], [IN.PLANT_S, O(OUT.TURN), 1.1], [IN.KIN_S, O(OUT.TURN), 0.3],
-    ...WANDER, ...WALLAVOID, ...MATEING,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY,
   ]);
 }
 function drifter(hue) {
-  return wire(bodyOf({ SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7, SEGS: 0.2, LEN: 0.15, TAPER: 0.2, CURL: 0.4, WAMP: 0.15, WFREQ: 0.2, LIMBS: 1, LIMBLEN: 0.9, PATTERN: 0.1, ACCENT: 0.6, ANTENNA: 0.0, FIN: 0.95 }), [
+  return wire(bodyOf({ STYLE: 0.98, SPIKE: 0.0, EYES: 0.1, FRILL: 0.9, GLOW: 0.95, SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7, SEGS: 0.2, LEN: 0.15, TAPER: 0.2, CURL: 0.4, WAMP: 0.15, WFREQ: 0.2, LIMBS: 1, LIMBLEN: 0.9, PATTERN: 0.1, ACCENT: 0.6, ANTENNA: 0.0, FIN: 0.95 }), [
     [IN.BIAS, O(OUT.THRUST), -0.4], [IN.PLANT_F, O(OUT.THRUST), 0.5], [IN.ENERGY, O(OUT.THRUST), -0.4],
     ...WANDER, ...WALLAVOID, ...MATEING, [IN.LIGHT, O(OUT.MATE), 0.0],
   ]);
@@ -275,7 +281,7 @@ export function createWorld(seed = 1) {
     st: new Uint8Array(N), hp: new Uint8Array(N), store: new Float32Array(N),
     heat: new Float32Array(N), tox: new Float32Array(N),
     chem: [new Float32Array(N), new Float32Array(N), new Float32Array(N)],
-    light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, thinkMask: 1,
+    light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, drought: 0, thinkMask: 1,
     log: [], keep: [], lastYear: 0, snap: null, hist: [], fame: {}, favs: [], milestones: {},
     byId: new Map(),
     counters: { friends: 0, grudges: 0, famGifts: 0, inbred: 0, devoted: 0, births: 0, deaths: 0, kills: 0, built: 0, sexual: 0, asexual: 0, newSpecies: 0, extinct: 0, plagues: 0, dug: 0, stolen: 0, shared: 0, stored: 0 },
@@ -341,6 +347,8 @@ function derive(m) {
   // looks with small consequences: a tail fin makes swimming cheaper, antennae see a bit further but cost a little to keep
   m.pat = Math.floor(b[B.PATTERN] * 3.99); m.accent = (m.hue + 0.25 + b[B.ACCENT] * 0.5) % 1;
   m.ant = Math.floor(b[B.ANTENNA] * 3.99); m.fin = b[B.FIN];
+  m.style = Math.min(5, Math.floor(b[B.STYLE] * 6)); m.spikes = Math.floor(b[B.SPIKE] * 3.99); m.eyes = Math.floor(b[B.EYES] * 4.99); m.frill = b[B.FRILL]; m.glow = b[B.GLOW];
+  m.basal += 0.035 * m.spikes + 0.02 * (m.frill > 0.35 ? m.frill : 0) + 0.03 * (m.glow > 0.45 ? m.glow : 0);
   m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= (1 + 0.05 * m.ant) * (1 + 0.15 * m.diet); m.basal += 0.025 * m.ant + 0.05 * m.fin;
 }
 function makeMote(w, g, x, y, e, gen) {
@@ -350,7 +358,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    aff: [0, 0, 0], rt: 0, rth: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -366,7 +374,7 @@ function setBrain(m) {
 
 // ---------- species ----------
 function newSpecies(w, g, parentSp) {
-  const sp = { id: w.nextSp++, name: speciesName(g), hue: g.b[B.HUE], rep: cloneG(g), count: 0, peak: 0, born: w.t, ext: 0, par: parentSp };
+  const sp = { id: w.nextSp++, name: speciesName(g), hue: g.b[B.HUE], rep: cloneG(g), count: 0, peak: 0, born: w.t, ext: 0, par: parentSp, shown: false };
   w.species.set(sp.id, sp);
   return sp;
 }
@@ -378,7 +386,6 @@ function assignSpecies(w, c, hint) {
   if (best) { c.sp = best.id; return; }
   const ns = newSpecies(w, c.g, hint);
   c.sp = ns.id; w.counters.newSpecies++;
-  if (!w.noLog) log(w, `New species: ${ns.name}` + (sp ? ` (split from ${sp.name})` : ''), 'species');
 }
 
 // ---------- food ----------
@@ -403,6 +410,12 @@ export function cidx(x, y) {
   return gy * GN + gx;
 }
 function solidAt(w, x, y) { const i = cidx(x, y); if (i < 0) return true; const s = w.st[i]; return s === 1 || s === 255; }
+// is a wall in the way between two points? (walls block sight, smell and movement)
+function blockedLine(w, x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0, n = Math.ceil(Math.hypot(dx, dy) / (CELL * 0.8));
+  for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(w, x0 + dx * t, y0 + dy * t)) return true; }
+  return false;
+}
 export const YEAR = 365 * DAY;
 const KEEP = new Set(['first', 'year', 'fav']);
 export function log(w, text, kind) {
@@ -513,8 +526,10 @@ function body(w, m, dt, tempG) {
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
   let nx = m.x + ch * m.v * dt, ny = m.y + sh * m.v * dt;
-  if (solidAt(w, nx, m.y)) nx = m.x;
-  if (solidAt(w, nx, ny)) ny = m.y;
+  let hit = false;
+  if (solidAt(w, nx, m.y)) { nx = m.x; hit = true; }
+  if (solidAt(w, nx, ny)) { ny = m.y; hit = true; }
+  if (hit) { m.h += (m.id & 1 ? 1 : -1) * 0.5 * (0.5 + m.turnRate / 6); m.v *= 0.4; }
   const rr = nx * nx + ny * ny, lim = (R - m.r - 2);
   if (rr > lim * lim) { const k = lim / Math.sqrt(rr); nx *= k; ny *= k; m.h += 0.5; }
   if (solidAt(w, nx, ny)) {                  // a wall was built on top of us: step out
@@ -557,6 +572,7 @@ function think(w, m, i, dtt) {
   const y0 = Math.max(0, Math.floor((m.y + R - sm) / HS)), y1 = Math.min(HN - 1, Math.floor((m.y + R + sm) / HS));
   let bp = -1, bpd = 1e9, bm = -1, bmd = 1e9, bn = -1, bnd = 1e9, bk = -1, bkd = 1e9, count = 0, kin = 0;
   const infectR = m.sick > 0 ? (m.r + 8) : 0;
+  const hasW = w.walls > 0;
   let bfm = -1, bfmd = 1e9, fam = 0, bfr = -1, bfrd = 1e9;
   const hasFr = m.fr.size > 0;
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
@@ -564,12 +580,13 @@ function think(w, m, i, dtt) {
     for (let f = H.fh[c]; f >= 0; f = H.fn[f]) {
       const fo = food[f]; if (fo.dead) continue;
       const dx = fo.x - m.x, dy = fo.y - m.y, d2 = dx * dx + dy * dy; if (d2 > sm2) continue;
-      if (fo.k === 0) { if (d2 < bpd) { bpd = d2; bp = f; } } else if (d2 < bmd) { bmd = d2; bm = f; }
+      if (fo.k === 0) { if (d2 < bpd && !(hasW && blockedLine(w, m.x, m.y, fo.x, fo.y))) { bpd = d2; bp = f; } } else if (d2 < bmd && !(hasW && blockedLine(w, m.x, m.y, fo.x, fo.y))) { bmd = d2; bm = f; }
     }
     for (let q = H.mh[c]; q >= 0; q = H.mn[q]) {
       if (q === i) continue;
       const o = motes[q]; if (o.dead) continue;
       const dx = o.x - m.x, dy = o.y - m.y, d2 = dx * dx + dy * dy; if (d2 > s2) continue;
+      if (hasW && d2 > 900 && blockedLine(w, m.x, m.y, o.x, o.y)) continue;
       count++;
       const same = o.sp === m.sp;
       if (same) { kin++; if (d2 < bkd) { bkd = d2; bk = q; } }
@@ -661,19 +678,45 @@ function think(w, m, i, dtt) {
       const f = cidx(m.x + ch * d, m.y + sh * d), l = cidx(m.x - sh * d, m.y + ch * d), r = cidx(m.x + sh * d, m.y - ch * d);
       const bad0 = Math.abs(T + hv[idx]);
       const vf = f >= 0 ? Math.abs(T + hv[f]) : bad0, vl = l >= 0 ? Math.abs(T + hv[l]) : bad0, vr = r >= 0 ? Math.abs(T + hv[r]) : bad0;
-      const dis = clamp((bad0 - m.ttol * 0.4) / 0.5, 0, 1), sc = 0.35 + 0.65 * dis;
+      const dis = clamp((bad0 - m.ttol * 0.4) / 0.5, 0, 1), sc = dis;
       const fwd = Math.tanh((bad0 - vf) * 6), side = Math.tanh((vr - vl) * 6);
-      if (Math.abs(fwd) + Math.abs(side) > 0.05 || dis > 0) {
+      if (dis > 0.12) {
         rt += sc * (side * 1.2 + (m.id & 1 ? 1 : -1) * Math.max(0, -fwd) * 0.9);
         rth += sc * fwd * 0.6 + dis * 0.3;
       }
     }
-    m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1);
+    m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1); if (globalThis.__NOREFLEX) { m.rt = 0; m.rth = 0; }
   } else { m.rt = 0; m.rth = 0; }
+  {   // walls are solid: steer away from them whatever the brain thinks
+    const wl = inp[IN.WALL_L], wr = inp[IN.WALL_R], wf = inp[IN.WALL_F];
+    if (wl + wr + wf > 0) {
+      const sg = wf > 0 && wl === wr ? (m.id & 1 ? 1 : -1) : 0;
+      m.rt = clamp(m.rt - wl * 1.1 + wr * 1.1 + sg * wf * 1.3, -1.5, 1.5); m.rth = clamp(m.rth - wf * 0.6, -1, 1);
+    }
+  }
   inp[IN.LIGHT] = w.light - 0.6; inp[IN.SICK] = m.sick > 0 ? 1 : 0;
   inp[IN.CLOCK] = Math.sin(w.t * 0.9 + (m.id % 7)); inp[IN.NOISE] = rand() * 2 - 1;
   inp[IN.HURT] = m.hurt > 0 ? 1 : 0;
 
+  // short-term memory: remember where food was and where it got hurt; memories fade with time and clear when reached
+  {
+    const mem = m.mem, fade = dtt / 15;
+    mem[2] = Math.max(0, mem[2] - fade); mem[5] = Math.max(0, mem[5] - fade * 1.2);
+    const fb = bp >= 0 && (bm < 0 || bpd <= bmd) ? food[bp] : bm >= 0 ? food[bm] : null;
+    if (globalThis.__NOMEM) { mem[2] = 0; mem[5] = 0; }
+    if (fb && !globalThis.__NOMEM) { mem[0] = fb.x; mem[1] = fb.y; mem[2] = 1; }
+    if (m.hurt > 0.3 && bn >= 0) { mem[3] = motes[bn].x; mem[4] = motes[bn].y; mem[5] = 1; }
+    if (mem[2] > 0) {
+      const dx = mem[0] - m.x, dy = mem[1] - m.y, d = Math.hypot(dx, dy) || 1;
+      if (d < m.r + 5 && !fb) mem[2] = 0;
+      else { inp[IN.MEM_FOOD_F] = ((dx * ch + dy * sh) / d) * mem[2]; inp[IN.MEM_FOOD_S] = ((dy * ch - dx * sh) / d) * mem[2]; inp[IN.MEM_FOOD_T] = mem[2]; }
+    }
+    if (mem[5] > 0) {
+      const dx = mem[3] - m.x, dy = mem[4] - m.y, d = Math.hypot(dx, dy) || 1;
+      inp[IN.MEM_FOE_F] = ((dx * ch + dy * sh) / d) * mem[5]; inp[IN.MEM_FOE_S] = ((dy * ch - dx * sh) / d) * mem[5]; inp[IN.MEM_FOE_T] = mem[5];
+    }
+    m.mood += (((m.e / m.cap) - 0.5) * 2 - m.mood) * Math.min(1, dtt / 20); inp[IN.MOOD] = m.mood;
+  }
   runBrain(m.net, inp);
   const o = m.o;
 
@@ -682,6 +725,17 @@ function think(w, m, i, dtt) {
     const o = motes[bn];
     if (bnd < (m.r + o.r + 24) * (m.r + o.r + 24) && m.fr.get(o.id) !== -1) {
       if (m.hurt > 0.3 && o.o[OUT.BITE] > 0.3 && inp[IN.CONTACT] === 1) grudge(w, m, o); else bump(w, m, o, 0.09 * dtt * (0.5 + 0.8 * m.g.b[B.BOND]));
+    }
+  }
+  // -- pods: two motes with a strong mutual bond stick together and even out their energy, so bonded groups ride out famine together
+  m.pod = 0;
+  if (bn >= 0 && !globalThis.__NOPOD) {
+    const o2 = motes[bn], fa = m.fr.get(o2.id) || 0, fb = o2.fr.get(m.id) || 0;
+    if (fa > 0.55 && fb > 0.55 && bnd < 130 * 130) {
+      m.pod = o2.id; const d = Math.sqrt(bnd) || 1, dx = o2.x - m.x, dy = o2.y - m.y;
+      if (d > 50) { const side = (dy * ch - dx * sh) / d; m.rt = clamp(m.rt - side * 0.5, -1.5, 1.5); m.rth = clamp(m.rth + 0.15, -1, 1); }
+      const mf = m.e / m.cap, of = o2.e / o2.cap;
+      if (mf > of + 0.05 && d < m.r + o2.r + 30) { const a = Math.min(m.e * 0.3, (mf - of) * Math.min(m.cap, o2.cap) * 0.2 * dtt); if (a > 0) { m.e -= a; o2.e = Math.min(o2.cap, o2.e + a * 0.95); w.counters.podShared = (w.counters.podShared || 0) + a; milestone(w, 'pod', m.name + ' and ' + o2.name + ' have formed a pod: they stay together and share food.'); } }
     }
   }
   if (m.fr.size) for (const [id, s] of m.fr) {
@@ -702,7 +756,7 @@ function think(w, m, i, dtt) {
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
     const p = clamp(1.5 + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
-      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(0.15, m.meatEff) * m.intake;
+      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(0.15, m.meatEff) * m.intake * (globalThis.__BG || 1.3);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
       if (kill(w, tgt, 'eaten', m.id)) { milestone(w, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
     } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
@@ -716,7 +770,7 @@ function think(w, m, i, dtt) {
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
       if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone(w, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone(w, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = Math.min(tgt.e * 0.3, 2.6 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.5; m.e -= 0.35 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      else { const a = Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone(w, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -814,7 +868,8 @@ function birth(w, pa, pb, energy) {
 
 // ---------- slow systems ----------
 function growFood(w, dt) {
-  const rate = 26 * w.fert * w.light * (w.bloom > 0 ? 3 : 1);
+  const rate = 26 * w.fert * w.light * (w.bloom > 0 ? 3 : 1) * (w.drought > 0 ? 0.45 : 1);
+  if (w.drought > 0) w.drought -= dt;
   const room = w.foodMax - w.food.length;
   if (w.bloom > 0) w.bloom -= dt;
   let n = rate * dt, k = 0;
@@ -822,10 +877,10 @@ function growFood(w, dt) {
 }
 function structures(w, dt) {
   const N = GN * GN, st = w.st, hp = w.hp;
-  let count = 0;
+  let count = 0, walls = 0;
   for (let i = 0; i < N; i++) {
     const t = st[i]; if (t === 0 || t === 255) continue;
-    count++;
+    count++; if (t === 1) walls++;
     if (hp[i] < 255) {
       const v = hp[i] - 2.2 * dt;
       if (v <= 0) { if (t === 4 && w.store[i] > 0) { const n = Math.min(10, Math.ceil(w.store[i] / 18)); for (let q = 0; q < n; q++) spawnFood(w, (i % GN + 0.5) * CELL - R + gauss() * 4, Math.floor(i / GN) * CELL + CELL / 2 - R + gauss() * 4, 0, 18); w.store[i] = 0; } st[i] = 0; hp[i] = 0; count--; }
@@ -833,7 +888,7 @@ function structures(w, dt) {
     }
     if (t === 2 && w.food.length < w.foodMax && rand() < 0.16 * w.light * dt) spawnFood(w, (i % GN + 0.5) * CELL - R + (rand() - 0.5) * CELL, Math.floor(i / GN) * CELL + CELL / 2 - R + (rand() - 0.5) * CELL, 0, 18);
   }
-  w.stCount = count;
+  w.stCount = count; w.walls = walls;
 }
 function fields(w, dt) {
   const N = GN * GN, heat = w.heat, tox = w.tox, ch = w.chem;
@@ -846,7 +901,9 @@ function fields(w, dt) {
     const tmp = w.tmpArr || (w.tmpArr = new Float32Array(N));
     for (let y = 1; y < GN - 1; y++) for (let x = 1; x < GN - 1; x++) {
       const i = y * GN + x;
-      tmp[i] = (a[i] * 0.5 + (a[i - 1] + a[i + 1] + a[i - GN] + a[i + GN]) * 0.125) * dc;
+      const sd = w.st; if (sd[i] === 1) { tmp[i] = 0; continue; }
+      const c = a[i], l = sd[i - 1] === 1 ? c : a[i - 1], r = sd[i + 1] === 1 ? c : a[i + 1], u = sd[i - GN] === 1 ? c : a[i - GN], d = sd[i + GN] === 1 ? c : a[i + GN];
+      tmp[i] = (c * 0.5 + (l + r + u + d) * 0.125) * dc;
     }
     for (let i = 0; i < N; i++) a[i] = tmp[i] < 0.002 ? 0 : tmp[i];
   }
@@ -872,8 +929,9 @@ function sample(w) {
   let alive = 0;
   for (const s of w.species.values()) {
     if (s.count > s.peak) s.peak = s.count;
-    if (s.count > 0) { alive++; s.ext = 0; }
-    else if (!s.ext && w.t - s.born > 20) { s.ext = w.t; w.counters.extinct++; if (!w.noLog) log(w, `Extinct: ${s.name} (peak ${s.peak}).`, 'species'); }
+    if (s.shown === undefined) s.shown = true;           // species from older saves are already known
+    if (s.count > 0) { alive++; s.ext = 0; if (!s.shown && s.count >= 3) { s.shown = true; const p = w.species.get(s.par); if (!w.noLog) log(w, `New species: ${s.name}` + (p ? ` (split from ${p.name})` : ''), 'species'); } }
+    else if (!s.ext && w.t - s.born > 20) { s.ext = w.t; w.counters.extinct++; if (!w.noLog && s.shown) log(w, `Extinct: ${s.name} (peak ${s.peak}).`, 'species'); }
   }
   // prune very old extinct species
   if (w.species.size > 260) { for (const [id, s] of w.species) { if (s.ext && w.species.size > 200 && !ms.some(m => m.sp === id) && !isParent(w, id)) w.species.delete(id); } }
@@ -892,7 +950,10 @@ function randomEvent(w) {
   else if (pick < 0.42) { w.tempEv = -0.8; w.tempEvLeft = 70; log(w, 'A cold snap.', 'event'); }
   else if (pick < 0.59) { w.tempEv = 0.8; w.tempEvLeft = 70; log(w, 'A heatwave.', 'event'); }
   else if (pick < 0.78) { if (w.motes.length > 40) { for (let i = 0; i < 4; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; log(w, 'A plague has started.', 'event'); } }
-  else { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 150); paint(w, 'toxin', Math.cos(a) * d, Math.sin(a) * d, 90, 1); log(w, 'A toxic spill.', 'event'); }
+  else if (pick < 0.88) { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 150); paint(w, 'toxin', Math.cos(a) * d, Math.sin(a) * d, 90, 1); log(w, 'A toxic spill.', 'event'); }
+  else if (pick < 0.94) { if (w.motes.length > 90) { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 140); meteor(w, Math.cos(a) * d, Math.sin(a) * d, 70 + rand() * 50); } }
+  else if (pick < 0.97) { if (w.motes.length > 60) triggerEvent(w, 'drought'); }
+  else { w.bloom = 45; log(w, 'A bloom: food is booming.', 'event'); }
 }
 
 // ---------- player tools ----------
@@ -954,6 +1015,27 @@ export function triggerEvent(w, kind) {
   if (kind === 'bloom') { w.bloom = 45; log(w, 'You called a bloom.', 'event'); }
   if (kind === 'cold') { w.tempEv = -0.8; w.tempEvLeft = 70; log(w, 'You called a cold snap.', 'event'); }
   if (kind === 'heat') { w.tempEv = 0.8; w.tempEvLeft = 70; log(w, 'You called a heatwave.', 'event'); }
+  if (kind === 'iceage') { w.tempEv = -0.85; w.tempEvLeft = 180; w.drought = Math.max(w.drought || 0, 60); log(w, 'An ice age has begun: deep cold and thin food for three minutes.', 'event'); }
+  if (kind === 'drought') { w.drought = 160; log(w, 'A drought: food is scarce.', 'event'); }
+}
+// a meteor: kills everything in the crater, burns the ground bare, heats and poisons it, then the rim blooms with ash-fed plants
+export function meteor(w, x, y, rad = 110) {
+  let dead = 0;
+  for (const m of w.motes) if (!m.dead && Math.hypot(m.x - x, m.y - y) < rad) { kill(w, m, 'meteor'); dead++; }
+  if (w.deadN) { let j = 0; for (let i = 0; i < w.motes.length; i++) if (!w.motes[i].dead) w.motes[j++] = w.motes[i]; w.motes.length = j; w.deadN = 0; }
+  for (const f of w.food) if (Math.hypot(f.x - x, f.y - y) < rad) f.dead = true;
+  const gx0 = Math.floor((x - rad + R) / CELL), gx1 = Math.floor((x + rad + R) / CELL), gy0 = Math.floor((y - rad + R) / CELL), gy1 = Math.floor((y + rad + R) / CELL);
+  for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+    if (gx < 0 || gy < 0 || gx >= GN || gy >= GN) continue;
+    const d = Math.hypot((gx + 0.5) * CELL - R - x, (gy + 0.5) * CELL - R - y); if (d > rad) continue;
+    const i = gy * GN + gx, f = 1 - d / rad;
+    if (w.st[i] > 0 && w.st[i] < 255) { w.st[i] = 0; w.hp[i] = 0; w.store[i] = 0; w.stCount--; }
+    w.heat[i] = Math.min(1.6, w.heat[i] + 1.4 * f + 0.2); w.tox[i] = Math.min(1, w.tox[i] + 0.8 * f);
+  }
+  for (let q = 0; q < 50; q++) { const a = rand() * 6.283, d = rad * (1 + rand() * 0.5); spawnFood(w, x + Math.cos(a) * d, y + Math.sin(a) * d, 0, 18); }
+  w.counters.meteors = (w.counters.meteors || 0) + 1;
+  log(w, 'A meteor struck the dish' + (dead ? ': ' + dead + ' motes were lost.' : '.'), 'event');
+  return dead;
 }
 
 // ---------- seeing a brain ----------
@@ -988,7 +1070,7 @@ export function serialize(w) {
     st: u8b64(w.st), hp: u8b64(w.hp), store: u8b64(q8(w.store, 1)), heat: u8b64(q8(w.heat, 100, 128)), tox: u8b64(q8(w.tox, 255)),
     chem: w.chem.map(c => u8b64(q8(c, 80))),
     food: w.food.map(f => [Math.round(f.x), Math.round(f.y), f.k, Math.round(f.e)]),
-    species: [...w.species.values()].map(s => ({ id: s.id, name: s.name, hue: s.hue, rep: packG(s.rep), peak: s.peak, born: s.born, ext: s.ext, par: s.par })),
+    species: [...w.species.values()].map(s => ({ id: s.id, name: s.name, hue: s.hue, rep: packG(s.rep), peak: s.peak, born: s.born, ext: s.ext, par: s.par, sh: s.shown ? 1 : 0 })),
     motes: w.motes.map(m => ({ i: m.id, n: m.name, g: packG(m.g), x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, h: Math.round(m.h * 100) / 100, e: Math.round(m.e * 10) / 10, a: Math.round(m.age * 10) / 10, gen: m.gen, sp: m.sp, p: m.par, pa: m.pa, pb: m.pb, fr: [...m.fr].map(([id, s]) => [id, Math.round(s * 100) / 100]), an: m.anc, k: m.kids, kl: m.kills, f: m.fav ? 1 : 0, sk: Math.round(m.sick * 10) / 10, im: Math.round(m.imm) })),
   });
 }
@@ -1004,7 +1086,7 @@ export function deserialize(str) {
   let sc = 0; for (let i = 0; i < w.st.length; i++) if (w.st[i] > 0 && w.st[i] < 255) sc++;
   w.stCount = sc;
   for (const f of d.food) w.food.push({ x: f[0], y: f[1], k: f[2], e: f[3], dead: false, age: 0 });
-  for (const s of d.species) w.species.set(s.id, { id: s.id, name: s.name, hue: s.hue, rep: unpackG(s.rep), count: 0, peak: s.peak, born: s.born, ext: s.ext, par: s.par });
+  for (const s of d.species) w.species.set(s.id, { id: s.id, name: s.name, hue: s.hue, rep: unpackG(s.rep), count: 0, peak: s.peak, born: s.born, ext: s.ext, par: s.par, shown: s.sh === undefined ? true : !!s.sh });
   for (const p of d.motes) {
     const m = makeMote(w, unpackG(p.g), p.x, p.y, p.e, p.gen);
     m.id = p.i; m.name = p.n; m.h = p.h; m.age = p.a; m.sp = p.sp; m.par = p.p; m.pa = p.pa || 0; m.pb = p.pb || 0; m.fr = new Map(p.fr || []); m.anc = p.an; m.kids = p.k; m.kills = p.kl; m.fav = !!p.f; m.sick = p.sk; m.imm = p.im; m.e = p.e; m.lt = w.t;

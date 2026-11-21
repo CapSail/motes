@@ -18,6 +18,10 @@ Files: `sim.js` (the engine, pure JS), `ui.js` + `index.html` (plain UI), `sw.js
 - **World**: day/night light, temperature fields you can paint, toxin that diffuses, three diffusing scent channels, food that grows in clumps, corpses that become meat, farms (grow food), nests (heal, boost newborns), granaries (stored energy), decaying structures that builders repair.
 - **Drama**: predators, cannibals, parasites, plague (spreads on contact, resistance evolves), altruists, builders, species that split on their own (names generated), extinctions, random blooms / cold snaps / heatwaves / toxic spills.
 - **Diary** logs firsts (first kill, first mating, first granary, first parasite, a brain growing its first neuron) and every speciation and extinction. **Stats** shows population / species / brain-size history and records.
+- **Short-term memory**: each mote remembers where it last saw food and where it was last hurt (fades over ~15 s), readable by its brain as senses.
+- **Walls are solid**: they block movement, sight, smell and the spread of scents. **Pods**: strongly bonded friends stay together and share energy. **Disasters**: meteors, ice age, drought, plus the older events.
+- **Looks**: six body styles, spikes, eyes, frills, glow (all inherited).
+- **Tools for you**: spotlight a species, family tree of species (🌳), save a picture, optional sound and haptics, backup storage for big dishes.
 - **Brain viewer**: tap a mote to see its actual network, live, with activations.
 - **While you are away** the dish keeps living (1 away-second = 0.25 dish-seconds, capped at 40 dish-minutes), with a welcome-back report. The last few motes are protected during catch-up.
 - Dish is saved on the device. Export/import a dish file or code to move it between phone and PC.

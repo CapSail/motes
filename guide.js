@@ -24,6 +24,8 @@ const SENSE = {
   mote_rel: 'is the nearest mote family? +1 parent or child, +0.5 sibling, 0 not related',
   mote_friend: 'how much I like the nearest mote: up to +1 for a close friend, −1 for a grudge',
   friend_f: 'my nearest friend: ahead or behind', friend_s: 'my nearest friend: left or right',
+  mem_food_f: 'remembered food: ahead (+) or behind (−), fading over ~15s', mem_food_s: 'remembered food: left (+) or right (−)', mem_food_t: 'how fresh the food memory is (1 = just seen, 0 = forgotten)',
+  mem_foe_f: 'where I last got hurt: ahead or behind', mem_foe_s: 'where I last got hurt: left or right', mem_foe_t: 'how fresh that memory is', mood: 'slow mood: fed and content (+) or hungry (−)',
   fam_f: 'my nearest relative: ahead or behind', fam_s: 'my nearest relative: left or right', famcount: 'how many relatives are near me',
 };
 const ACTION = {
@@ -113,7 +115,7 @@ export function guideHTML() {
 <li><b>☠️ Toxin</b> — poison (purple) that slowly spreads and fades. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
 <li><b>🔴🟢🔵 Scent A/B/C</b> — paint chemical signals. Every mote has an inherited like or dislike for each scent: some kinds are drawn to a scent and some run from it, and that taste evolves. Brains can also sense and release them, and what that <i>means</i> is up to evolution (see below).</li>
 <li><b>🦠 Plague</b> — infect motes you touch. It spreads on contact, drains energy, and then fades, leaving survivors briefly immune.</li>
-<li><b>⚡ Smite</b> — kill motes under the brush. <b>✨ Spark</b> — tap to create a new, unrelated founder. <b>🧹 Erase</b> — clears structures, food, toxin, heat and scents.</li>
+<li><b>⚡ Smite</b> — kill motes under the brush. <b>☄️ Meteor</b> — tap to drop one: it kills everything in the crater, burns the ground bare and leaves it hot and poisoned, then plants spring up around the rim. <b>✨ Spark</b> — tap to drop in a new founder. <b>🧹 Erase</b> — clears structures, food, toxin, heat and scents.</li>
 </ul>
 <p>Player-built structures are permanent. Structures built by motes decay unless motes keep repairing them.</p></details>
 
@@ -180,6 +182,7 @@ export function guideHTML() {
 <p>The <b>Diary</b> records the big firsts (the first kill, first mating, first granary, first parasite, first neuron added) and every speciation and extinction. <b>Stats</b> shows population, species and brain-size history, plus all-time records.</p></details>
 
 <details><summary>Species, favorites and records</summary>
+<p>In <b>Species</b> tap 🔦 to spotlight a species on the dish, or tap its name to follow one of its motes. <b>🌳 Tree</b> draws the whole family tree of species. In <b>Dish</b> you can turn on sound, buzz and save a picture of the dish.</p>
 <ul>
 <li><b>Diary</b> (menu): the journal of the dish, stamped with the dish year and day. Filter it by Years (an "in review" entry is written at the end of every dish-year), Firsts (first kill, first granary, first best friends…), Species, Events and Stars. Firsts, year reviews and star stories are never pushed out; smaller news scrolls away.</li>
 <li><b>Species</b> (menu): everyone alive and extinct, with population, peak, birth day and parent species. Tap one to jump to a member.</li>
@@ -197,12 +200,25 @@ export function guideHTML() {
 <li>Install: open the site in Chrome, choose <b>Add to Home screen</b>. It then works offline.</li>
 </ul></details>
 
+<details><summary>Sight, smell, memory, walls and pods</summary>
+<ul>
+<li><b>Sight and smell have range.</b> A mote sees other motes out to 50–240 units depending on its sense gene (hunters see a bit further). It smells <i>food</i> up to 1.5× that far. Antennae add a little more.</li>
+<li><b>Walls block everything.</b> Nothing sees, smells or walks through a wall. Food or prey on the far side is simply not noticed, so motes have to go around. Scents and toxin also spread around walls, not through them. Motes steer away from walls on instinct, and turn when they bump one.</li>
+<li><b>Short-term memory.</b> Each mote remembers where it last saw food and where it last got hurt. The memory fades over about 15 seconds and clears when it gets there. Brains can read these memories as senses (<i>mem_food_f/s/t</i>, <i>mem_foe_f/s/t</i>) plus a slow <i>mood</i> (fed versus hungry). Tap a mote to see the green dotted line to the food it remembers and a red ring where it was hurt.</li>
+<li><b>Instincts you can see.</b> Everything has an inherited like or dislike for each scent. Everything flees toxin. Everything steers toward its favourite temperature.</li>
+<li><b>Pods.</b> Two motes with a strong two-way friendship stay close and even out their energy, so the fed one feeds the hungry one. A gold line joins podmates. Pods ride out famine together.</li>
+<li><b>Looks.</b> Bodies come in six styles (beads, smooth tubes, diamonds, stars, rings, leaves) with spikes, one to four eyes or none, dorsal frills and bioluminescent glow. Spikes add a little armour, and frills and glow cost a little energy. All of it is inherited and mutates, and big differences make new species.</li>
+<li><b>Disasters.</b> Menu → Dish has Ice age and Drought, the ☄️ Meteor tool drops a crater anywhere, and random events now include rare meteors and droughts too (only when the dish is healthy).</li>
+</ul></details>
+
 <details><summary>Things to try</summary>
 <ul>
 <li>Pause, tap a hunter, hit <b>Follow</b>, and watch its brain while it hunts.</li>
 <li>Wall off half the dish for ten minutes (use 8×), then remove the wall and see which side evolved differently.</li>
 <li>Paint a ring of cold around one species' home. Do they evolve fat and armor, or migrate?</li>
 <li>Release a plague into the biggest herd. Who survives?</li>
+<li>Spotlight a species (Menu → Species → 🔦) and watch where its motes live and travel. Open 🌳 Tree to see how every species is related.</li>
+<li>Build a wall with a gap and drop food behind it. Do they find the gap?</li>
 <li>Put a Scent A patch near food over and over. Does anyone start following it?</li>
 <li>Press <b>Spark</b> in a quiet corner a few times and watch the newcomers either take over or get eaten.</li>
 <li>Turn food abundance down to 0.4 and see which body plan wins when times are hard.</li>
