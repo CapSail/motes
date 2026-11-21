@@ -191,7 +191,7 @@ hintEl.style.cssText = 'position:fixed;left:50%;top:calc(max(8px,env(safe-area-i
 document.body.appendChild(hintEl);
 let hintT = 0;
 function showHint(t, text) { hintEl.textContent = text || HINTS[t] || ''; hintEl.style.opacity = 1; clearTimeout(hintT); hintT = setTimeout(() => { hintEl.style.opacity = 0; }, 5000); }
-const VIEWS = ['Everything', 'Smell A', 'Smell B', 'Smell C', 'Heat and cold', 'Poison'];
+const VIEWS = ['Everything', 'Red smell', 'Green smell', 'Blue smell', 'Heat and cold', 'Poison', 'Soil richness'];
 $('bView').onclick = () => {
   if (sheetFor === 'view') { closeSheet(); return; }
   openSheet('<h4>What should the dish show?</h4><div class="chips">' + VIEWS.map((v, i) => `<button data-v="${i}" class="${view === i ? 'on' : ''}">${v}</button>`).join('') + '</div><p class="dim" style="margin:10px 4px 0;font-size:13px">“Everything” shows every coloured field at once (smells, heat, cold, poison). Pick one to look at just that.</p><button data-sig="1" class="' + (showSignals ? 'on' : '') + '" style="width:100%;margin-top:10px;white-space:normal">' + (showSignals ? '✔ ' : '') + 'Show smell ripples and pod threads on the creatures</button>', 'view');
@@ -610,6 +610,7 @@ function updOverlay() {
     for (let k = 0; k < 3; k++) if (view === 0 || view === k + 1) add(CC[k], Math.min(1, w.chem[k][i] * 1.1) * 210);
     if (view === 0 || view === 4) { const h = w.heat[i]; if (h > 0.03) add([255, 130, 30], Math.min(1, h) * 190); else if (h < -0.03) add([80, 170, 255], Math.min(1, -h) * 190); }
     if (view === 0 || view === 5) add([180, 60, 255], Math.min(1, w.tox[i] * 1.3) * 230);
+    if (view === 6 && w.st[i] !== 255) { const n = Math.max(0, Math.min(1, w.nut[i])); add([Math.round(170 * (1 - n) + 40 * n), Math.round(95 * (1 - n) + 200 * n), 40], 170); }
     d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = a;
   }
   octx.putImageData(oimg, 0, 0);

@@ -31,8 +31,9 @@ export const IN = {
   MOTE_REL: 45, MOTE_FRIEND: 46, FRIEND_F: 47, FRIEND_S: 48, FAM_F: 49, FAM_S: 50, FAMCOUNT: 51,
   // short-term memory: where it last saw food and where it last got hurt, fading over about 15 seconds, plus a slow 'recently fed / hurt' mood
   MEM_FOOD_F: 52, MEM_FOOD_S: 53, MEM_FOOD_T: 54, MEM_FOE_F: 55, MEM_FOE_S: 56, MEM_FOE_T: 57, MOOD: 58,
+  NUT: 59,    // how rich the soil is under me (minerals that sunlight-eaters need)
 };
-export const NI = 59;
+export const NI = 60;
 export const OUT = {
   THRUST: 0, TURN: 1, BITE: 2, EMIT_A: 3, EMIT_B: 4, EMIT_C: 5,
   B_WALL: 6, B_FARM: 7, B_NEST: 8, B_GRAN: 9, DIG: 10, XFER: 11, MATE: 12,
@@ -155,6 +156,16 @@ function dist(a, b) {
 // geography: the dish is cooler at the top and warmer at the bottom (a fixed gradient on top of weather and anything you paint)
 export const GEO = 0.32;
 const geoT = y => (GEO * y) / R;
+// soil minerals: sunlight alone is not enough. Photosynthesis needs minerals from the soil under you and uses them up; they come back
+// slowly from the ground, from waste when anything eats, and from every body that dies. Eating other creatures needs no soil at all.
+const NUT = { use: 0.03, regen: 0.001, diff: 0.05, excrete: 0.004, body: 0.35, pellet: 0.015 };
+export const NUTRIENTS = NUT;
+export const SUN = { k: 0.045 };   // how much energy a mote makes from sunlight per unit of body area (real sunlight is weak)
+function giveNut(w, x, y, amt) {
+  const i = cidx(x, y); if (i < 0) return;
+  const n = w.nut; n[i] = Math.min(1.5, n[i] + amt);
+  const q = amt * 0.25; if (i + 1 < n.length) n[i + 1] = Math.min(1.5, n[i + 1] + q); if (i - 1 >= 0) n[i - 1] = Math.min(1.5, n[i - 1] + q); if (i + GN < n.length) n[i + GN] = Math.min(1.5, n[i + GN] + q); if (i - GN >= 0) n[i - GN] = Math.min(1.5, n[i - GN] + q);
+}
 export const SPLIT = 0.56;
 
 function mutateG(g) {
@@ -286,7 +297,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 175;
+export const BEST_SEED = 226;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -294,7 +305,7 @@ export function createWorld(seed = 1, opts = {}) {
     ver: 1, t: 0, tick: 0, nextId: 1, nextSp: 1,
     motes: [], food: [], species: new Map(),
     st: new Uint8Array(N), hp: new Uint8Array(N), store: new Float32Array(N),
-    heat: new Float32Array(N), tox: new Float32Array(N),
+    heat: new Float32Array(N), tox: new Float32Array(N), nut: new Float32Array(N).fill(1),
     chem: [new Float32Array(N), new Float32Array(N), new Float32Array(N)],
     deadN: 0, light: 1, tempEv: 0, tempEvLeft: 0, evTimer: 150, bloom: 0, drought: 0, thinkMask: 1,
     log: [], keep: [], lastYear: 0, snap: null, hist: [], fame: {}, favs: [], milestones: {},
@@ -496,6 +507,7 @@ function kill(w, m, why, killer) {
   m.dead = true; m.why = why; m.killer = killer || 0; w.deadN++;
   w.counters.deaths++;
   if (m.sick > 0) { w.sick--; w.plagueDead++; }
+  giveNut(w, m.x, m.y, NUT.body * (0.6 + m.r / 9));       // a body returns its minerals to the ground
   if (why !== 'eaten') {
     const total = 0.35 * (Math.max(0, m.e) + m.r * 7), n = 1 + Math.floor(m.r / 3.2);
     for (let i = 0; i < n; i++) spawnFood(w, m.x + gauss() * 4, m.y + gauss() * 4, 1, total / n);
@@ -607,7 +619,11 @@ function body(w, m, dt, tempG) {
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
   drain += 0.12 * em + 0.05 * Math.max(0, m.crowd - 5);
   let gain = 0; m.why2 = '';
-  if (m.photo > 0.05) gain += m.photo * w.light * m.r * m.r * 0.052 / (1 + 0.3 * Math.max(0, m.crowd - 1));   // shaded by neighbours
+  if (m.photo > 0.05) {
+    const sun = m.photo * w.light * m.r * m.r * SUN.k / (1 + 0.3 * Math.max(0, m.crowd - 1));   // shaded by neighbours
+    const nf = idx >= 0 ? Math.min(1, w.nut[idx] * 1.5) : 0;                                      // and starved by poor soil
+    gain += sun * nf; if (idx >= 0) w.nut[idx] = Math.max(0, w.nut[idx] - sun * nf * dt * NUT.use);
+  }
   if (idx >= 0) {
     const tx = w.tox[idx];
     if (tx > 0.05) { drain += tx * 7 * (1 - m.toxr * 0.9); m.hurt = 1; m.why2 = 'toxin'; }
@@ -751,6 +767,11 @@ function think(w, m, i, dtt) {
         rth += sc * fwd * 0.6 + dis * 0.3;
       }
     }
+    if (m.photo > 0.25) {
+      const nn = w.nut, a = cidx(m.x + ch * 26, m.y + sh * 26), l = cidx(m.x - sh * 26, m.y + ch * 26), r2 = cidx(m.x + sh * 26, m.y - ch * 26), here = nn[idx];
+      rt += m.photo * Math.tanh(((l >= 0 ? nn[l] : here) - (r2 >= 0 ? nn[r2] : here)) * 4);
+      rth += m.photo * (0.5 * Math.tanh(((a >= 0 ? nn[a] : here) - here) * 4) + Math.max(0, 0.35 - here) * 1.4);
+    }
     m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1); if (globalThis.__NOREFLEX) { m.rt = 0; m.rth = 0; }
   } else { m.rt = 0; m.rth = 0; }
   {   // walls are solid: steer away from them whatever the brain thinks
@@ -760,6 +781,7 @@ function think(w, m, i, dtt) {
       m.rt = clamp(m.rt - wl * 1.1 + wr * 1.1 + sg * wf * 1.3, -1.5, 1.5); m.rth = clamp(m.rth - wf * 0.6, -1, 1);
     }
   }
+  if (idx >= 0) inp[IN.NUT] = w.nut[idx] * 2 - 1;
   inp[IN.LIGHT] = w.light - 0.6; inp[IN.SICK] = m.sick > 0 ? 1 : 0;
   inp[IN.CLOCK] = Math.sin(w.t * 0.9 + (m.id % 7)); inp[IN.NOISE] = rand() * 2 - 1;
   inp[IN.HURT] = m.hurt > 0 ? 1 : 0;
@@ -812,10 +834,10 @@ function think(w, m, i, dtt) {
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3) * (m.r + 3) && m.plantEff > 0.05) {
-      const f = food[bp]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.plantEff * rare(w, m));
+      const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
     if (bm >= 0 && bmd < (m.r + 3) * (m.r + 3) && !food[bm].dead && m.meatEff > 0.1) {
-      const f = food[bm]; f.dead = true; m.e = Math.min(m.cap, m.e + f.e * m.intake * m.meatEff * rare(w, m));
+      const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
   }
   // -- bite
@@ -940,12 +962,15 @@ function birth(w, pa, pb, energy) {
 
 // ---------- slow systems ----------
 function growFood(w, dt) {
-  const rate = 26 * w.fert * w.light * (w.bloom > 0 ? 3 : 1) * (w.drought > 0 ? 0.45 : 1);
+  const rate = 70 * w.fert * w.light * (w.bloom > 0 ? 3 : 1) * (w.drought > 0 ? 0.45 : 1);
   if (w.drought > 0) w.drought -= dt;
   const room = w.foodMax - w.food.length;
   if (w.bloom > 0) w.bloom -= dt;
   let n = rate * dt, k = 0;
-  while (n > 0 && k < room) { if (n >= 1 || rand() < n) spawnFood(w, null, null, 0, 18); n -= 1; k++; }
+  while (n > 0 && k < room) {
+    if (n >= 1 || rand() < n) { const f = spawnFood(w, null, null, 0, 18); if (f) { const ix = cidx(f.x, f.y); if (ix >= 0) { if (rand() > w.nut[ix]) f.dead = true; else w.nut[ix] = Math.max(0, w.nut[ix] - NUT.pellet); } } }
+    n -= 1; k++;
+  }
 }
 function structures(w, dt) {
   const N = GN * GN, st = w.st, hp = w.hp;
@@ -964,6 +989,13 @@ function structures(w, dt) {
 }
 function fields(w, dt) {
   const N = GN * GN, heat = w.heat, tox = w.tox, ch = w.chem;
+  { const nn = w.nut, sd = w.st, tmp2 = w.tmpArr2 || (w.tmpArr2 = new Float32Array(N)), rg = 1 - Math.exp(-NUT.regen * dt), df = NUT.diff * (dt / 0.25);
+    for (let y = 1; y < GN - 1; y++) for (let x = 1; x < GN - 1; x++) {
+      const i = y * GN + x; if (sd[i] === 255) { tmp2[i] = 1; continue; } const c = nn[i];
+      const l = sd[i - 1] === 255 ? c : nn[i - 1], r = sd[i + 1] === 255 ? c : nn[i + 1], u = sd[i - GN] === 255 ? c : nn[i - GN], d = sd[i + GN] === 255 ? c : nn[i + GN];
+      let v = c + df * ((l + r + u + d) / 4 - c) + rg * (1 - c); if (v > 1) v -= (v - 1) * 0.02; tmp2[i] = v;
+    }
+    for (let i = 0; i < N; i++) { const y = (i / GN) | 0, x = i % GN; if (x > 0 && y > 0 && x < GN - 1 && y < GN - 1) nn[i] = tmp2[i]; } }
   const dh = Math.exp(-0.012 * dt), dtx = Math.exp(-0.03 * dt), dc = Math.exp(-0.16 * dt);
   for (let i = 0; i < N; i++) { heat[i] *= dh; tox[i] *= dtx; }
   for (let k = 0; k < 3; k++) {
@@ -1155,7 +1187,7 @@ export function serialize(w) {
     maxPop: w.maxPop, foodMax: w.foodMax, fert: w.fert, events: w.events,
     counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
     sick: w.sick, plagueOn: w.plagueOn, plagueDead: w.plagueDead,
-    st: u8b64(w.st), hp: u8b64(w.hp), store: u8b64(q8(w.store, 1)), heat: u8b64(q8(w.heat, 100, 128)), tox: u8b64(q8(w.tox, 255)),
+    st: u8b64(w.st), hp: u8b64(w.hp), store: u8b64(q8(w.store, 1)), heat: u8b64(q8(w.heat, 100, 128)), tox: u8b64(q8(w.tox, 255)), nut: u8b64(q8(w.nut, 170)),
     chem: w.chem.map(c => u8b64(q8(c, 80))),
     food: w.food.map(f => [Math.round(f.x), Math.round(f.y), f.k, Math.round(f.e)]),
     species: [...w.species.values()].map(s => ({ id: s.id, name: s.name, hue: s.hue, rep: packG(s.rep), peak: s.peak, born: s.born, ext: s.ext, par: s.par, sh: s.shown ? 1 : 0 })),
@@ -1169,7 +1201,7 @@ export function deserialize(str) {
   RS = d.rng | 0 || 1; INNOV = d.innov || 1000;
   Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, strain: d.strain, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
   w.st.set(b64u8(d.st)); w.hp.set(b64u8(d.hp)); w.store.set(f8(b64u8(d.store), 1));
-  w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255));
+  w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255)); if (d.nut) w.nut.set(f8(b64u8(d.nut), 170));
   d.chem.forEach((c, k) => w.chem[k].set(f8(b64u8(c), 80)));
   let sc = 0; for (let i = 0; i < w.st.length; i++) if (w.st[i] > 0 && w.st[i] < 255) sc++;
   w.stCount = sc;
