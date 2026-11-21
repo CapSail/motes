@@ -42,8 +42,10 @@ const MAXH = 16, MAXC = 150;
 export const B = {
   SIZE: 0, SPEED: 1, SENSE: 2, DIET: 3, ARMOR: 4, PHOTO: 5, REPRO: 6, INVEST: 7, MUT: 8, TPREF: 9,
   TTOL: 10, TOXR: 11, DISR: 12, HUE: 13, LOBES: 14, LIFE: 15, EFFIC: 16, FAT: 17, BRAINMUT: 18, MATURE: 19,
+  // shape genes: a procedural squiggle (spine of segments, curl, wiggle, limbs). They change how it moves, too.
+  SEGS: 20, LEN: 21, TAPER: 22, CURL: 23, WAMP: 24, WFREQ: 25, LIMBS: 26, LIMBLEN: 27,
 };
-export const NB = 20;
+export const NB = 28;
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -117,7 +119,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT];
+const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -191,7 +193,7 @@ const WALLAVOID = [[IN.WALL_L, O(OUT.TURN), -1.6], [IN.WALL_R, O(OUT.TURN), 1.6]
 const WANDER = [[IN.NOISE, O(OUT.TURN), 0.9]];
 const MATEING = [[IN.ENERGY, O(OUT.MATE), 4.2], [IN.BIAS, O(OUT.MATE), -2.7]];
 function grazer(hue) {
-  return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue }), [
+  return wire(bodyOf({ SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.PLANT_F, O(OUT.THRUST), 1.3], [IN.ENERGY, O(OUT.THRUST), -0.6],
     [IN.PLANT_S, O(OUT.TURN), 2.3], [IN.KIN_S, O(OUT.TURN), 0.45],
     ...WANDER, ...WALLAVOID, ...MATEING,
@@ -202,7 +204,7 @@ function grazer(hue) {
   ]);
 }
 function hunter(hue) {
-  return wire(bodyOf({ SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3 }), [
+  return wire(bodyOf({ SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.MEAT_F, O(OUT.THRUST), 0.9], [IN.MEAT_S, O(OUT.TURN), 1.8],
     ...WANDER, ...WALLAVOID, ...MATEING,
     [IN.MOTE_P, 'hu', 2.2], [IN.MOTE_KIN, 'hu', -1.6], [IN.MOTE_SIZE, 'hu', -1.3], [IN.BIAS, 'hu', -1.1],
@@ -213,7 +215,7 @@ function hunter(hue) {
   ]);
 }
 function weaver(hue) {
-  return wire(bodyOf({ SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7 }), [
+  return wire(bodyOf({ SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.PLANT_F, O(OUT.THRUST), 1.2], [IN.PLANT_S, O(OUT.TURN), 2.2], [IN.KIN_S, O(OUT.TURN), 0.4],
     ...WANDER, ...WALLAVOID, ...MATEING,
     [IN.ENERGY, O(OUT.B_NEST), 4.4], [IN.BIAS, O(OUT.B_NEST), -3.3],
@@ -225,20 +227,20 @@ function weaver(hue) {
   ]);
 }
 function scavenger(hue) {
-  return wire(bodyOf({ SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue }), [
+  return wire(bodyOf({ SIZE: 0.45, SPEED: 0.5, SENSE: 0.6, DIET: 0.5, HUE: hue, SEGS: 0.6, LEN: 0.55, TAPER: 0.5, CURL: 0.92, WAMP: 0.55, WFREQ: 0.55, LIMBS: 0.5, LIMBLEN: 0.5 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.MEAT_F, O(OUT.THRUST), 1.0], [IN.PLANT_F, O(OUT.THRUST), 0.7],
     [IN.MEAT_S, O(OUT.TURN), 2.2], [IN.PLANT_S, O(OUT.TURN), 1.1], [IN.KIN_S, O(OUT.TURN), 0.3],
     ...WANDER, ...WALLAVOID, ...MATEING,
   ]);
 }
 function drifter(hue) {
-  return wire(bodyOf({ SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7 }), [
+  return wire(bodyOf({ SIZE: 0.55, SPEED: 0.12, SENSE: 0.25, DIET: 0.0, PHOTO: 0.92, HUE: hue, LIFE: 0.7, SEGS: 0.2, LEN: 0.15, TAPER: 0.2, CURL: 0.4, WAMP: 0.15, WFREQ: 0.2, LIMBS: 1, LIMBLEN: 0.9 }), [
     [IN.BIAS, O(OUT.THRUST), -0.4], [IN.PLANT_F, O(OUT.THRUST), 0.5], [IN.ENERGY, O(OUT.THRUST), -0.4],
     ...WANDER, ...WALLAVOID, ...MATEING, [IN.LIGHT, O(OUT.MATE), 0.0],
   ]);
 }
 function wild(hue) {
-  const body = bodyOf({ SIZE: 0.2 + rand() * 0.6, SPEED: 0.2 + rand() * 0.6, SENSE: 0.3 + rand() * 0.5, DIET: rand(), HUE: hue, PHOTO: rand() * 0.3 });
+  const body = bodyOf({ SIZE: 0.2 + rand() * 0.6, SPEED: 0.2 + rand() * 0.6, SENSE: 0.3 + rand() * 0.5, DIET: rand(), HUE: hue, PHOTO: rand() * 0.3, SEGS: rand(), LEN: rand(), TAPER: rand(), CURL: rand(), WAMP: rand(), WFREQ: rand(), LIMBS: rand(), LIMBLEN: rand() });
   const links = [...WALLAVOID, ...MATEING, [IN.BIAS, O(OUT.THRUST), 0.3]];
   const ins = [IN.PLANT_F, IN.PLANT_S, IN.MEAT_F, IN.MEAT_S, IN.MOTE_F, IN.MOTE_S, IN.MOTE_P, IN.KIN_S, IN.CH_A, IN.CH_B, IN.GA_S, IN.CLOCK, IN.NOISE];
   const outs = [OUT.THRUST, OUT.TURN, OUT.BITE, OUT.EMIT_A, OUT.EMIT_B, OUT.B_NEST, OUT.XFER];
@@ -313,6 +315,12 @@ function derive(m) {
   m.toxr = b[B.TOXR]; m.disr = b[B.DISR];
   m.basal = (0.28 + m.r * 0.09 + m.armor * m.r * 0.12 + m.photo * 0.25 + m.toxr * 0.15 + m.disr * 0.12) * (0.8 + 0.5 * b[B.EFFIC]);
   m.hue = b[B.HUE]; m.lobes = 3 + Math.floor(b[B.LOBES] * 5.99);
+  // shape -> physics: long bodies run fast but turn slowly, limbs turn well but cost drag, a strong wiggle swims cheaply
+  m.segs = 2 + Math.floor(b[B.SEGS] * 7.99); m.lenF = 0.5 + b[B.LEN]; m.taper = b[B.TAPER]; m.curl = (b[B.CURL] - 0.5) * 2;
+  m.wamp = b[B.WAMP]; m.wfreq = b[B.WFREQ]; m.limbs = Math.floor(b[B.LIMBS] * 4.99); m.limbLen = b[B.LIMBLEN];
+  m.maxSp *= 0.85 + 0.4 * b[B.LEN];
+  m.turnRate = 4.5 * (1.25 - 0.5 * b[B.LEN]) * (0.8 + 0.1 * m.limbs);
+  m.mvMul = (1.25 - 0.5 * m.wamp) * (1 + 0.08 * m.limbs * (0.5 + m.limbLen));
 }
 function makeMote(w, g, x, y, e, gen) {
   const m = {
@@ -321,6 +329,7 @@ function makeMote(w, g, x, y, e, gen) {
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
     plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
   m.e = e || m.cap * 0.4;
@@ -458,7 +467,7 @@ export function step(w, dt) {
 function body(w, m, dt, tempG) {
   const o = m.o;
   // steering and motion
-  m.h += clamp(o[OUT.TURN], -1, 1) * 4.5 * dt;
+  m.h += clamp(o[OUT.TURN], -1, 1) * m.turnRate * dt;
   const target = clamp(o[OUT.THRUST], 0, 1) * m.maxSp;
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
@@ -474,7 +483,7 @@ function body(w, m, dt, tempG) {
 
   // metabolism
   const idx = cidx(m.x, m.y);
-  let drain = m.basal + 0.00025 * m.v * m.v * m.r + 0.003 * m.senseR + m.bcost;
+  let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.003 * m.senseR + m.bcost;
   if (o[OUT.BITE] > 0.3) drain += 0.3;
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
   drain += 0.12 * em;
@@ -828,7 +837,7 @@ function b64u8(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (le
 const q8 = (f, scale, off = 0) => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = clamp(Math.round(f[i] * scale + off), 0, 255); return u; };
 const f8 = (u, scale, off = 0) => { const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = (u[i] - off) / scale; return f; };
 function packG(g) { return { b: u8b64(q8(g.b, 255)), h: g.h, c: g.c.map(c => [c.s, c.d, Math.round(c.w * 1000) / 1000]) }; }
-function unpackG(p) { return { b: f8(b64u8(p.b), 255), h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
+function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
 
 export function serialize(w) {
   return JSON.stringify({

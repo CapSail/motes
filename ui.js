@@ -146,7 +146,7 @@ function renderInsp(force) {
   ib.innerHTML = `<h3><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3>
   <div class="dim">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · gen ${m.gen} · age ${Math.round(m.age)}/${Math.round(m.life)}s · kids ${m.kids} · kills ${m.kills} ${kinds.join(' ')}</div>
   ${m.anc.length ? `<div class="dim">Parents: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
-  <div class="bars">${bar('energy', m.e, m.cap)}${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}</div>
+  <div class="bars">${bar('energy', m.e, m.cap)}${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
   <div class="dim">Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. Output now: ${topOut(m)}</div>
   <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button data-a="follow" class="${follow ? 'on' : ''}">Follow</button><button data-a="fav">${m.fav ? '★ Unstar' : '☆ Star'}</button><button data-a="feed">Feed</button><button data-a="clone">Clone</button><button data-a="rename">Rename</button><button data-a="close">Close</button></div>`;
 }
@@ -273,6 +273,44 @@ function updOverlay() {
   octx.putImageData(oimg, 0, 0);
 }
 const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
+// A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
+const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
+function drawSquiggle(m, dtv) {
+  const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
+  if (cam.z < 0.3) { ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * (0.8 + m.segs * 0.12), 0, 7); ctx.fill(); return; }
+  m.ph += dtv * (1.5 + m.wfreq * 9) * (0.25 + m.v / m.maxSp);
+  const n = m.segs, segLen = m.r * 0.8 * m.lenF;
+  let x = m.x, y = m.y, a = m.h + Math.PI;
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    PX[i] = x; PY[i] = y; PA[i] = a; PR[i] = m.r * (1 - m.taper * 0.72 * t);
+    a += m.curl * 0.32 + Math.sin(m.ph - i * 0.9) * m.wamp * 0.55;
+    x += Math.cos(a) * segLen; y += Math.sin(a) * segLen;
+  }
+  if (m.limbs > 0) {
+    ctx.strokeStyle = `hsl(${hh},50%,${light - 12}%)`; ctx.lineWidth = Math.max(0.8, m.r * 0.18); ctx.lineCap = 'round'; ctx.beginPath();
+    const len = m.r * (0.7 + m.limbLen * 1.5);
+    for (let k = 0; k < m.limbs; k++) {
+      const i = Math.min(n - 1, 1 + Math.floor(k * (n - 1) / m.limbs));
+      for (const side of [-1, 1]) {
+        const ang = PA[i] + side * (1.35 + Math.sin(m.ph * 1.3 + i + (side > 0 ? 1 : 0)) * 0.45);
+        ctx.moveTo(PX[i], PY[i]); ctx.lineTo(PX[i] + Math.cos(ang) * len, PY[i] + Math.sin(ang) * len);
+      }
+    }
+    ctx.stroke();
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    ctx.fillStyle = `hsl(${hh + i * 5},70%,${light - i * 1.5}%)`;
+    ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i], 0, 7); ctx.fill();
+    if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 0.6 + m.armor * 1.6; ctx.stroke(); }
+  }
+  const ch = Math.cos(m.h), sh = Math.sin(m.h), e = m.r * 0.42;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(m.x + ch * m.r * 0.35 - sh * e, m.y + sh * m.r * 0.35 + ch * e, m.r * 0.24, 0, 7); ctx.arc(m.x + ch * m.r * 0.35 + sh * e, m.y + sh * m.r * 0.35 - ch * e, m.r * 0.24, 0, 7); ctx.fill();
+  ctx.fillStyle = m.diet > 0.6 ? '#e22' : '#111';
+  ctx.beginPath(); ctx.arc(m.x + ch * m.r * 0.5 - sh * e, m.y + sh * m.r * 0.5 + ch * e, m.r * 0.12, 0, 7); ctx.arc(m.x + ch * m.r * 0.5 + sh * e, m.y + sh * m.r * 0.5 - ch * e, m.r * 0.12, 0, 7); ctx.fill();
+}
+let dtv = 0.016;
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#05080c'; ctx.fillRect(0, 0, W, H);
@@ -301,12 +339,7 @@ function draw() {
   ctx.fill();
   // motes
   for (const m of w.motes) {
-    const hh = m.hue * 360;
-    ctx.fillStyle = `hsl(${hh},70%,${m.diet > 0.6 ? 48 : 58}%)`;
-    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7); ctx.fill();
-    if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 1 + m.armor * 2; ctx.stroke(); }
-    ctx.strokeStyle = '#000a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + Math.cos(m.h) * m.r * 1.1, m.y + Math.sin(m.h) * m.r * 1.1); ctx.stroke();
-    if (m.diet > 0.6) { ctx.fillStyle = '#ff5050'; ctx.beginPath(); ctx.arc(m.x + Math.cos(m.h) * m.r * 0.5, m.y + Math.sin(m.h) * m.r * 0.5, m.r * 0.22, 0, 7); ctx.fill(); }
+    drawSquiggle(m, dtv);
     if (m.sick > 0) { ctx.strokeStyle = '#9f4'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 2, 0, 7); ctx.stroke(); }
     if (m.fav) { ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3, 0, 7); ctx.stroke(); }
     if (m.o[S.OUT.BITE] > 0.3 && m.hurt < 0.1) { ctx.fillStyle = '#ff0'; ctx.fillRect(m.x - 1, m.y - m.r - 4, 2, 2); }
@@ -336,7 +369,7 @@ function frame(now) {
   if (painting && tool !== 'look' && tool !== 'spark' && !catching) { S.paint(w, tool, painting.x, painting.y, brush, Math.max(0.02, rdt)); if (tool === 'erase' || tool === 'food') S.cleanFood(w); }
   const sm = selected();
   if (follow && sm) { cam.x += (sm.x - cam.x) * 0.15; cam.y += (sm.y - cam.y) * 0.15; }
-  draw();
+  dtv = rdt; draw();
   if (now - hudT > 400) {
     hudT = now;
     const s = w.stats, tod = ((w.t % DAY) / DAY), moon = w.light < 0.5 ? '🌙' : '☀️';

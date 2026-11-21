@@ -7,3 +7,6 @@
 - Not added to `PHONE_APPS.md` (the PM keeps that file).
 - Ideas not built yet: sound, a lineage tree view, symbiosis/colony bodies, player-bred "pets" that stay across dishes, nicer art, haptics, IndexedDB save (localStorage is fine at ~450 KB but a big dish could hit the limit).
 - `.claude/launch.json` in the ON SHIFT folder has a `motes-dev` entry (node serve.mjs 5200) used for previews.
+
+## 2026-11-20 (later): evolving squiggle bodies
+- Cap asked for procedurally generated squiggle shapes that evolve. Added 8 shape genes (segments, length, taper, curl, wiggle amplitude and frequency, limb count and length). Bodies are drawn as a curling, wiggling spine of segments with limbs and eyes. Shape also changes physics: long bodies run faster but turn slowly, limbs turn better but cost drag, strong wiggle swims cheaper. Shape genes count toward speciation, so new species look different. Old saves load with neutral padded shape genes (a New dish gives the varied founders). Headless run still stable; checked in the browser pane, no console errors. Pushed to main (live site updates in about a minute).
