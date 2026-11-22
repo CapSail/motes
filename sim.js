@@ -469,6 +469,7 @@ function spawnFood(w, x, y, k, e) {
     } else { const a = rand() * 6.283, d = Math.sqrt(rand()) * (R - 10); x = Math.cos(a) * d; y = Math.sin(a) * d; }
   }
   if (x * x + y * y > (R - 6) * (R - 6)) return null;
+  if (solidAt(w, x, y)) return null;                      // never inside a wall
   const f = { x, y, k, e, dead: false, age: 0 };
   w.food.push(f);
   return f;
@@ -1054,7 +1055,28 @@ function growFood(w, dt) {
     n -= 1; k++;
   }
 }
+function freeSpot(w, x, y) {
+  const gx0 = Math.floor((x + R) / CELL), gy0 = Math.floor((y + R) / CELL);
+  for (let r = 1; r <= 16; r++) {
+    let best = null, bd = 1e9;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const cx = (gx0 + dx + 0.5) * CELL - R, cy = (gy0 + dy + 0.5) * CELL - R;
+      if (cx * cx + cy * cy > (R - 14) * (R - 14) || solidAt(w, cx, cy)) continue;
+      const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = [cx, cy]; }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+export function clearWalls(w) {
+  for (const m of w.motes) if (!m.dead && solidAt(w, m.x, m.y)) { const p = freeSpot(w, m.x, m.y); if (p) { m.x = p[0]; m.y = p[1]; m.v = 0; } }
+  const f = w.food; let j = 0;
+  for (let i = 0; i < f.length; i++) { const p = f[i]; if (!p.dead && !solidAt(w, p.x, p.y)) f[j++] = p; }
+  f.length = j;
+}
 function structures(w, dt) {
+  if (w.walls > 0) clearWalls(w);
   const N = GN * GN, st = w.st, hp = w.hp;
   let count = 0, walls = 0;
   for (let i = 0; i < N; i++) {
@@ -1174,6 +1196,7 @@ export function paint(w, tool, x, y, rad, dt) {
       case 'chemC': w.chem[2][i] = Math.min(3, w.chem[2][i] + 3 * dt * f); break;
     }
   }
+  if (tool === 'wall') clearWalls(w);
   if (tool === 'food') { const n = Math.max(1, Math.round(30 * dt * (rad / 40))); for (let i = 0; i < n; i++) { const a = rand() * 6.283, d = Math.sqrt(rand()) * rad; spawnFood(w, x + Math.cos(a) * d, y + Math.sin(a) * d, 0, 18); } }
   if (tool === 'erase') { for (const f of w.food) if (Math.hypot(f.x - x, f.y - y) < rad) f.dead = true; }
   if (tool === 'smite' || tool === 'plague') {

@@ -34,4 +34,15 @@ for (const dt of [0.2, 0.05]) {
   for (let t = 0; t < 3000; t++) { S.step(w, 0.2); if (t % 100 === 99) for (const m of w.motes) { tot++; const i = S.cidx(m.x, m.y); if (i >= 0 && (w.st[i] === 1)) inside++; } }
   ok('creatures are not inside walls', inside / Math.max(1, tot) < 0.002, `${inside} of ${tot} samples; walls ${w.walls}`);
 }
+// 5. a wall drawn over food and creatures clears them, and nothing spawns inside walls afterwards
+{
+  const w = S.createWorld(13); w.noLog = true; for (let t = 0; t < 200; t++) S.step(w, 0.2);
+  S.paint(w, 'wall', 0, 0, 120, 1);
+  const solid = (x, y) => { const i = S.cidx(x, y); return i < 0 || w.st[i] === 1 || w.st[i] === 255; };
+  let badF = w.food.filter(f => solid(f.x, f.y)).length, badM = w.motes.filter(m => solid(m.x, m.y)).length;
+  ok('wall drawn over things clears food and moves creatures', badF === 0 && badM === 0, badF + ' food and ' + badM + ' creatures still inside');
+  for (let t = 0; t < 1500; t++) S.step(w, 0.2);
+  badF = w.food.filter(f => solid(f.x, f.y)).length; badM = w.motes.filter(m => solid(m.x, m.y)).length;
+  ok('nothing spawns or wanders into walls over time', badF === 0 && badM === 0, badF + ' food and ' + badM + ' creatures inside, pop ' + w.motes.length);
+}
 console.log(fails ? fails + ' FAILED' : 'ALL PASS');
