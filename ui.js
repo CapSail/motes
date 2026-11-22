@@ -350,16 +350,18 @@ function renderInsp(force) {
   const cap = captionFor(m);
   const more = showMore ? `${m.anc.length ? `<div class="dim" style="margin-top:6px">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
   ${socialText(m)}
-  <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}</div>
+  <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}${bar('arms', m.arms, 2)}</div>
+  ${m.arms ? `<div class="dim" style="margin-top:4px">${esc(S.TOOL_INFO[m.tool])}</div>` : ''}
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
   <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
-  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
+  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
   <button data-a="more" style="width:100%;margin-top:8px;min-height:44px">${showMore ? '▴ Fewer details' : '▾ More details'}</button>${more}`;
 }
+function armsLabel(m) { const n = m.arms === 2 ? 'two pairs of ' : ''; return n + S.TOOLS[m.tool] + (m.tool <= 2 ? ' (weapon)' : ' (gathering tool)'); }
 function socialText(m) {
   const fam = [], fr = [], gr = [];
   for (const o of w.motes) { if (o === m) continue; const r = S.relOf(m, o); if (r > 0) fam.push(`${esc(o.name)} (${r === 1 ? (o.id === m.pa || o.id === m.pb ? 'parent' : 'child') : 'sibling'})`); }
@@ -664,17 +666,90 @@ function captionFor(m) {
 const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
 // A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
 const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
+// tools at the end of an arm: weapons are steel-coloured (claw, spear, club), gathering tools are gold (pincers, scoop, rake)
+function drawTool(k, x, y, a, s, lw) {
+  const c = Math.cos(a), sn = Math.sin(a);
+  const P = (f, l) => [x + c * f - sn * l, y + sn * f + c * l];
+  const col = k <= 2 ? '#e8eef6' : '#f2c14e';
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (k === 0) {                                          // claw: two curved hooks
+    ctx.beginPath();
+    for (const sd of [-1, 1]) { const q = P(s * 0.6, sd * s * 0.42), e = P(s * 1.25, sd * s * 0.12); ctx.moveTo(x, y); ctx.quadraticCurveTo(q[0], q[1], e[0], e[1]); }
+    ctx.stroke();
+  } else if (k === 1) {                                   // spear: a shaft and a pointed head
+    const b = P(s * 1.7, 0), t = P(s * 2.7, 0), l = P(s * 1.7, s * 0.34), r = P(s * 1.7, -s * 0.34);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(l[0], l[1]); ctx.lineTo(r[0], r[1]); ctx.closePath(); ctx.fill();
+  } else if (k === 2) {                                   // club: a handle with a studded knob
+    const b = P(s * 0.8, 0), cc = P(s * 1.3, 0);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cc[0], cc[1], s * 0.55, 0, 7); ctx.fill();
+    ctx.fillStyle = '#5b6573'; for (let q = 0; q < 3; q++) { const p = P(s * 1.3 + Math.cos(q * 2.1) * s * 0.3, Math.sin(q * 2.1) * s * 0.3); ctx.beginPath(); ctx.arc(p[0], p[1], s * 0.1, 0, 7); ctx.fill(); }
+  } else if (k === 3) {                                   // pincers: two rounded jaws that close on food
+    ctx.beginPath();
+    for (const sd of [-1, 1]) { const m1 = P(s * 0.8, sd * s * 0.5), e = P(s * 1.5, sd * s * 0.14); ctx.moveTo(x, y); ctx.lineTo(m1[0], m1[1]); ctx.lineTo(e[0], e[1]); }
+    ctx.stroke();
+    for (const sd of [-1, 1]) { const e = P(s * 1.5, sd * s * 0.14); ctx.beginPath(); ctx.arc(e[0], e[1], lw * 0.9, 0, 7); ctx.fill(); }
+  } else if (k === 4) {                                   // scoop: a cup that opens forward
+    const b = P(s * 0.7, 0), cc = P(s * 1.15, 0);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cc[0], cc[1], s * 0.55, a + 1.5708, a + 4.7124); ctx.globalAlpha = 0.45; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+  } else {                                                // rake: a handle, a cross bar and tines
+    const b = P(s * 0.9, 0), l = P(s * 0.9, s * 0.55), r = P(s * 0.9, -s * 0.55);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.moveTo(l[0], l[1]); ctx.lineTo(r[0], r[1]);
+    for (const sd of [-1, 0, 1]) { const f = P(s * 0.9, sd * s * 0.55), e = P(s * 1.7, sd * s * 0.55); ctx.moveTo(f[0], f[1]); ctx.lineTo(e[0], e[1]); }
+    ctx.stroke();
+  }
+}
+function drawArms(m, n) {
+  const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
+  const upper = m.r * (0.75 + 0.55 * m.armLen), fore = m.r * (0.7 + 0.65 * m.armLen), lw = Math.max(1, m.r * 0.24), tl = Math.max(0.9, m.r * 0.15);
+  const sw = Math.sin(m.ph * 1.1), biting = m.o && m.o[S.OUT.BITE] > 0.3, ts = m.r * (0.62 + 0.5 * m.armLen);
+  ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let pr = 0; pr < m.arms; pr++) {
+    const si = Math.min(n - 1, pr), sc = pr ? 0.82 : 1, base = m.h;
+    for (const side of [-1, 1]) {
+      const sx = PX[si] + Math.cos(base + side * 1.5708) * PR[si] * 0.8, sy = PY[si] + Math.sin(base + side * 1.5708) * PR[si] * 0.8;
+      const a1 = base + side * (1.0 - (biting ? 0.4 : 0) + sw * 0.1 * side);
+      const ex = sx + Math.cos(a1) * upper * sc, ey = sy + Math.sin(a1) * upper * sc;
+      const jab = biting ? Math.sin(m.ph * 6 + pr * 1.7) * 0.5 : sw * 0.12;
+      const a2 = base + side * (0.32 - jab);
+      const hx = ex + Math.cos(a2) * fore * sc, hy = ey + Math.sin(a2) * fore * sc;
+      ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
+      drawTool(m.tool, hx, hy, a2, ts * sc, tl);
+    }
+  }
+}
 function drawSquiggle(m, dtv) {
   const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
   if (cam.z < 0.32) { ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * (0.8 + m.segs * 0.12), 0, 7); ctx.fill(); return; }
   m.ph += dtv * (1.5 + m.wfreq * 9) * (0.25 + m.v / m.maxSp);
   const n = m.segs, segLen = m.r * 0.8 * m.lenF;
-  let x = m.x, y = m.y, a = m.h + Math.PI;
-  for (let i = 0; i < n; i++) {
-    const t = n > 1 ? i / (n - 1) : 0;
-    PX[i] = x; PY[i] = y; PA[i] = a; PR[i] = m.r * (1 - m.taper * 0.72 * t);
-    a += m.curl * 0.32 + Math.sin(m.ph - i * 0.9) * m.wamp * 0.55;
-    x += Math.cos(a) * segLen; y += Math.sin(a) * segLen;
+  // the body follows the trail the head leaves, like a snake, so it never looks like it is sliding sideways
+  let tr = m.tr;
+  if (tr && Math.hypot(m.x - tr.x[0], m.y - tr.y[0]) > 60) tr = m.tr = null;
+  if (!tr) { tr = m.tr = { x: [], y: [] }; for (let k = 1; k <= 48; k++) { tr.x.push(m.x - Math.cos(m.h) * k * 2.5); tr.y.push(m.y - Math.sin(m.h) * k * 2.5); } }
+  else if (Math.hypot(m.x - tr.x[0], m.y - tr.y[0]) >= 2.5) { tr.x.unshift(m.x); tr.y.unshift(m.y); if (tr.x.length > 48) { tr.x.pop(); tr.y.pop(); } }
+  {
+    let cx = m.x, cy = m.y, k = 0; PX[0] = cx; PY[0] = cy;
+    for (let i = 1; i < n; i++) {
+      let remain = segLen;
+      while (remain > 0 && k < tr.x.length) {
+        const tx = tr.x[k], ty = tr.y[k], d = Math.hypot(tx - cx, ty - cy);
+        if (d <= remain) { remain -= d; cx = tx; cy = ty; k++; } else { cx += (tx - cx) / d * remain; cy += (ty - cy) / d * remain; remain = 0; }
+      }
+      PX[i] = cx; PY[i] = cy;
+    }
+    for (let i = 0; i < n - 1; i++) PA[i] = Math.atan2(PY[i + 1] - PY[i], PX[i + 1] - PX[i]);
+    PA[n - 1] = n > 1 ? PA[n - 2] : m.h + Math.PI;
+    const mv = Math.min(1, m.v / (m.maxSp || 1));
+    for (let i = 0; i < n; i++) {
+      const t = n > 1 ? i / (n - 1) : 0;
+      PR[i] = m.r * (1 - m.taper * 0.72 * t);
+      const off = Math.sin(m.ph - i * 0.9) * m.wamp * 0.55 * PR[i] * (0.25 + 0.75 * mv) * t;   // a wave that runs down the body while swimming
+      PX[i] -= Math.sin(PA[i]) * off; PY[i] += Math.cos(PA[i]) * off;
+    }
   }
   if (m.glow > 0.45) {                      // bioluminescence: soft halo and glowing belly dots
     const ga = (m.glow - 0.4) * (0.5 + 0.25 * Math.sin(m.ph * 0.6 + m.id)); ctx.fillStyle = `hsla(${(m.accent * 360)},95%,65%,${ga})`;
@@ -747,6 +822,7 @@ function drawSquiggle(m, dtv) {
     for (let i = 0; i < n; i++) { const an = PA[i] - 1.5708 + Math.sin(m.ph + i) * 0.25, L = PR[i] * (0.8 + m.frill * 1.8); ctx.moveTo(PX[i] - Math.cos(PA[i]) * PR[i] * 0.7, PY[i] - Math.sin(PA[i]) * PR[i] * 0.7); ctx.lineTo(PX[i] + Math.cos(an) * (PR[i] + L), PY[i] + Math.sin(an) * (PR[i] + L)); ctx.lineTo(PX[i] + Math.cos(PA[i]) * PR[i] * 0.7, PY[i] + Math.sin(PA[i]) * PR[i] * 0.7); }
     ctx.fill();
   }
+  if (m.arms > 0) drawArms(m, n);
   if (m.ant > 0) {                          // antennae with little bulbs
     ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;
     for (let k = 0; k < m.ant; k++) {

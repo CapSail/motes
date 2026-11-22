@@ -181,6 +181,8 @@ export function guideHTML() {
 
 <details><summary>Drama you may see (none of it is scripted)</summary>
 <ul>
+<li><b>Body shape matters.</b> Every part of a body has a price and a payoff. <b>Long, thin</b> bodies run fast and swim cheaply but turn slowly. <b>Thick, short</b> bodies store more energy and turn fast. <b>Curled</b> bodies turn tightly but run slower. <b>More segments</b> mean more stored energy and a longer bite reach, but a heavier body. Limbs help turning, fins and wiggle make swimming cheaper. Natural selection weighs it all, so shapes drift toward what works in that dish.</li>
+<li><b>Arms and tools.</b> Some creatures grow one or two pairs of arms with a tool on the end. <b>Steel-coloured weapons:</b> <i>claws</i> make bites land, a <i>spear</i> reaches further, a <i>club</i> gets through armor. <b>Gold gathering tools:</b> <i>pincers</i> make each pellet worth more, a <i>scoop</i> and a <i>rake</i> pick food up from further away. Arms cost energy and slow you a little, so they only pay off if the tool fits the way you live. Zoom in to see them, and tap a creature to read its tool.</li>
 <li><b>Meat is a trade-off.</b> The more a creature leans toward meat, the worse it digests plants, but a small taste for meat costs almost nothing. So a small taste is cheap and pays off when prey is around, and a true specialist has to give up a lot. Over the years dishes grow meat-leaning omnivores. Check the 🧬 Stats chip for the average diet.</li>
 <li><b>Predators and prey</b>: hunters chase and bite. Prey evolve to flee, to armor up, or to out-run them. Notice the yellow flash above a mote that is biting.</li>
 <li><b>Cannibals</b>: nothing stops a mote biting its own species. Sometimes it pays off.</li>

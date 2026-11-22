@@ -8,7 +8,7 @@ for (const f of files) {
     if (ms.length < 4) continue;
     ms.sort((a, b) => (b.kids + b.age / 50) - (a.kids + a.age / 50));
     const m = ms[0];
-    pool.push({ src: f.split('/').pop() + '#' + sp, n: ms.length, diet: +m.diet.toFixed(2), nh: m.net.nh, nc: m.net.nc, style: m.style, size: +m.r.toFixed(1), kids: m.kids, g: S.packGenome(m.g) });
+    pool.push({ src: f.split('/').pop() + '#' + sp, n: ms.length, diet: +m.diet.toFixed(2), basal: +m.basal.toFixed(2), nh: m.net.nh, nc: m.net.nc, style: m.style, size: +m.r.toFixed(1), kids: m.kids, g: S.packGenome(m.g) });
   }
 }
 writeFileSync(out, JSON.stringify(pool));

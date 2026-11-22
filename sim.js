@@ -58,8 +58,19 @@ export const B = {
   // more looks: body style (beads / smooth tube / diamonds / stars / rings / leaves), spikes, eyes, dorsal frill, glow
   STYLE: 36, SPIKE: 37, EYES: 38, FRILL: 39, GLOW: 40,
   IMT: 41,    // immune type: a plague strain close to this value hardly infects the host
+  // arms: 0-2 pairs, how long, and which tool is on the end (claw / spear / club = weapons, pincer / scoop / rake = gathering tools)
+  ARMS: 42, ARMLEN: 43, TOOL: 44,
 };
-export const NB = 42;
+export const NB = 45;
+export const TOOLS = ['claw', 'spear', 'club', 'pincer', 'scoop', 'rake'];
+export const TOOL_INFO = [
+  'Claws: sharp hooks that make bites land far more often.',
+  'Spear: a long point that reaches prey from further away.',
+  'Club: a heavy knob that gets through armor.',
+  'Pincers: grab food quickly, so each pellet gives more.',
+  'Scoop: a cup that picks up food from further away.',
+  'Rake: long tines that rake in food from a long way off.',
+];
 
 // ---------- rng (seedable, serialisable) ----------
 let RS = 1;
@@ -140,7 +151,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
+const BODY_DIFF = [B.ARMS, B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -223,6 +234,7 @@ function bodyOf(o) {
   for (let k = 0; k < 3; k++) b[B.SC_A + k] = 0.5 + (rand() < 0.5 ? -1 : 1) * (0.25 + rand() * 0.25);
   for (let k = B.STYLE; k <= B.GLOW; k++) b[k] = rand();
   b[B.IMT] = rand();
+  b[B.ARMS] = rand() * 0.7; b[B.ARMLEN] = rand(); b[B.TOOL] = rand();
   for (const k in o) b[B[k]] = o[k];
   return b;
 }
@@ -297,7 +309,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 62;
+export const BEST_SEED = 7;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -357,7 +369,7 @@ export function createWorld(seed = 1, opts = {}) {
 }
 
 // ---------- motes ----------
-function derive(m) {
+export function derive(m) {
   const b = m.g.b;
   m.r = 2.8 + b[B.SIZE] * 6.2;
   m.maxSp = 12 + b[B.SPEED] * 55;
@@ -390,6 +402,24 @@ function derive(m) {
   m.imt = b[B.IMT];
   m.style = Math.min(5, Math.floor(b[B.STYLE] * 6)); m.spikes = Math.floor(b[B.SPIKE] * 3.99); m.eyes = Math.floor(b[B.EYES] * 4.99); m.frill = b[B.FRILL]; m.glow = b[B.GLOW];
   m.basal += 0.035 * m.spikes + 0.02 * (m.frill > 0.35 ? m.frill : 0) + 0.03 * (m.glow > 0.45 ? m.glow : 0);
+  // body plan: every part of the shape has a price and a payoff
+  m.arms = Math.floor(b[B.ARMS] * 2.99); m.armLen = b[B.ARMLEN]; m.tool = m.arms ? Math.min(5, Math.floor(b[B.TOOL] * 6)) : -1;
+  const aS = m.arms ? (0.4 + 0.6 * m.armLen) * (m.arms === 2 ? 1.25 : 1) : 0;
+  m.hitB = 0; m.reach = 0; m.pierce = 0; m.greach = 0; m.gatherK = 1;
+  if (m.tool === 0) m.hitB = 0.6 * aS;                                              // claws: bites land
+  else if (m.tool === 1) { m.reach = 3 + 7 * aS; m.hitB = 0.2 * aS; }               // spear: reach
+  else if (m.tool === 2) { m.pierce = 0.55 * aS; m.hitB = 0.15 * aS; }              // club: armor does not stop it
+  else if (m.tool === 3) { m.gatherK = 1 + 0.25 * aS; m.greach = 2 * aS; }           // pincers: richer pickups
+  else if (m.tool === 4) { m.greach = 2 + 3 * aS; m.gatherK = 1 + 0.05 * aS; }       // scoop: wider pickup
+  else if (m.tool === 5) { m.greach = 2 + 5 * aS; m.gatherK = 0.95; }                                // rake: widest pickup
+  { const HB = globalThis.__HB === undefined ? 0.4 : globalThis.__HB; m.hitB *= HB; m.pierce *= HB; }
+  m.basal += m.arms * (0.1 + 0.15 * m.armLen); m.maxSp *= 1 - 0.07 * m.arms * (0.5 + m.armLen);
+  const segX = (m.segs - 2) / 7;                                                      // long bodies: more energy storage and bite reach, but heavier
+  m.cap += segX * 26; m.basal += 0.14 * segX; m.reach += 0.3 * (m.segs - 2) * m.lenF;
+  m.cap *= 1.12 - 0.3 * m.taper;                                                      // thick bodies store more...
+  m.thr = m.cap * (0.55 + 0.4 * b[B.REPRO]);
+  m.mvMul *= 1.15 - 0.3 * m.taper;                                                    // ...streamlined ones swim cheaper
+  m.turnRate *= 1 + 0.5 * Math.abs(m.curl); m.maxSp *= 1 - 0.18 * Math.abs(m.curl);   // a curled body turns tightly but runs slower
   m.mvMul *= 1.08 - 0.22 * m.fin; m.senseR *= (1 + 0.05 * m.ant) * (1 + 0.15 * m.diet); m.basal += 0.025 * m.ant + 0.05 * m.fin;
 }
 function makeMote(w, g, x, y, e, gen) {
@@ -399,7 +429,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -699,7 +729,7 @@ function think(w, m, i, dtt) {
     inp[IN.MOTE_E] = o.e / o.cap;
     inp[IN.MOTE_ARMOR] = o.armor;
     inp[IN.MOTE_BITE] = o.o[OUT.BITE] > 0.3 ? 1 : 0;
-    if (bnd < (m.r + o.r + 3) * (m.r + o.r + 3)) inp[IN.CONTACT] = 1; else tgt = null;
+    if (bnd < (m.r + o.r + 3 + m.reach) * (m.r + o.r + 3 + m.reach)) inp[IN.CONTACT] = 1; else tgt = null;
   }
   if (bk >= 0) polar(motes[bk].x, motes[bk].y, bkd, IN.KIN_F, IN.KIN_S);
   if (bfm >= 0) polar(motes[bfm].x, motes[bfm].y, bfmd, IN.FAM_F, IN.FAM_S);
@@ -834,18 +864,18 @@ function think(w, m, i, dtt) {
   }
   // -- eating
   if (m.e < m.cap) {
-    if (bp >= 0 && bpd < (m.r + 3) * (m.r + 3) && m.plantEff > 0.05) {
-      const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+    if (bp >= 0 && bpd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && m.plantEff > 0.05) {
+      const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
-    if (bm >= 0 && bmd < (m.r + 3) * (m.r + 3) && !food[bm].dead && m.meatEff > 0.1) {
-      const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+    if (bm >= 0 && bmd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && !food[bm].dead && m.meatEff > 0.1) {
+      const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
   }
   // -- bite
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
-    const p = clamp(1.5 + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
+    const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
-      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 4);
+      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
       if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
     } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
@@ -1179,7 +1209,7 @@ function b64u8(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (le
 const q8 = (f, scale, off = 0) => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = clamp(Math.round(f[i] * scale + off), 0, 255); return u; };
 const f8 = (u, scale, off = 0) => { const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = (u[i] - off) / scale; return f; };
 function packG(g) { return { b: u8b64(q8(g.b, 255)), h: g.h, c: g.c.map(c => [c.s, c.d, Math.round(c.w * 1000) / 1000]) }; }
-function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = i >= B.SC_A ? 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.25) : 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
+function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = i === B.ARMS ? 0.1 : i >= B.ARMS ? Math.random() : i >= B.SC_A ? 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.25) : 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
 
 export function serialize(w) {
   return JSON.stringify({

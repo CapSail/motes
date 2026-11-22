@@ -1,6 +1,6 @@
 // pick a varied set of evolved genomes from scripts/pool.json and write founders.js (used by createWorld)
 import { readFileSync, writeFileSync } from 'node:fs';
-const pool = JSON.parse(readFileSync(process.argv[2] || 'scripts/pool.json', 'utf8')), max = +process.argv[3] || 18;
+const pool = JSON.parse(readFileSync(process.argv[2] || 'scripts/pool.json', 'utf8')).filter(p => !(p.basal > 3.8)), max = +process.argv[3] || 18;
 const dishOf = p => p.src.split('#')[0];
 const byDish = new Map(); for (const p of pool) { if (!byDish.has(dishOf(p))) byDish.set(dishOf(p), []); byDish.get(dishOf(p)).push(p); }
 const chosen = new Set();
