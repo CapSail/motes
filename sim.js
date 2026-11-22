@@ -429,7 +429,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -481,6 +481,13 @@ export function cidx(x, y) {
   return gy * GN + gx;
 }
 function solidAt(w, x, y) { const i = cidx(x, y); if (i < 0) return true; const s = w.st[i]; return s === 1 || s === 255; }
+// how much of a body (a disc of radius rad) is inside walls: 0 = clear
+function wallScore(w, x, y, rad) {
+  let sc = solidAt(w, x, y) ? 4 : 0; const k = rad * 0.72;
+  if (solidAt(w, x + rad, y)) sc++; if (solidAt(w, x - rad, y)) sc++; if (solidAt(w, x, y + rad)) sc++; if (solidAt(w, x, y - rad)) sc++;
+  if (solidAt(w, x + k, y + k)) sc++; if (solidAt(w, x - k, y + k)) sc++; if (solidAt(w, x + k, y - k)) sc++; if (solidAt(w, x - k, y - k)) sc++;
+  return sc;
+}
 // is a wall in the way between two points? (walls block sight, smell and movement)
 function blockedLine(w, x0, y0, x1, y1) {
   const dx = x1 - x0, dy = y1 - y0, n = Math.ceil(Math.hypot(dx, dy) / (CELL * 0.8));
@@ -609,6 +616,28 @@ export function step(w, dt) {
     body(w, m, dt, tempG);
   }
 
+  // bodies are solid: creatures push each other apart. The only way through is a bite: a creature that is biting its target may overlap it.
+  for (let i = 0; i < n; i++) {
+    const a = motes[i]; if (a.dead) continue;
+    const cx0 = Math.floor((a.x + R) / HS), cy0 = Math.floor((a.y + R) / HS);
+    for (let cy = Math.max(0, cy0 - 1); cy <= Math.min(HN - 1, cy0 + 1); cy++) for (let cx = Math.max(0, cx0 - 1); cx <= Math.min(HN - 1, cx0 + 1); cx++) {
+      for (let q = H.mh[cy * HN + cx]; q >= 0; q = H.mn[q]) {
+        if (q <= i) continue;
+        const b = motes[q]; if (b.dead) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, rr = (a.r + b.r) * 0.95; if (dx > rr || dx < -rr || dy > rr || dy < -rr) continue;
+        const d2 = dx * dx + dy * dy; if (d2 >= rr * rr) continue;
+        if ((a.o[OUT.BITE] > 0.3 && a.bt === b.id) || (b.o[OUT.BITE] > 0.3 && b.bt === a.id)) continue;
+        let d = Math.sqrt(d2), ux, uy;
+        if (d < 0.01) { const t = rand() * 6.283; ux = Math.cos(t); uy = Math.sin(t); d = 0; } else { ux = dx / d; uy = dy / d; }
+        const push = (rr - d) * 0.55, ma = a.r * a.r, mb = b.r * b.r, fa = mb / (ma + mb), fb = 1 - fa;     // the lighter one is pushed further
+        const rA = Math.min(a.r * 0.9, 10), rB = Math.min(b.r * 0.9, 10);
+        const ax = a.x - ux * push * fa, ay = a.y - uy * push * fa, bx = b.x + ux * push * fb, by = b.y + uy * push * fb;
+        if (wallScore(w, ax, ay, rA) <= wallScore(w, a.x, a.y, rA) && (ax * ax + ay * ay) < (R - a.r - 2) * (R - a.r - 2)) { a.x = ax; a.y = ay; }
+        if (wallScore(w, bx, by, rB) <= wallScore(w, b.x, b.y, rB) && (bx * bx + by * by) < (R - b.r - 2) * (R - b.r - 2)) { b.x = bx; b.y = by; }
+      }
+    }
+  }
+
   // births / deaths bookkeeping
   if (w.deadN) { let j = 0; for (let i = 0; i < motes.length; i++) if (!motes[i].dead) motes[j++] = motes[i]; motes.length = j; }
   let fj = 0, fdead = 0;
@@ -631,15 +660,27 @@ function body(w, m, dt, tempG) {
   const target = clamp(o[OUT.THRUST] + m.rth, 0, 1) * m.maxSp;
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
-  let nx = m.x + ch * m.v * dt, ny = m.y + sh * m.v * dt;
-  let hit = false;
-  if (solidAt(w, nx, m.y)) { nx = m.x; hit = true; }
-  if (solidAt(w, nx, ny)) { ny = m.y; hit = true; }
+  let nx = m.x, ny = m.y, hit = false, edge = false;
+  {
+    // move in small steps; the dish edge and the walls are checked at every step, and the whole body has to stay clear of walls
+    const rad = Math.min(m.r * 0.9, 10), ns = Math.max(1, Math.ceil(m.v * dt / 4)), sx = ch * m.v * dt / ns, sy = sh * m.v * dt / ns, lim = R - m.r - 2, lim2 = lim * lim;
+    const fit = (x, y) => { const r2 = x * x + y * y; if (r2 > lim2) { const k = lim / Math.sqrt(r2); edge = true; return [x * k, y * k]; } return [x, y]; };
+    for (let k = 0; k < ns; k++) {
+      const s0 = wallScore(w, nx, ny, rad);
+      let c = fit(nx + sx, ny + sy);
+      if (wallScore(w, c[0], c[1], rad) <= s0) { nx = c[0]; ny = c[1]; continue; }
+      hit = true; c = fit(nx + sx, ny);
+      if (wallScore(w, c[0], c[1], rad) <= s0) { nx = c[0]; ny = c[1]; continue; }
+      c = fit(nx, ny + sy);
+      if (wallScore(w, c[0], c[1], rad) <= s0) { nx = c[0]; ny = c[1]; continue; }
+      break;
+    }
+  }
   if (hit) { m.h += (m.id & 1 ? 1 : -1) * 0.5 * (0.5 + m.turnRate / 6); m.v *= 0.4; }
-  const rr = nx * nx + ny * ny, lim = (R - m.r - 2);
-  if (rr > lim * lim) { const k = lim / Math.sqrt(rr); nx *= k; ny *= k; m.h += 0.5; }
-  if (solidAt(w, nx, ny)) {                  // a wall was built on top of us: step out
-    for (let a = 0; a < 8; a++) { const px = nx + Math.cos(a * 0.785) * CELL, py = ny + Math.sin(a * 0.785) * CELL; if (!solidAt(w, px, py)) { nx = px; ny = py; break; } }
+  if (edge) m.h += 0.5;
+  if (solidAt(w, nx, ny)) {                  // a wall was built on top of us: step out (back the way we came if that is clear)
+    if (!solidAt(w, m.x, m.y)) { nx = m.x; ny = m.y; }
+    else for (let a = 0; a < 8; a++) { const px = nx + Math.cos(a * 0.785) * CELL, py = ny + Math.sin(a * 0.785) * CELL; if (!solidAt(w, px, py)) { nx = px; ny = py; break; } }
   }
   m.x = nx; m.y = ny;
 
@@ -731,6 +772,7 @@ function think(w, m, i, dtt) {
     inp[IN.MOTE_BITE] = o.o[OUT.BITE] > 0.3 ? 1 : 0;
     if (bnd < (m.r + o.r + 3 + m.reach) * (m.r + o.r + 3 + m.reach)) inp[IN.CONTACT] = 1; else tgt = null;
   }
+  m.bt = tgt ? tgt.id : 0;
   if (bk >= 0) polar(motes[bk].x, motes[bk].y, bkd, IN.KIN_F, IN.KIN_S);
   if (bfm >= 0) polar(motes[bfm].x, motes[bfm].y, bfmd, IN.FAM_F, IN.FAM_S);
   if (bfr >= 0) polar(motes[bfr].x, motes[bfr].y, bfrd, IN.FRIEND_F, IN.FRIEND_S);
@@ -838,6 +880,14 @@ function think(w, m, i, dtt) {
   }
   runBrain(m.net, inp);
   const o = m.o;
+  // where the arms reach (for drawing): toward a victim when biting, otherwise toward food that is close
+  {
+    let ak = 0, ax = 0, ay = 0;
+    if (bn >= 0 && o[OUT.BITE] > 0.3 && bnd < 90 * 90) { ak = 2; ax = motes[bn].x; ay = motes[bn].y; }
+    else if (bp >= 0 && bpd < 70 * 70 && m.plantEff > 0.05 && (bm < 0 || bpd <= bmd)) { ak = 1; ax = food[bp].x; ay = food[bp].y; }
+    else if (bm >= 0 && bmd < 70 * 70 && m.meatEff > 0.1) { ak = 1; ax = food[bm].x; ay = food[bm].y; }
+    m.aimK = ak; m.aimX = ax; m.aimY = ay; m.aimT = w.t;
+  }
 
   // -- friendships: spending time near a non-hostile mote builds a bond; being bitten or drained makes a grudge; bonds fade
   if (bn >= 0) {
@@ -865,14 +915,15 @@ function think(w, m, i, dtt) {
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && m.plantEff > 0.05) {
-      const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      m.actT = w.t; m.actK = 1; const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
     if (bm >= 0 && bmd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && !food[bm].dead && m.meatEff > 0.1) {
-      const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      m.actT = w.t; m.actK = 1; const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
   }
   // -- bite
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
+    m.actT = w.t; m.actK = 2;
     const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
@@ -917,7 +968,7 @@ function think(w, m, i, dtt) {
   }
   if (m.cdD <= 0 && o[OUT.DIG] > 0.5 && idx >= 0) {
     const ti = cidx(m.x + ch * (m.r + CELL * 0.7), m.y + sh * (m.r + CELL * 0.7));
-    if (ti >= 0 && w.st[ti] > 0 && w.st[ti] < 255) { w.st[ti] = 0; w.hp[ti] = 0; w.counters.dug++; m.e -= 1; m.cdD = 1.2; w.stCount--; milestone(w, 'dig', `${m.name} tore down a structure.`); }
+    if (ti >= 0 && w.st[ti] > 0 && w.st[ti] < 255 && w.hp[ti] < 255) { w.st[ti] = 0; w.hp[ti] = 0; w.counters.dug++; m.e -= 1; m.cdD = 1.2; w.stCount--; milestone(w, 'dig', `${m.name} tore down a structure.`); }
   }
   // -- reproduction
   m.cdA -= dtt;

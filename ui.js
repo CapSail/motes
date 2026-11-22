@@ -18,9 +18,18 @@ let W = 0, H = 0, dpr = 1;
 let catching = null;
 
 // ---------- boot ----------
-let firstRun = false;
+let firstRun = false, restarted = false;
+// Bump this when a new version should start every dish over (the old dishes were made under old body and wall rules). Each device restarts once.
+const WORLD_VER = '2026-11-22-arms-solid', VERKEY = 'motes.worldVer';
 function load() {
-  try { const s = localStorage.getItem(SAVE); if (s) return S.deserialize(s); } catch (e) { console.warn('load failed', e); }
+  try {
+    if (localStorage.getItem(VERKEY) !== WORLD_VER) {
+      const had = !!localStorage.getItem(SAVE);
+      localStorage.removeItem(SAVE); localStorage.removeItem(SAVED_AT); localStorage.setItem(VERKEY, WORLD_VER);
+      try { const r = indexedDB.open('motes', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { try { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('save'); } catch (_) {} }; } catch (_) {}
+      restarted = had;
+    } else { const s = localStorage.getItem(SAVE); if (s) return S.deserialize(s); }
+  } catch (e) { console.warn('load failed', e); }
   firstRun = true;
   return S.createWorld(S.BEST_SEED);          // a new game always starts at Day 1, generation 0, from the best founding seed
 }
@@ -45,13 +54,14 @@ async function loadStarter(intro, name = 'dish') {
 const idb = (mode, fn) => new Promise((res, rej) => { const r = indexedDB.open('motes', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onerror = () => rej(r.error); r.onsuccess = () => { const tx = r.result.transaction('kv', mode), st = tx.objectStore('kv'), q = fn(st); tx.oncomplete = () => res(q && q.result); tx.onerror = () => rej(tx.error); }; });
 const idbPut = (s) => idb('readwrite', st => st.put({ s, at: Date.now() }, 'save'));
 const idbGet = () => idb('readonly', st => st.get('save'));
-if (firstRun) {
+if (firstRun && !restarted) {
   idbGet().then(rec => {
     if (rec && rec.s) { w = S.deserialize(rec.s); firstRun = false; selId = 0; if (matchMedia('(pointer:coarse)').matches && w.maxPop > 450) w.maxPop = 450; maybeCatchUp((Date.now() - rec.at) / 1000); }
     else maybeTour();
   }).catch(() => maybeTour());
 }
 if (matchMedia('(pointer:coarse)').matches) { if (w.maxPop > 450) w.maxPop = 450; }
+if (restarted) setTimeout(() => showHint('x', 'New version! Every dish was restarted at Day 1 with the new creatures: arms, tools, solid walls.'), 1500);
 let fitted = false;
 function resize() {
   dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
@@ -667,14 +677,15 @@ const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
 // A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
 const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
 // tools at the end of an arm: weapons are steel-coloured (claw, spear, club), gathering tools are gold (pincers, scoop, rake)
-function drawTool(k, x, y, a, s, lw) {
+function drawTool(k, x, y, a, s, lw, act) {
+  act = act || 0;
   const c = Math.cos(a), sn = Math.sin(a);
   const P = (f, l) => [x + c * f - sn * l, y + sn * f + c * l];
   const col = k <= 2 ? '#e8eef6' : '#f2c14e';
   ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (k === 0) {                                          // claw: two curved hooks
     ctx.beginPath();
-    for (const sd of [-1, 1]) { const q = P(s * 0.6, sd * s * 0.42), e = P(s * 1.25, sd * s * 0.12); ctx.moveTo(x, y); ctx.quadraticCurveTo(q[0], q[1], e[0], e[1]); }
+    for (const sd of [-1, 1]) { const q = P(s * 0.6, sd * s * 0.42 * (1 + act * 0.6)), e = P(s * 1.25, sd * s * (0.12 + act * 0.25)); ctx.moveTo(x, y); ctx.quadraticCurveTo(q[0], q[1], e[0], e[1]); }
     ctx.stroke();
   } else if (k === 1) {                                   // spear: a shaft and a pointed head
     const b = P(s * 1.7, 0), t = P(s * 2.7, 0), l = P(s * 1.7, s * 0.34), r = P(s * 1.7, -s * 0.34);
@@ -687,9 +698,10 @@ function drawTool(k, x, y, a, s, lw) {
     ctx.fillStyle = '#5b6573'; for (let q = 0; q < 3; q++) { const p = P(s * 1.3 + Math.cos(q * 2.1) * s * 0.3, Math.sin(q * 2.1) * s * 0.3); ctx.beginPath(); ctx.arc(p[0], p[1], s * 0.1, 0, 7); ctx.fill(); }
   } else if (k === 3) {                                   // pincers: two rounded jaws that close on food
     ctx.beginPath();
-    for (const sd of [-1, 1]) { const m1 = P(s * 0.8, sd * s * 0.5), e = P(s * 1.5, sd * s * 0.14); ctx.moveTo(x, y); ctx.lineTo(m1[0], m1[1]); ctx.lineTo(e[0], e[1]); }
+    const open = 1 - 0.85 * act;                          // the jaws snap shut on a pickup
+    for (const sd of [-1, 1]) { const m1 = P(s * 0.8, sd * s * 0.5 * open), e = P(s * 1.5, sd * s * 0.14 * open); ctx.moveTo(x, y); ctx.lineTo(m1[0], m1[1]); ctx.lineTo(e[0], e[1]); }
     ctx.stroke();
-    for (const sd of [-1, 1]) { const e = P(s * 1.5, sd * s * 0.14); ctx.beginPath(); ctx.arc(e[0], e[1], lw * 0.9, 0, 7); ctx.fill(); }
+    for (const sd of [-1, 1]) { const e = P(s * 1.5, sd * s * 0.14 * open); ctx.beginPath(); ctx.arc(e[0], e[1], lw * 0.9, 0, 7); ctx.fill(); }
   } else if (k === 4) {                                   // scoop: a cup that opens forward
     const b = P(s * 0.7, 0), cc = P(s * 1.15, 0);
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
@@ -701,23 +713,35 @@ function drawTool(k, x, y, a, s, lw) {
     ctx.stroke();
   }
 }
-function drawArms(m, n) {
+function angLerp(a, b, t) { const d = ((b - a + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; return a + d * t; }
+// arms do their job: they reach toward the food or the victim, jab when biting, snap shut when grabbing, sweep when scooping and raking
+function drawArms(m, n, dtv) {
   const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
   const upper = m.r * (0.75 + 0.55 * m.armLen), fore = m.r * (0.7 + 0.65 * m.armLen), lw = Math.max(1, m.r * 0.24), tl = Math.max(0.9, m.r * 0.15);
-  const sw = Math.sin(m.ph * 1.1), biting = m.o && m.o[S.OUT.BITE] > 0.3, ts = m.r * (0.62 + 0.5 * m.armLen);
-  ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const sw = Math.sin(m.ph * 1.1), ts = m.r * (0.62 + 0.5 * m.armLen), weapon = m.tool <= 2;
+  const fresh = m.aimK > 0 && w.t - m.aimT < 1.2;
+  let rel = 0;
+  if (fresh) { const ang = Math.atan2(m.aimY - m.y, m.aimX - m.x); m.aa = m.aa === undefined ? ang : angLerp(m.aa, ang, Math.min(1, dtv * 12)); rel = ((m.aa - m.h + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; }
+  const reach = fresh && Math.abs(rel) < 2.0 ? 1 : 0;                    // cannot reach what is behind it
+  m.ak = (m.ak || 0) + (reach - (m.ak || 0)) * Math.min(1, dtv * 9);
+  const k = m.ak, A = m.h + Math.max(-1.9, Math.min(1.9, rel));
+  const act = Math.max(0, 1 - (w.t - m.actT) / 0.45), striking = m.aimK === 2 && fresh;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let pr = 0; pr < m.arms; pr++) {
     const si = Math.min(n - 1, pr), sc = pr ? 0.82 : 1, base = m.h;
     for (const side of [-1, 1]) {
       const sx = PX[si] + Math.cos(base + side * 1.5708) * PR[si] * 0.8, sy = PY[si] + Math.sin(base + side * 1.5708) * PR[si] * 0.8;
-      const a1 = base + side * (1.0 - (biting ? 0.4 : 0) + sw * 0.1 * side);
-      const ex = sx + Math.cos(a1) * upper * sc, ey = sy + Math.sin(a1) * upper * sc;
-      const jab = biting ? Math.sin(m.ph * 6 + pr * 1.7) * 0.5 : sw * 0.12;
-      const a2 = base + side * (0.32 - jab);
-      const hx = ex + Math.cos(a2) * fore * sc, hy = ey + Math.sin(a2) * fore * sc;
+      const jab = striking ? Math.sin(m.ph * 6 + pr * 1.7 + (side > 0 ? 1.6 : 0)) : sw * 0.12;            // weapons stab away at the victim
+      const restA1 = base + side * (1.0 + sw * 0.1 * side), restA2 = base + side * (0.32 - jab * 0.5);
+      let a1 = angLerp(restA1, A + side * 0.3, 0.65 * k), a2 = angLerp(restA2, A + side * 0.1 * (1 - act), k);
+      if (m.tool === 4) a2 -= side * 0.7 * act * k;                                                     // scoop: sweep inward
+      else if (m.tool === 5) a2 -= side * 0.55 * act * k;                                               // rake: pull toward the body
+      const ext = 1 + 0.4 * k + (weapon && striking ? 0.35 * Math.max(0, jab) : 0);
+      const ex = sx + Math.cos(a1) * upper * sc * ext, ey = sy + Math.sin(a1) * upper * sc * ext;
+      const hx = ex + Math.cos(a2) * fore * sc * ext, hy = ey + Math.sin(a2) * fore * sc * ext;
       ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineWidth = lw;
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
-      drawTool(m.tool, hx, hy, a2, ts * sc, tl);
+      drawTool(m.tool, hx, hy, a2, ts * sc, tl, act);
     }
   }
 }
@@ -822,7 +846,7 @@ function drawSquiggle(m, dtv) {
     for (let i = 0; i < n; i++) { const an = PA[i] - 1.5708 + Math.sin(m.ph + i) * 0.25, L = PR[i] * (0.8 + m.frill * 1.8); ctx.moveTo(PX[i] - Math.cos(PA[i]) * PR[i] * 0.7, PY[i] - Math.sin(PA[i]) * PR[i] * 0.7); ctx.lineTo(PX[i] + Math.cos(an) * (PR[i] + L), PY[i] + Math.sin(an) * (PR[i] + L)); ctx.lineTo(PX[i] + Math.cos(PA[i]) * PR[i] * 0.7, PY[i] + Math.sin(PA[i]) * PR[i] * 0.7); }
     ctx.fill();
   }
-  if (m.arms > 0) drawArms(m, n);
+  if (m.arms > 0) drawArms(m, n, dtv);
   if (m.ant > 0) {                          // antennae with little bulbs
     ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;
     for (let k = 0; k < m.ant; k++) {
