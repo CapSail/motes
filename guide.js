@@ -181,6 +181,7 @@ export function guideHTML() {
 
 <details><summary>Drama you may see (none of it is scripted)</summary>
 <ul>
+<li><b>Meat is a trade-off.</b> The more a creature leans toward meat, the worse it digests plants, but a small taste for meat costs almost nothing. So a small taste is cheap and pays off when prey is around, and a true specialist has to give up a lot. Over the years dishes grow meat-leaning omnivores. Check the 🧬 Stats chip for the average diet.</li>
 <li><b>Predators and prey</b>: hunters chase and bite. Prey evolve to flee, to armor up, or to out-run them. Notice the yellow flash above a mote that is biting.</li>
 <li><b>Cannibals</b>: nothing stops a mote biting its own species. Sometimes it pays off.</li>
 <li><b>Parasites</b>: a mote that learns to steal energy from a neighbour without killing it. Hosts answer with armor, distance or kicking them out.</li>

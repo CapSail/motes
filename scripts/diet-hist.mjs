@@ -1,0 +1,2 @@
+import { deserialize } from '../sim.js'; import { readFileSync } from 'node:fs';
+for (const f of process.argv.slice(2)) { const w = deserialize(readFileSync(f, 'utf8')); const b = [0, 0, 0, 0, 0]; for (const m of w.motes) b[Math.min(4, Math.floor(m.diet * 5))]++; console.log(f.split('/').pop(), 'n' + w.motes.length, 'diet[' + b.join(',') + ']', 'top', w.motes.map(m => m.diet).sort((a, c) => c - a).slice(0, 3).map(d => d.toFixed(2)).join(' ')); }

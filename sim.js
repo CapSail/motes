@@ -297,7 +297,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 226;
+export const BEST_SEED = 62;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -328,12 +328,13 @@ export function createWorld(seed = 1, opts = {}) {
   if (usePack) {
     const info = PACK.map(p => unpackG(p)), pick = f => { const c = info.filter(f); return c[(rand() * c.length) | 0]; };
     const picked = new Set();
+    const meat = info.filter(g => g.b[B.DIET] >= 0.3); if (meat.length) picked.add(meat[(rand() * meat.length) | 0]);   // one meat-eating lineage in the mix
     while (picked.size < 5) picked.add(info[(rand() * info.length) | 0]);
     packG = [...picked];
     let mx = 1000; for (const g of packG) for (const id of g.h) if (id > mx) mx = id; INNOV = mx + 1;
   }
-  // five evolved lineages plus one hand-wired hunter lineage, so there are always predators to adapt to
-  const founders = usePack ? packG.map((g, i) => [() => g, 14]).concat([[hunter, 8]]) : [
+  // evolved lineages (including meat-eating ones); the old hand-wired hunters starved within a minute, so they are gone
+  const founders = usePack ? packG.map((g, i) => [() => g, 14]) : [
     [grazer, 20], [hunter, 8], [weaver, 14], [scavenger, 12], [drifter, 12], [wild, 8],
   ];
   let hue = rand();
@@ -371,7 +372,7 @@ function derive(m) {
   m.thr = m.cap * (0.55 + 0.4 * b[B.REPRO]);
   m.invest = 0.25 + 0.5 * b[B.INVEST];
   m.intake = 0.7 + 0.6 * b[B.EFFIC];
-  m.plantEff = (1 - m.diet * 0.92) * (1 - m.photo * 0.35);
+  m.plantEff = (1 - Math.pow(m.diet, globalThis.__PK || 3) * 0.92) * (1 - m.photo * 0.35);
   m.meatEff = 0.08 + 0.92 * m.diet;
   m.tpref = (b[B.TPREF] - 0.5) * 1.2; m.ttol = 0.15 + b[B.TTOL] * 0.6;
   m.toxr = b[B.TOXR]; m.disr = b[B.DISR];
@@ -844,7 +845,7 @@ function think(w, m, i, dtt) {
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
     const p = clamp(1.5 + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
-      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(0.15, m.meatEff) * m.intake * (globalThis.__BG || 1.3);
+      const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 4);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
       if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
     } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
@@ -1245,7 +1246,7 @@ export function reseed(w) {
   let mx = INNOV; for (const g of info) for (const id of g.h) if (id > mx) mx = id; INNOV = mx + 1;
   const picks = [];
   while (picks.length < Math.min(3, info.length)) { const g = info[(rand() * info.length) | 0]; if (!picks.includes(g)) picks.push(g); }
-  const lineages = picks.map(g => [() => g, 14]).concat([[hunter, 8]]);
+  const lineages = picks.map(g => [() => g, 14]);
   if (!info.length) lineages.push([grazer, 20], [weaver, 14]);
   let hue = rand();
   for (const [fn, count] of lineages) {
