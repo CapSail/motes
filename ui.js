@@ -1,5 +1,5 @@
 import * as S from './sim.js';
-import { guideHTML, installHTML } from './guide.js';
+import { guideHTML, installHTML, senseText, actionText, hasSign, IN_LABEL, OUT_LABEL } from './guide.js';
 // Install help: which device is this, are we already installed, and can the browser offer a one-tap install?
 const UA = navigator.userAgent;
 const device = /SamsungBrowser/i.test(UA) ? 'samsung' : /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/i.test(UA) && navigator.maxTouchPoints > 1) ? 'ios' : /Android/i.test(UA) ? (/Firefox/i.test(UA) ? 'firefox' : 'android') : 'desktop';
@@ -20,7 +20,7 @@ let catching = null;
 // ---------- boot ----------
 let firstRun = false, restarted = false;
 // Bump this when a new version should start every dish over (the old dishes were made under old body and wall rules). Each device restarts once.
-const WORLD_VER = '2026-11-22-arms-solid', VERKEY = 'motes.worldVer';
+const WORLD_VER = '2026-11-25-mind-bites', VERKEY = 'motes.worldVer';
 function load() {
   try {
     if (localStorage.getItem(VERKEY) !== WORLD_VER) {
@@ -61,7 +61,7 @@ if (firstRun && !restarted) {
   }).catch(() => maybeTour());
 }
 if (matchMedia('(pointer:coarse)').matches) { if (w.maxPop > 450) w.maxPop = 450; }
-if (restarted) setTimeout(() => showHint('x', 'New version! Every dish was restarted at Day 1 with the new creatures: arms, tools, solid walls.'), 1500);
+if (restarted) setTimeout(() => showHint('x', 'New version! Every dish was restarted at Day 1: creatures that grab food and bite, new senses, a readable brain.'), 1500);
 let fitted = false;
 function resize() {
   dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
@@ -337,7 +337,7 @@ const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.
 const insp = $('insp');
 insp.innerHTML = '<div id="ibody"></div><canvas id="brain"></canvas>';
 const ib = $('ibody'), bc = $('brain'), bctx = bc.getContext('2d');
-let lastInsp = 0, showBrain = false, showMore = false, inspDown = false;
+let lastInsp = 0, showBrain = false, showMore = false, inspDown = false, showWire = false;
 insp.addEventListener('pointerdown', () => { inspDown = true; });
 addEventListener('pointerup', () => setTimeout(() => { inspDown = false; }, 80));
 addEventListener('pointercancel', () => { inspDown = false; });
@@ -353,7 +353,7 @@ function renderInsp(force) {
     if (force || insp.dataset.dead !== String(selId)) { insp.dataset.dead = String(selId); ib.innerHTML = `<h3>That mote has died.</h3><button data-a="close" style="width:100%">✕ Close</button>`; bc.style.display = 'none'; }
     insp.style.display = 'block'; return;
   }
-  insp.dataset.dead = ''; bc.style.display = showBrain && showMore ? 'block' : 'none'; insp.style.display = 'block';
+  insp.dataset.dead = ''; bc.style.display = showBrain && showMore && showWire ? 'block' : 'none'; insp.style.display = 'block';
   const sp = w.species.get(m.sp), b = m.g.b;
   const kinds = [];
   if (m.sick > 0) kinds.push('sick'); if (m.imm > 0) kinds.push('immune');
@@ -363,7 +363,7 @@ function renderInsp(force) {
   <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}${bar('arms', m.arms, 2)}</div>
   ${m.arms ? `<div class="dim" style="margin-top:4px">${esc(S.TOOL_INFO[m.tool])}</div>` : ''}
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
-  <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>` : '';
+  <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
   <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
@@ -393,6 +393,7 @@ insp.addEventListener('click', e => {
   if (a === 'close') { if (follow && m) { inspHidden = true; insp.style.display = 'none'; updChip(); } else { selId = 0; follow = false; insp.style.display = 'none'; } }
   else if (m) {
     if (a === 'brain') { showBrain = !showBrain; renderInsp(true); return; }
+    if (a === 'wire') { showWire = !showWire; renderInsp(true); return; }
     if (a === 'more') { showMore = !showMore; renderInsp(true); return; }
     if (a === 'follow') { if (!follow) { startFollow(m); return; } follow = false; }
     if (a === 'fav') S.toggleFav(w, m);
@@ -402,8 +403,24 @@ insp.addEventListener('click', e => {
     renderInsp(true);
   }
 });
+function mindHTML(m) {
+  const v = S.brainView(m), act = v.act, N = S.IN_NAMES, O = S.OUT_NAMES;
+  const bar = (label, a, col) => `<div class="mrow"><span class="ml">${esc(label)}</span><span class="mb"><i style="width:${Math.min(100, Math.abs(a) * 100).toFixed(0)}%;background:${col}"></i></span><span class="mv">${a.toFixed(1)}</span></div>`;
+  const ins = v.nodes.filter(n => n.kind === 'in').map(n => ({ n, a: act[n.slot] })).filter(x => Math.abs(x.a) > 0.08 && x.n.label !== 'bias' && (x.a > 0 || hasSign(IN_LABEL, x.n.label))).sort((x, y) => Math.abs(y.a) - Math.abs(x.a)).slice(0, 9);
+  const outs = v.nodes.filter(n => n.kind === 'out').map(n => ({ n, o: n.id - 500, a: m.o[n.id - 500] })).filter(x => Math.abs(x.a) > 0.12 && (x.a > 0 || hasSign(OUT_LABEL, O[x.o]))).sort((x, y) => Math.abs(y.a) - Math.abs(x.a)).slice(0, 6);
+  const why = outs.slice(0, 3).map(x => {
+    const cs = v.edges.filter(e => e.b.id === x.n.id && e.a.kind === 'in' && e.a.label !== 'bias').map(e => ({ l: senseText(e.a.label, act[e.a.slot]), c: e.w * act[e.a.slot] })).filter(c => Math.abs(c.c) > 0.15).sort((p, q) => Math.abs(q.c) - Math.abs(p.c)).slice(0, 2);
+    return cs.length ? `<div class="dim" style="margin:2px 0">${esc(actionText(O[x.o], x.a))} because: ${cs.map(c => esc(c.l) + ' (' + (c.c > 0 ? 'pushes' : 'holds back') + ')').join(', ')}</div>` : '';
+  }).join('');
+  const hid = v.nodes.filter(n => n.kind === 'hid').length;
+  return `<div style="margin-top:10px"><b>🧠 What it senses right now</b>${ins.length ? ins.map(x => bar(senseText(x.n.label, x.a), x.a, '#5c9bff')).join('') : '<div class="dim">Nothing stands out.</div>'}
+  <div style="margin-top:8px"><b>⚡ What it decides</b>${outs.length ? outs.map(x => bar(actionText(O[x.o], x.a), x.a, x.a > 0 ? '#5cc88a' : '#e56b6b')).join('') : '<div class="dim">Idle.</div>'}</div>
+  ${why ? '<div style="margin-top:6px">' + why + '</div>' : ''}
+  <div class="dim" style="margin-top:6px">${v.nodes.filter(n => n.kind === 'in').length} senses wired in, ${hid} thinking neurons in between. Bars show how strongly each is firing.</div>
+  <button data-a="wire" class="${showWire ? 'on' : ''}" style="width:100%;margin-top:6px">🕸 ${showWire ? 'Hide' : 'Show'} wiring map</button></div>`;
+}
 function drawBrain() {
-  const m = selected(); if (!m || insp.style.display === 'none' || !showBrain || !showMore) return;
+  const m = selected(); if (!m || insp.style.display === 'none' || !showBrain || !showMore || !showWire) return;
   const cw = bc.clientWidth, ch = bc.clientHeight;
   if (bc.width !== cw * dpr) { bc.width = cw * dpr; bc.height = ch * dpr; }
   bctx.setTransform(dpr, 0, 0, dpr, 0, 0); bctx.clearRect(0, 0, cw, ch);
@@ -411,7 +428,7 @@ function drawBrain() {
   for (const n of v.nodes) cols[n.kind].push(n);
   const pos = new Map();
   const place = (arr, x) => arr.forEach((n, i) => pos.set(n, [x, 10 + (ch - 20) * (arr.length === 1 ? 0.5 : i / (arr.length - 1))]));
-  place(cols.in, 60); place(cols.hid, cw / 2); place(cols.out, cw - 60);
+  place(cols.in, 120); place(cols.hid, cw / 2 + 10); place(cols.out, cw - 100);
   for (const e of v.edges) {
     const a = pos.get(e.a), b = pos.get(e.b); if (!a || !b) continue;
     const act = Math.abs(v.act[e.a.slot]);
@@ -419,14 +436,14 @@ function drawBrain() {
     bctx.lineWidth = Math.min(3, 0.4 + Math.abs(e.w) * 0.5);
     bctx.beginPath(); bctx.moveTo(a[0], a[1]); bctx.lineTo(b[0], b[1]); bctx.stroke();
   }
-  bctx.font = '9px system-ui'; bctx.textBaseline = 'middle';
+  bctx.font = '11px system-ui'; bctx.textBaseline = 'middle';
   for (const n of v.nodes) {
     const p = pos.get(n), a = v.act[n.slot], l = Math.round(60 + 40 * Math.abs(a));
     bctx.fillStyle = n.kind === 'in' ? `hsl(210,60%,${l}%)` : n.kind === 'out' ? `hsl(40,80%,${l}%)` : `hsl(280,60%,${l}%)`;
     bctx.beginPath(); bctx.arc(p[0], p[1], 3.5, 0, 7); bctx.fill();
     bctx.fillStyle = '#9fb0c4';
-    if (n.kind === 'in') { bctx.textAlign = 'right'; bctx.fillText(n.label, p[0] - 6, p[1]); }
-    else if (n.kind === 'out') { bctx.textAlign = 'left'; bctx.fillText(n.label, p[0] + 6, p[1]); }
+    if (n.kind === 'in') { if (Math.abs(a) > 0.15) { bctx.textAlign = 'right'; bctx.fillText(senseText(n.label, a), p[0] - 6, p[1]); } }
+    else if (n.kind === 'out') { bctx.textAlign = 'left'; bctx.fillText(actionText(n.label, a), p[0] + 6, p[1]); }
   }
 }
 
@@ -714,34 +731,103 @@ function drawTool(k, x, y, a, s, lw, act) {
   }
 }
 function angLerp(a, b, t) { const d = ((b - a + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; return a + d * t; }
-// arms do their job: they reach toward the food or the victim, jab when biting, snap shut when grabbing, sweep when scooping and raking
+function ease(x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+// two-bone arm: from the shoulder to a target the hand can reach; returns [elbowX, elbowY, handX, handY]
+function ik(sx, sy, tx, ty, L1, L2, bend) {
+  let dx = tx - sx, dy = ty - sy, d = Math.hypot(dx, dy) || 0.001;
+  const mx = (L1 + L2) * 0.995, mn = Math.abs(L1 - L2) + 0.5;
+  if (d > mx) { tx = sx + dx / d * mx; ty = sy + dy / d * mx; d = mx; dx = tx - sx; dy = ty - sy; }
+  else if (d < mn) { tx = sx + dx / d * mn; ty = sy + dy / d * mn; d = mn; dx = tx - sx; dy = ty - sy; }
+  const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - a * a)), ux = dx / d, uy = dy / d;
+  return [sx + ux * a - uy * h * bend, sy + uy * a + ux * h * bend, tx, ty];
+}
+const EAT_COL = ['#7fe08a', '#d96a6a'];
+// arms do their job. Eating: reach out, grab the pellet, carry it to the mouth, mouth snaps. Fighting: jab at the victim. Resting: sway.
 function drawArms(m, n, dtv) {
   const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
-  const upper = m.r * (0.75 + 0.55 * m.armLen), fore = m.r * (0.7 + 0.65 * m.armLen), lw = Math.max(1, m.r * 0.24), tl = Math.max(0.9, m.r * 0.15);
-  const sw = Math.sin(m.ph * 1.1), ts = m.r * (0.62 + 0.5 * m.armLen), weapon = m.tool <= 2;
+  const L1 = m.r * (0.8 + 0.6 * m.armLen), L2 = m.r * (0.75 + 0.7 * m.armLen), lw = Math.max(1, m.r * 0.24), tl = Math.max(0.9, m.r * 0.15);
+  const sw = Math.sin(m.ph * 1.1), ts = m.r * (0.62 + 0.5 * m.armLen);
   const fresh = m.aimK > 0 && w.t - m.aimT < 1.2;
   let rel = 0;
   if (fresh) { const ang = Math.atan2(m.aimY - m.y, m.aimX - m.x); m.aa = m.aa === undefined ? ang : angLerp(m.aa, ang, Math.min(1, dtv * 12)); rel = ((m.aa - m.h + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; }
-  const reach = fresh && Math.abs(rel) < 2.0 ? 1 : 0;                    // cannot reach what is behind it
+  const reach = fresh && Math.abs(rel) < 2.2 ? 1 : 0;                    // cannot reach what is behind it
   m.ak = (m.ak || 0) + (reach - (m.ak || 0)) * Math.min(1, dtv * 9);
-  const k = m.ak, A = m.h + Math.max(-1.9, Math.min(1.9, rel));
-  const act = Math.max(0, 1 - (w.t - m.actT) / 0.45), striking = m.aimK === 2 && fresh;
+  const k = m.ak, striking = fresh && m.aimK === 2, t = w.t - m.actT, eating = m.actK === 1 && t < 0.9;
+  const ch = Math.cos(m.h), sh = Math.sin(m.h), mouthX = m.x + ch * m.r * 0.95, mouthY = m.y + sh * m.r * 0.95;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let pr = 0; pr < m.arms; pr++) {
     const si = Math.min(n - 1, pr), sc = pr ? 0.82 : 1, base = m.h;
     for (const side of [-1, 1]) {
       const sx = PX[si] + Math.cos(base + side * 1.5708) * PR[si] * 0.8, sy = PY[si] + Math.sin(base + side * 1.5708) * PR[si] * 0.8;
-      const jab = striking ? Math.sin(m.ph * 6 + pr * 1.7 + (side > 0 ? 1.6 : 0)) : sw * 0.12;            // weapons stab away at the victim
-      const restA1 = base + side * (1.0 + sw * 0.1 * side), restA2 = base + side * (0.32 - jab * 0.5);
-      let a1 = angLerp(restA1, A + side * 0.3, 0.65 * k), a2 = angLerp(restA2, A + side * 0.1 * (1 - act), k);
-      if (m.tool === 4) a2 -= side * 0.7 * act * k;                                                     // scoop: sweep inward
-      else if (m.tool === 5) a2 -= side * 0.55 * act * k;                                               // rake: pull toward the body
-      const ext = 1 + 0.4 * k + (weapon && striking ? 0.35 * Math.max(0, jab) : 0);
-      const ex = sx + Math.cos(a1) * upper * sc * ext, ey = sy + Math.sin(a1) * upper * sc * ext;
-      const hx = ex + Math.cos(a2) * fore * sc * ext, hy = ey + Math.sin(a2) * fore * sc * ext;
+      const rd = (L1 + L2) * sc * 0.72, ra = base + side * (0.75 + sw * 0.12 * side);
+      let tx = sx + Math.cos(ra) * rd, ty = sy + Math.sin(ra) * rd, act = 0, pel = null;
+      if (k > 0.01) {                                                                    // reach toward what it is working on
+        let ax = m.aimX, ay = m.aimY;
+        if (striking) { const ph = Math.sin(m.ph * 6 + pr * 1.7 + (side > 0 ? 1.6 : 0)), f = 0.78 + 0.22 * Math.max(0, ph); ax = sx + (ax - sx) * f; ay = sy + (ay - sy) * f; act = Math.max(0, ph); }
+        tx += (ax - tx) * k; ty += (ay - ty) * k;
+      }
+      if (eating && pr === 0 && side === m.actS) {                                       // grab the food and bring it to the mouth
+        let gx, gy;
+        if (t < 0.3) { gx = m.actX; gy = m.actY; }
+        else if (t < 0.7) { const e = ease((t - 0.3) / 0.4); gx = m.actX + (mouthX - m.actX) * e; gy = m.actY + (mouthY - m.actY) * e; }
+        else { const e = ease((t - 0.7) / 0.2); gx = mouthX + (tx - mouthX) * e; gy = mouthY + (ty - mouthY) * e; }
+        const bl = ease(t / 0.12); tx += (gx - tx) * bl; ty += (gy - ty) * bl;
+        act = t > 0.25 && t < 0.72 ? 1 : 0; pel = t < 0.72;
+      }
+      const [ex, ey, hx, hy] = ik(sx, sy, tx, ty, L1 * sc, L2 * sc, side), a2 = Math.atan2(hy - ey, hx - ex);
       ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineWidth = lw;
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
       drawTool(m.tool, hx, hy, a2, ts * sc, tl, act);
+      if (pel) {                                                                          // the pellet: pulled in from where it lay, then carried
+        const off = ts * sc * (m.tool === 4 ? 1.1 : 0.9), px = hx + Math.cos(a2) * off, py = hy + Math.sin(a2) * off, e = ease(t / 0.3);
+        const qx = t < 0.3 ? m.actX + (px - m.actX) * e : px, qy = t < 0.3 ? m.actY + (py - m.actY) * e : py;
+        ctx.fillStyle = EAT_COL[m.actF]; ctx.beginPath(); ctx.arc(qx, qy, 2.4 + m.actF * 0.8, 0, 7); ctx.fill();
+      }
+    }
+  }
+}
+// the mouth: a hinged pair of jaws. Snaps rapidly when biting, opens to take food, shows teeth on meat-eaters.
+function drawMouth(m) {
+  const t = w.t - m.actT, bit = m.o && m.o[S.OUT.BITE] > 0.3;
+  let open = 0;
+  if (bit) open = 0.55 + 0.45 * Math.sin(w.t * 16 + m.id * 1.3);
+  if (m.actK === 1 && t < 0.9) open = Math.max(open, Math.max(0, 1 - Math.abs(t - (m.arms ? 0.72 : 0.3)) / 0.2));
+  if (m.actK >= 2 && t < 0.25) open = Math.max(open, 1 - t * 2);
+  const ch = Math.cos(m.h), sh = Math.sin(m.h);
+  if (m.arms === 0 && m.actK === 1 && t < 0.32) {                                         // no arms: the pellet slurps straight in
+    const e = ease(t / 0.3); ctx.fillStyle = EAT_COL[m.actF]; ctx.beginPath(); ctx.arc(m.actX + (m.x + ch * m.r * 0.95 - m.actX) * e, m.actY + (m.y + sh * m.r * 0.95 - m.actY) * e, 2.4 + m.actF * 0.8, 0, 7); ctx.fill();
+  }
+  if (open < 0.08) return;
+  const r = m.r, hx = m.x + ch * r * 0.45, hy = m.y + sh * r * 0.45, ang = 0.12 + 0.6 * open, jl = r * 0.78;
+  const ua = m.h + ang, la = m.h - ang, ux = hx + Math.cos(ua) * jl, uy = hy + Math.sin(ua) * jl, lx = hx + Math.cos(la) * jl, ly = hy + Math.sin(la) * jl;
+  ctx.fillStyle = '#4a0d1a'; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ux, uy); ctx.lineTo(lx, ly); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = `hsl(${m.hue * 360},55%,30%)`; ctx.lineWidth = Math.max(0.9, r * 0.2); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(hx, hy); ctx.lineTo(lx, ly); ctx.stroke();
+  if (m.diet > 0.2 || bit) {
+    ctx.fillStyle = '#fff'; ctx.beginPath();
+    for (const [a, sgn] of [[ua, -1], [la, 1]]) for (const f of [0.5, 0.75, 1]) {
+      const bx = hx + Math.cos(a) * jl * f, by = hy + Math.sin(a) * jl * f, tw = r * 0.09;
+      ctx.moveTo(bx - Math.cos(a) * tw, by - Math.sin(a) * tw); ctx.lineTo(bx + Math.cos(a) * tw, by + Math.sin(a) * tw);
+      ctx.lineTo(bx + Math.cos(m.h + sgn * 1.5708) * r * 0.22, by + Math.sin(m.h + sgn * 1.5708) * r * 0.22); ctx.closePath();
+    }
+    ctx.fill();
+  }
+}
+// what a bite looks like on the victim: a flash, tooth marks that face the biter, and a red burst when it is killed
+function drawBiteFx() {
+  ctx.lineCap = 'round';
+  for (const m of w.motes) {
+    if (m.actK < 2) continue; const t = w.t - m.actT; if (t > 0.5) continue;
+    const kill = m.actK === 3, k = kill ? t / 0.5 : (w.t * 3 + m.id * 0.37) % 1, X = m.actX, Y = m.actY, a = Math.atan2(Y - m.y, X - m.x);
+    ctx.strokeStyle = `rgba(255,${kill ? 70 : 150},60,${1 - k})`; ctx.lineWidth = kill ? 2.6 : 1.8;
+    ctx.beginPath(); ctx.arc(X, Y, 3 + k * (kill ? 16 : 10), 0, 7); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - k)})`; ctx.lineWidth = 1.3; ctx.beginPath();
+    for (let q = -2; q <= 2; q++) { const aa = a + Math.PI + q * 0.38, r0 = 4 + k * 3, r1 = r0 + 3.5; ctx.moveTo(X + Math.cos(aa) * r0, Y + Math.sin(aa) * r0); ctx.lineTo(X + Math.cos(aa) * r1, Y + Math.sin(aa) * r1); }
+    ctx.stroke();
+    if (kill) {
+      ctx.strokeStyle = `rgba(220,40,40,${1 - k})`; ctx.lineWidth = 1.6; ctx.beginPath();
+      for (let q = 0; q < 8; q++) { const aa = q * 0.785 + 0.3, r0 = 4 + k * 6, r1 = 8 + k * 20; ctx.moveTo(X + Math.cos(aa) * r0, Y + Math.sin(aa) * r0); ctx.lineTo(X + Math.cos(aa) * r1, Y + Math.sin(aa) * r1); }
+      ctx.stroke();
     }
   }
 }
@@ -864,6 +950,7 @@ function drawSquiggle(m, dtv) {
   else if (m.eyes === 3) { eye(hx - sh * e, hy + ch * e, m.r * 0.22); eye(hx + sh * e, hy - ch * e, m.r * 0.22); eye(hx + ch * e * 0.9, hy + sh * e * 0.9, m.r * 0.2); }
   else if (m.eyes === 4) { ctx.strokeStyle = `hsl(${hh},60%,70%)`; ctx.lineWidth = Math.max(0.8, m.r * 0.1); for (const sd of [-1, 1]) { const ex = hx + ch * m.r * 0.7 - sh * sd * e * 1.5, ey = hy + sh * m.r * 0.7 + ch * sd * e * 1.5; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke(); eye(ex, ey, m.r * 0.22); } }
   else { ctx.fillStyle = pupil; ctx.beginPath(); ctx.arc(hx, hy, m.r * 0.12, 0, 7); ctx.fill(); }
+  drawMouth(m);
 }
 let dtv = 0.016;
 function draw() {
@@ -916,6 +1003,7 @@ function draw() {
       if (gl) { ctx.font = sz + 'px sans-serif'; ctx.fillText(gl, m.x + (m.fav ? sz * 0.5 : 0), m.y - m.r * 2.3 - 2 - Math.sin(nowMs / 300 + m.id) * 1); }
     }
   }
+  if (cam.z >= 0.45) drawBiteFx();
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dtv; if (f.t > 0.7) { fx.splice(i, 1); continue; } const k = f.t / 0.7; ctx.strokeStyle = `rgba(${f.c},${1 - k})`; ctx.lineWidth = 3 / cam.z + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.9 * k), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.c},${0.25 * (1 - k)})`; ctx.fill(); }
   const sm = selected();
   if (sm) {

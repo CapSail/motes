@@ -26,8 +26,44 @@ const SENSE = {
   friend_f: 'my nearest friend: ahead or behind', friend_s: 'my nearest friend: left or right',
   nut: 'how rich the soil is under me (+ rich, − poor)', mem_food_f: 'remembered food: ahead (+) or behind (−), fading over ~15s', mem_food_s: 'remembered food: left (+) or right (−)', mem_food_t: 'how fresh the food memory is (1 = just seen, 0 = forgotten)',
   mem_foe_f: 'where I last got hurt: ahead or behind', mem_foe_s: 'where I last got hurt: left or right', mem_foe_t: 'how fresh that memory is', mood: 'slow mood: fed and content (+) or hungry (−)',
+  prey_f: 'the nearest creature of another kind that I could eat: ahead or behind', prey_s: 'that prey: left or right', prey_p: 'that prey: how close',
+  threat_f: 'the nearest creature that bites and is not tiny: ahead or behind', threat_s: 'that threat: left or right', threat_p: 'that threat: how close',
+  fooddens: 'how much food lies all around me (a rich place or a poor one)', crowd_f: 'the middle of the crowd around me: ahead or behind', crowd_s: 'the middle of the crowd: left or right',
   fam_f: 'my nearest relative: ahead or behind', fam_s: 'my nearest relative: left or right', famcount: 'how many relatives are near me',
 };
+// short plain names for the brain panel. [low or negative, high or positive]; one entry means "how strong".
+export const IN_LABEL = {
+  bias: ['Always on'], energy: ['Low on energy', 'Full of energy'], age: ['Young', 'Getting old'], speed: ['Speed'],
+  plant_f: ['Plant food behind', 'Plant food ahead'], plant_s: ['Plant food on the right', 'Plant food on the left'],
+  meat_f: ['Meat behind', 'Meat ahead'], meat_s: ['Meat on the right', 'Meat on the left'],
+  mote_f: ['Creature behind', 'Creature ahead'], mote_s: ['Creature on the right', 'Creature on the left'], mote_p: ['A creature is close'],
+  mote_size: ['Neighbour is smaller', 'Neighbour is bigger'], mote_kin: ['Neighbour is another kind', 'Neighbour is my kind'], mote_diet: ['Neighbour eats plants', 'Neighbour eats meat'], mote_e: ['Neighbour is full of energy'],
+  kin_f: ['My kind behind', 'My kind ahead'], kin_s: ['My kind on the right', 'My kind on the left'], dens: ['Crowded around me'], kincount: ['Many of my kind near'],
+  wall_l: ['Wall on my left'], wall_f: ['Wall ahead'], wall_r: ['Wall on my right'],
+  on_farm: ['Standing on a farm'], on_nest: ['Standing on a nest'], on_gran: ['Standing on a granary'], gran_store: ['Granary is stocked'],
+  temp: ['Too cold', 'Too hot'], tox: ['Poison here'], light: ['Dark', 'Daylight'], sick: ['I am sick'],
+  ch_a: ['Red smell here'], ch_b: ['Green smell here'], ch_c: ['Blue smell here'],
+  ga_f: ['Red smell behind', 'Red smell ahead'], ga_s: ['Red smell on the right', 'Red smell on the left'],
+  gb_f: ['Green smell behind', 'Green smell ahead'], gb_s: ['Green smell on the right', 'Green smell on the left'],
+  gc_f: ['Blue smell behind', 'Blue smell ahead'], gc_s: ['Blue smell on the right', 'Blue smell on the left'],
+  clock: ['Inner clock'], noise: ['Random urge'], hurt: ['Just got hurt'], contact: ['Touching something'], mote_armor: ['Neighbour is armored'], mote_bite: ['Neighbour is biting'],
+  mote_rel: ['Neighbour is family'], mote_friend: ['Neighbour is an enemy', 'Neighbour is a friend'],
+  friend_f: ['Friend behind', 'Friend ahead'], friend_s: ['Friend on the right', 'Friend on the left'], fam_f: ['Relative behind', 'Relative ahead'], fam_s: ['Relative on the right', 'Relative on the left'], famcount: ['Relatives near'],
+  mem_food_f: ['Remembered food behind', 'Remembered food ahead'], mem_food_s: ['Remembered food on the right', 'Remembered food on the left'], mem_food_t: ['Food memory is fresh'],
+  mem_foe_f: ['Danger spot behind', 'Danger spot ahead'], mem_foe_s: ['Danger spot on the right', 'Danger spot on the left'], mem_foe_t: ['Danger memory is fresh'],
+  mood: ['Gloomy', 'Content'], nut: ['Poor soil', 'Rich soil'],
+  prey_f: ['Prey behind', 'Prey ahead'], prey_s: ['Prey on the right', 'Prey on the left'], prey_p: ['Prey is close'],
+  threat_f: ['Threat behind', 'Threat ahead'], threat_s: ['Threat on the right', 'Threat on the left'], threat_p: ['Threat is close'],
+  fooddens: ['Plenty of food around'], crowd_f: ['Crowd behind', 'Crowd ahead'], crowd_s: ['Crowd on the right', 'Crowd on the left'],
+};
+export const OUT_LABEL = {
+  thrust: ['Stop', 'Swim forward'], turn: ['Turn right', 'Turn left'], bite: ['Bite'], emit_a: ['Release red smell'], emit_b: ['Release green smell'], emit_c: ['Release blue smell'],
+  b_wall: ['Build a wall'], b_farm: ['Build a farm'], b_nest: ['Build a nest'], b_gran: ['Build a granary'], dig: ['Dig out a structure'], xfer: ['Steal energy', 'Give energy'], mate: ['Want to mate'],
+};
+const pick = (L, v) => (L.length === 2 ? (v < 0 ? L[0] : L[1]) : L[0]);
+export const hasSign = (table, name) => (table[name] || []).length === 2;
+export const senseText = (name, v) => pick(IN_LABEL[name] || [name], v);
+export const actionText = (name, v) => pick(OUT_LABEL[name] || [name], v);
 const ACTION = {
   thrust: 'how hard to swim forward', turn: 'steer left (+) or right (−)', bite: 'bite whatever is touching me (eat it if the bite lands)',
   emit_a: 'release Scent A (costs a little energy)', emit_b: 'release Scent B', emit_c: 'release Scent C',
@@ -182,6 +218,8 @@ export function guideHTML() {
 <details><summary>Drama you may see (none of it is scripted)</summary>
 <ul>
 <li><b>Body shape matters.</b> Every part of a body has a price and a payoff. <b>Long, thin</b> bodies run fast and swim cheaply but turn slowly. <b>Thick, short</b> bodies store more energy and turn fast. <b>Curled</b> bodies turn tightly but run slower. <b>More segments</b> mean more stored energy and a longer bite reach, but a heavier body. Limbs help turning, fins and wiggle make swimming cheaper. Natural selection weighs it all, so shapes drift toward what works in that dish.</li>
+<li><b>Prey, threats and crowds.</b> Besides the nearest creature, every brain can now sense the nearest <i>prey</i> (another kind it could eat), the nearest <i>threat</i> (something that bites and is not tiny), how rich the food is all around, and which way the crowd is. Creatures also keep a little personal space: they drift away from a crowd, and crowding costs energy, so food does not pile everyone into one clump. Tap a creature, More details, Show brain to read what it senses and decides in plain words.</li>
+<li><b>Eating and biting show.</b> A creature with arms reaches out, grabs the pellet and carries it to its mouth. Without arms the pellet is slurped in. Jaws open and snap when biting, meat-eaters show teeth, and a bite leaves tooth marks and a flash on the victim, with a red burst when it is killed.</li>
 <li><b>Solid bodies and walls.</b> Creatures cannot walk through each other. They bump and push apart, and the only way to overlap is a bite: a creature that is biting its victim can close in on it. Walls stop whole bodies, even fast ones. Walls you draw cannot be torn down by creatures. Walls that creatures built themselves can still be dug out by a creature that learns to dig.</li>
 <li><b>Arms and tools.</b> Some creatures grow one or two pairs of arms with a tool on the end. <b>Steel-coloured weapons:</b> <i>claws</i> make bites land, a <i>spear</i> reaches further, a <i>club</i> gets through armor. <b>Gold gathering tools:</b> <i>pincers</i> make each pellet worth more, a <i>scoop</i> and a <i>rake</i> pick food up from further away. Arms cost energy and slow you a little, so they only pay off if the tool fits the way you live. Zoom in to see them: arms reach toward food or a victim, weapons jab when biting, pincers snap shut, scoops and rakes sweep food in. Tap a creature to read its tool.</li>
 <li><b>Meat is a trade-off.</b> The more a creature leans toward meat, the worse it digests plants, but a small taste for meat costs almost nothing. So a small taste is cheap and pays off when prey is around, and a true specialist has to give up a lot. Over the years dishes grow meat-leaning omnivores. Check the 🧬 Stats chip for the average diet.</li>

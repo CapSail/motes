@@ -32,8 +32,10 @@ export const IN = {
   // short-term memory: where it last saw food and where it last got hurt, fading over about 15 seconds, plus a slow 'recently fed / hurt' mood
   MEM_FOOD_F: 52, MEM_FOOD_S: 53, MEM_FOOD_T: 54, MEM_FOE_F: 55, MEM_FOE_S: 56, MEM_FOE_T: 57, MOOD: 58,
   NUT: 59,    // how rich the soil is under me (minerals that sunlight-eaters need)
+  // sorting the world into the things that matter: the nearest creature I could eat, the nearest one that could hurt me, food richness, and where the crowd is
+  PREY_F: 60, PREY_S: 61, PREY_P: 62, THREAT_F: 63, THREAT_S: 64, THREAT_P: 65, FOODDENS: 66, CROWD_F: 67, CROWD_S: 68,
 };
-export const NI = 60;
+export const NI = 69;
 export const OUT = {
   THRUST: 0, TURN: 1, BITE: 2, EMIT_A: 3, EMIT_B: 4, EMIT_C: 5,
   B_WALL: 6, B_FARM: 7, B_NEST: 8, B_GRAN: 9, DIG: 10, XFER: 11, MATE: 12,
@@ -241,6 +243,8 @@ function bodyOf(o) {
 const WALLAVOID = [[IN.WALL_L, O(OUT.TURN), -1.6], [IN.WALL_R, O(OUT.TURN), 1.6], [IN.WALL_F, O(OUT.TURN), 1.4], [IN.WALL_F, O(OUT.THRUST), -0.7]];
 const WANDER = [[IN.NOISE, O(OUT.TURN), 0.9]];
 const MATEING = [[IN.ENERGY, O(OUT.MATE), 4.2], [IN.BIAS, O(OUT.MATE), -2.7]];
+const FLEE = [[IN.THREAT_S, O(OUT.TURN), -1.8], [IN.THREAT_P, O(OUT.THRUST), 1.1]];          // run from whatever could hurt me
+const STALK = [[IN.PREY_S, O(OUT.TURN), 2.0], [IN.PREY_F, O(OUT.THRUST), 0.7], [IN.PREY_P, O(OUT.THRUST), 0.9]];   // chase what I could eat
 // family instincts: drift toward friends and family, and feed a hungry relative or friend who is touching me when I am full
 const MEMORY = [[IN.MEM_FOOD_S, O(OUT.TURN), 1.0], [IN.MEM_FOOD_F, O(OUT.THRUST), 0.35], [IN.MEM_FOE_S, O(OUT.TURN), -0.5]];
 const FAMILY = [
@@ -251,7 +255,7 @@ function grazer(hue) {
   return wire(bodyOf({ STYLE: 0.08, SPIKE: 0.0, EYES: 0.55, FRILL: 0.1, GLOW: 0.2, SIZE: 0.35, SPEED: 0.4, SENSE: 0.45, DIET: 0.04, HUE: hue, SEGS: 0.45, LEN: 0.4, TAPER: 0.6, CURL: 0.5, WAMP: 0.4, WFREQ: 0.4, LIMBS: 0.25, LIMBLEN: 0.4, PATTERN: 0.3, ACCENT: 0.3, ANTENNA: 0.3, FIN: 0.2 }), [
     [IN.BIAS, O(OUT.THRUST), 0.3], [IN.PLANT_F, O(OUT.THRUST), 1.3], [IN.ENERGY, O(OUT.THRUST), -0.6],
     [IN.PLANT_S, O(OUT.TURN), 2.3], [IN.KIN_S, O(OUT.TURN), 0.45],
-    ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY, ...MEMORY,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...FAMILY, ...MEMORY, ...FLEE,
     [IN.MOTE_P, 'fl', 2.0], [IN.MOTE_DIET, 'fl', 2.6], [IN.BIAS, 'fl', -3.1],                 // a hungry-looking neighbour close by
     ['fl', 'tl', 2.6], [IN.MOTE_S, 'tl', 2.6], [IN.BIAS, 'tl', -2.6],
     ['fl', 'tr', 2.6], [IN.MOTE_S, 'tr', -2.6], [IN.BIAS, 'tr', -2.6],
@@ -261,7 +265,7 @@ function grazer(hue) {
 function hunter(hue) {
   return wire(bodyOf({ STYLE: 0.5, SPIKE: 0.7, EYES: 0.8, FRILL: 0.7, GLOW: 0.5, SIZE: 0.7, SPEED: 0.62, SENSE: 0.6, DIET: 0.92, ARMOR: 0.25, HUE: hue, REPRO: 0.3, SEGS: 0.75, LEN: 0.85, TAPER: 0.85, CURL: 0.5, WAMP: 0.75, WFREQ: 0.7, LIMBS: 0.1, LIMBLEN: 0.3, PATTERN: 0.6, ACCENT: 0.8, ANTENNA: 0.1, FIN: 0.8 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.MEAT_F, O(OUT.THRUST), 0.9], [IN.MEAT_S, O(OUT.TURN), 1.8],
-    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY, ...STALK,
     [IN.MOTE_P, 'hu', 2.2], [IN.MOTE_KIN, 'hu', -1.6], [IN.MOTE_SIZE, 'hu', -1.3], [IN.BIAS, 'hu', -1.1],
     ['hu', 'hl', 2.4], [IN.MOTE_S, 'hl', 2.6], [IN.BIAS, 'hl', -2.6],
     ['hu', 'hr', 2.4], [IN.MOTE_S, 'hr', -2.6], [IN.BIAS, 'hr', -2.6],
@@ -272,7 +276,7 @@ function hunter(hue) {
 function weaver(hue) {
   return wire(bodyOf({ STYLE: 0.83, SPIKE: 0.2, EYES: 0.3, FRILL: 0.4, GLOW: 0.8, SIZE: 0.4, SPEED: 0.35, SENSE: 0.5, DIET: 0.05, HUE: hue, FAT: 0.7, SEGS: 0.35, LEN: 0.25, TAPER: 0.3, CURL: 0.5, WAMP: 0.3, WFREQ: 0.3, LIMBS: 0.85, LIMBLEN: 0.7, PATTERN: 0.9, ACCENT: 0.5, ANTENNA: 0.9, FIN: 0.1 }), [
     [IN.BIAS, O(OUT.THRUST), 0.25], [IN.PLANT_F, O(OUT.THRUST), 1.2], [IN.PLANT_S, O(OUT.TURN), 2.2], [IN.KIN_S, O(OUT.TURN), 0.4],
-    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY,
+    ...WANDER, ...WALLAVOID, ...MATEING, ...MEMORY, ...FLEE,
     [IN.ENERGY, O(OUT.B_NEST), 4.4], [IN.BIAS, O(OUT.B_NEST), -3.3],
     [IN.ENERGY, O(OUT.B_FARM), 4.4], [IN.BIAS, O(OUT.B_FARM), -3.4],
     [IN.ENERGY, O(OUT.B_WALL), 4.4], [IN.BIAS, O(OUT.B_WALL), -3.5], [IN.WALL_F, O(OUT.B_WALL), 1.0],
@@ -309,7 +313,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 7;
+export const BEST_SEED = 137;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -429,7 +433,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, actX: 0, actY: 0, actS: 1, actF: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -690,7 +694,7 @@ function body(w, m, dt, tempG) {
   let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.0012 * m.senseR + m.bcost;
   if (o[OUT.BITE] > 0.3) drain += 0.3;
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
-  drain += 0.12 * em + 0.05 * Math.max(0, m.crowd - 5);
+  drain += 0.12 * em + 0.07 * Math.max(0, m.crowd - 4);
   let gain = 0; m.why2 = '';
   if (m.photo > 0.05) {
     const sun = m.photo * w.light * m.r * m.r * SUN.k / (1 + 0.3 * Math.max(0, m.crowd - 1));   // shaded by neighbours
@@ -728,12 +732,14 @@ function think(w, m, i, dtt) {
   const infectR = m.sick > 0 ? (m.r + 8) : 0;
   const hasW = w.walls > 0; let crowd = 0;
   let bfm = -1, bfmd = 1e9, fam = 0, bfr = -1, bfrd = 1e9;
+  let byp = -1, bypd = 1e9, bth = -1, bthd = 1e9, fdn = 0, cdx = 0, cdy = 0, cdn = 0; const fd2 = s2 * 0.25;
   const hasFr = m.fr.size > 0;
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
     const c = cy * HN + cx;
     for (let f = H.fh[c]; f >= 0; f = H.fn[f]) {
       const fo = food[f]; if (fo.dead) continue;
       const dx = fo.x - m.x, dy = fo.y - m.y, d2 = dx * dx + dy * dy; if (d2 > sm2) continue;
+      if (d2 < fd2) fdn++;
       if (fo.k === 0) { if (d2 < bpd && !(hasW && blockedLine(w, m.x, m.y, fo.x, fo.y))) { bpd = d2; bp = f; } } else if (d2 < bmd && !(hasW && blockedLine(w, m.x, m.y, fo.x, fo.y))) { bmd = d2; bm = f; }
     }
     for (let q = H.mh[c]; q >= 0; q = H.mn[q]) {
@@ -746,7 +752,13 @@ function think(w, m, i, dtt) {
       if (same) { kin++; if (d2 < bkd) { bkd = d2; bk = q; } }
       if (d2 < bnd) { bnd = d2; bn = q; }
       if (relOf(m, o) > 0) { fam++; if (d2 < bfmd) { bfmd = d2; bfm = q; } }
-      if (hasFr) { const s = m.fr.get(o.id); if (s > 0.2 && d2 < bfrd) { bfrd = d2; bfr = q; } }
+      const fs0 = hasFr ? (m.fr.get(o.id) || 0) : 0;
+      if (hasFr && fs0 > 0.2 && d2 < bfrd) { bfrd = d2; bfr = q; }
+      if (d2 < 3600) { cdx += dx; cdy += dy; cdn++; }
+      if (!same && fs0 < 0.3 && relOf(m, o) === 0) {
+        if (o.r <= m.r * 1.15 && d2 < bypd) { bypd = d2; byp = q; }                                                            // something smaller I could eat
+        if ((o.o[OUT.BITE] > 0.3 || o.diet > 0.35 || fs0 < -0.3) && o.r >= m.r * 0.7 && d2 < bthd) { bthd = d2; bth = q; }     // something that bites and is not tiny
+      }
       if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.6) * (1 - 0.75 * Math.exp(-((o.imt - m.strain) ** 2) / 0.02))) infect(w, o, clamp01(m.strain + gauss() * 0.06));
     }
   }
@@ -774,6 +786,10 @@ function think(w, m, i, dtt) {
     if (bnd < (m.r + o.r + 3 + m.reach) * (m.r + o.r + 3 + m.reach)) inp[IN.CONTACT] = 1; else tgt = null;
   }
   m.bt = tgt ? tgt.id : 0;
+  if (byp >= 0) inp[IN.PREY_P] = polar(motes[byp].x, motes[byp].y, bypd, IN.PREY_F, IN.PREY_S);
+  if (bth >= 0) inp[IN.THREAT_P] = polar(motes[bth].x, motes[bth].y, bthd, IN.THREAT_F, IN.THREAT_S);
+  inp[IN.FOODDENS] = Math.min(1, fdn / 10);
+  if (cdn > 0) { const L = Math.hypot(cdx, cdy) || 1, q = Math.min(1, cdn / 6); inp[IN.CROWD_F] = ((cdx * ch + cdy * sh) / L) * q; inp[IN.CROWD_S] = ((cdy * ch - cdx * sh) / L) * q; }
   if (bk >= 0) polar(motes[bk].x, motes[bk].y, bkd, IN.KIN_F, IN.KIN_S);
   if (bfm >= 0) polar(motes[bfm].x, motes[bfm].y, bfmd, IN.FAM_F, IN.FAM_S);
   if (bfr >= 0) polar(motes[bfr].x, motes[bfr].y, bfrd, IN.FRIEND_F, IN.FRIEND_S);
@@ -846,6 +862,11 @@ function think(w, m, i, dtt) {
       rt += m.photo * Math.tanh(((l >= 0 ? nn[l] : here) - (r2 >= 0 ? nn[r2] : here)) * 4);
       rth += m.photo * (0.5 * Math.tanh(((a >= 0 ? nn[a] : here) - here) * 4) + Math.max(0, 0.35 - here) * 1.4);
     }
+    if (cdn >= 3 && !globalThis.__NOSPACE) {
+      const q = Math.min(1, (cdn - 2) / 5) * (m.pod ? 0.4 : 1) * 0.9, L = Math.hypot(cdx, cdy) || 1, f = (cdx * ch + cdy * sh) / L, sd = (cdy * ch - cdx * sh) / L;
+      rt += -q * (Math.tanh(sd * 3) * 0.9 + (m.id & 1 ? 1 : -1) * Math.max(0, f) * 0.5);
+      rth += q * (-0.45 * f + 0.1);
+    }
     m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1); if (globalThis.__NOREFLEX) { m.rt = 0; m.rth = 0; }
   } else { m.rt = 0; m.rth = 0; }
   {   // walls are solid: steer away from them whatever the brain thinks
@@ -916,19 +937,20 @@ function think(w, m, i, dtt) {
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && m.plantEff > 0.05) {
-      m.actT = w.t; m.actK = 1; const f = food[bp]; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      const f = food[bp]; m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 0; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
     if (bm >= 0 && bmd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && !food[bm].dead && m.meatEff > 0.1) {
-      m.actT = w.t; m.actK = 1; const f = food[bm]; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      const f = food[bm]; m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 1; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
   }
   // -- bite
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
-    m.actT = w.t; m.actK = 2;
+    if (w.t - m.actT > 0.3 || m.actK === 1) m.actS = rand() < 0.5 ? -1 : 1;
+    m.actT = w.t; m.actK = 2; m.actX = tgt.x; m.actY = tgt.y;
     const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
-      m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++;
+      m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++; m.actK = 3;
       if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
     } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
   }
