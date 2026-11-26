@@ -42,7 +42,7 @@ async function loadStarter(intro, name = 'dish') {
     if (intro) {
       const o = $('over'); o.style.display = 'flex';
       const yrs = (w.t / S.YEAR).toFixed(1);
-      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Open the Menu (top right) to read its Diary or the guide, or start again from the first six founders.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
+      o.innerHTML = `<div style="font-size:18px">This dish is already ${yrs} years old</div><div class="dim" style="max-width:330px">Before it reached you it was fast-forwarded for ${yrs} dish-years while the motes evolved. Open the Menu (top right) to read its Diary or the guide, or start again from the founding lineages.</div><button id="stWatch">Watch it</button><button id="stFresh">Start a fresh dish instead</button>${isStandalone() ? '' : '<button id="stInstall">📲 Install it as an app</button>'}`;
       $('stWatch').onclick = () => { o.style.display = 'none'; maybeTour(); };
       if ($('stInstall')) $('stInstall').onclick = () => { o.style.display = 'none'; menuTab = 'install'; openMenu(); };
       $('stFresh').onclick = () => { setWorld(S.createWorld((Date.now() & 0x7fffffff) || 7)); save(); o.style.display = 'none'; maybeTour(); };
@@ -113,7 +113,7 @@ function catchStep() {
 // ---------- tools: a dock of big buttons, a sheet of tiles that explain themselves, and a strip for the active tool ----------
 const TOOLINFO = {
   food: ['🍃', 'Food', 'Sprinkle plants for them to eat. Hungry motes smell it from far away.'],
-  wall: ['🧱', 'Wall', 'A solid barrier. Nothing walks, sees or smells through it.'],
+  wall: ['🧱', 'Wall', 'A solid barrier. Nothing walks, sees or smells through it, and creatures cannot dig it out.'],
   farm: ['🌱', 'Farm', 'Ground that keeps growing food by itself.'],
   nest: ['🪺', 'Nest', 'A safe spot that heals motes and gives newborns a boost.'],
   granary: ['🏺', 'Granary', 'A pantry. Motes can store spare energy here for later.'],
@@ -124,7 +124,7 @@ const TOOLINFO = {
   chemA: ['🔴', 'Red smell', 'A red smell. Some kinds are drawn to it and some run away. Creatures can release smells too.'],
   chemB: ['🟢', 'Green smell', 'A green smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
   chemC: ['🔵', 'Blue smell', 'A blue smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
-  plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others.'],
+  plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
   spark: ['✨', 'New life', 'Tap to drop in a brand-new creature: a new species with its own look.'],

@@ -337,8 +337,8 @@ export function createWorld(seed = 1, opts = {}) {
     if (Math.hypot(cx, cy) > R - CELL * 0.3) w.st[gy * GN + gx] = 255;
   }
   for (let i = 0; i < 700; i++) spawnFood(w, null, null, 0, 18);
-  // a fresh dish starts from six lineages taken from evolved dishes (smart brains, generation 0), so it survives on any seed;
-  // if the pack is missing it falls back to the six hand-wired founders
+  // a fresh dish starts from five lineages taken from evolved dishes (smart brains, generation 0), so it survives on any seed;
+  // if the pack is missing it falls back to the hand-wired founders
   const usePack = PACK.length >= 8 && !opts.classic;
   let packG = null;
   if (usePack) {
@@ -1366,7 +1366,7 @@ export function catchUpReport(cu) {
 export function packGenome(g) { return packG(g); }
 export function unpackGenome(p) { return unpackG(p); }
 
-// bring life back to an empty dish: three evolved lineages plus a hunter lineage, all at generation 0
+// bring life back to an empty dish (player-chosen restart): three evolved lineages, all at generation 0
 export function reseed(w) {
   const info = PACK.length >= 8 ? PACK.map(p => unpackG(p)) : [];
   let mx = INNOV; for (const g of info) for (const id of g.h) if (id > mx) mx = id; INNOV = mx + 1;
