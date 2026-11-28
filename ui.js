@@ -375,7 +375,7 @@ function updChip() { if (w && w.steer) { fchip.style.display = 'none'; return; }
 }
 // ---------- taking control of a favourite: a thumb stick on the left, a bite button on the right ----------
 let pad = null, steerAt = null, stick = { id: null, x: 0, y: 0 };
-const STICK_R = 54;                                          // how far the knob travels, in pixels
+const STICK_R = 68;                                          // how far the knob travels, in pixels
 function buildPad() {
   pad = document.createElement('div');
   pad.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:6;user-select:none;-webkit-user-select:none';
@@ -386,9 +386,9 @@ function buildPad() {
       '<div style="height:9px;background:#1b2736;border-radius:5px;overflow:hidden;margin-top:5px"><i id="pEnergy" style="display:block;height:100%;width:50%;background:#7fa860"></i></div>' +
       '<div id="pDoing" style="font-size:12px;color:#8ea0b6;margin-top:3px"></div></div>' +
       '<button id="pDone" style="min-width:88px;min-height:52px;font-size:15px">✔ Release</button></div>' +
-    '<div id="pStick" style="' + base + 'left:calc(18px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom));width:156px;height:156px;border-radius:50%;background:radial-gradient(circle,#1a2534cc 0,#0f1722b0 70%);border:2px solid #4a5f78">' +
-      '<div style="position:absolute;inset:0;color:#8ea0b6aa;font-size:15px;pointer-events:none"><span style="position:absolute;left:70px;top:5px">▲</span><span style="position:absolute;left:70px;bottom:5px">▼</span><span style="position:absolute;left:8px;top:66px">◀</span><span style="position:absolute;right:8px;top:66px">▶</span></div>' +
-      '<div id="pKnob" style="position:absolute;left:44px;top:44px;width:64px;height:64px;border-radius:50%;background:#cfd8e3;border:3px solid #7d8fa6;box-shadow:0 4px 14px #0009;pointer-events:none"></div></div>' +
+    '<div id="pStick" style="' + base + 'left:calc(14px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom));width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,#1a2534cc 0,#0f1722b0 70%);border:2px solid #4a5f78">' +
+      '<div style="position:absolute;inset:0;color:#8ea0b6aa;font-size:15px;pointer-events:none"><span style="position:absolute;left:87px;top:6px">▲</span><span style="position:absolute;left:87px;bottom:6px">▼</span><span style="position:absolute;left:9px;top:83px">◀</span><span style="position:absolute;right:9px;top:83px">▶</span></div>' +
+      '<div id="pKnob" style="position:absolute;left:54px;top:54px;width:78px;height:78px;border-radius:50%;background:#cfd8e3;border:3px solid #7d8fa6;box-shadow:0 4px 14px #0009;pointer-events:none"></div></div>' +
     '<button id="pBite" style="' + base + 'right:calc(24px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;font-size:34px;line-height:1;background:#4a2320e6;border:3px solid #a8574c">🦷<div style="font-size:14px;margin-top:4px">Bite</div></button>';
   document.body.appendChild(pad);
   const q = id => pad.querySelector('#' + id), st = q('pStick'), knob = q('pKnob'), bite = q('pBite');
