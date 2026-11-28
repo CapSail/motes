@@ -914,7 +914,33 @@ function drawArms(m, n, dtv) {
     }
   }
 }
-// optional parts: camouflage mottling, a barbed stinger on the tail, jet nozzles that flare when firing
+// the stinger grows out of the tail like a scorpion's: shrinking jointed segments, a swollen venom sac, and a hooked bone barb
+function drawStinger(m, n, fine) {
+  const t = n - 1, r = m.r, tr = Math.max(PR[t], r * 0.36), back = PA[t], s = m.id & 1 ? 1 : -1;
+  const sway = Math.sin(m.ph * 0.8 + m.id) * 0.14, big = 0.85 + 0.35 * m.sting;
+  const root = [PX[t], PY[t]];
+  const p1 = at(root[0], root[1], back + s * 0.1 + sway * 0.5, r * 0.95 * big);
+  const p2 = at(p1[0], p1[1], back + s * 0.5 + sway, r * 0.78 * big);
+  const a3 = back + s * 1.05 + sway * 1.3, sac = at(p2[0], p2[1], a3, r * 0.4 * big);
+  const flesh = pal(m.hue, shade(m) - 4), skin = pal(m.hue, shade(m) - 26);
+  FLESH = flesh; SKIN = skin; FINE = fine;
+  if (!fine) { ctx.strokeStyle = skin; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1, r * 0.34); ctx.beginPath(); ctx.moveTo(root[0], root[1]); ctx.quadraticCurveTo(p1[0], p1[1], sac[0], sac[1]); ctx.stroke(); const q = at(sac[0], sac[1], a3 + s * 0.9, r * 0.7 * big); ctx.lineWidth = Math.max(0.7, r * 0.16); ctx.beginPath(); ctx.moveTo(sac[0], sac[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); return; }
+  // two joints, each pinched where it meets the next
+  const seg = (a, b, wa, wb) => { const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; taper([a, [mx, my], b], [wa * 0.82, (wa + wb) * 0.6, wb * 0.72], flesh, skin); };
+  seg(root, p1, tr * 1.25, tr * 0.95);
+  seg(p1, p2, tr * 0.98, tr * 0.72);
+  // the venom sac: the one part with a bruised violet cast
+  const rx = r * 0.4 * big, ry = r * 0.29 * big;
+  ctx.fillStyle = flesh; ctx.beginPath(); ctx.ellipse(sac[0], sac[1], rx, ry, a3, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(86,38,78,0.55)'; ctx.fill(); ctx.strokeStyle = skin; ctx.lineWidth = Math.max(0.4, r * 0.08); ctx.stroke();
+  ctx.fillStyle = 'rgba(236,222,214,0.4)'; ctx.beginPath(); ctx.ellipse(sac[0] + LX * ry * 0.4, sac[1] + LY * ry * 0.4, rx * 0.3, ry * 0.18, a3, 0, 7); ctx.fill();
+  // the barb: curved bone with a dark point, and a small spur on the joint behind it
+  const tipRoot = at(sac[0], sac[1], a3, rx * 0.75);
+  horn(tipRoot[0], tipRoot[1], a3 + s * 0.2, r * (0.85 + 0.45 * m.sting), s * 1.05, r * 0.27 * big);
+  horn(p2[0], p2[1], a3 - s * 1.5, r * 0.42 * big, s * 0.45, r * 0.15);
+  horn(p1[0], p1[1], back - s * 1.35, r * 0.34 * big, s * 0.4, r * 0.13);
+}
+// optional parts: camouflage mottling, jet nozzles that flare when firing
 function drawParts(m, n) {
   const t = n - 1, bx = PX[t], by = PY[t], back = PA[t], r = m.r;
   if (m.camo) {                                       // mottled blotches in murky greens over the whole body
@@ -933,11 +959,6 @@ function drawParts(m, n) {
         ctx.fillStyle = 'rgba(160,190,200,0.55)'; ctx.beginPath(); ctx.moveTo(ox + Math.cos(back + 1.57) * w2, oy + Math.sin(back + 1.57) * w2); ctx.lineTo(ox + Math.cos(back) * L, oy + Math.sin(back) * L); ctx.lineTo(ox - Math.cos(back + 1.57) * w2, oy - Math.sin(back + 1.57) * w2); ctx.closePath(); ctx.fill();
       }
     }
-  }
-  if (m.sting) {                                       // a hooked barb with a violet venom tip
-    const L = r * (1.1 + 0.9 * m.sting), mx = bx + Math.cos(back) * L, my = by + Math.sin(back) * L, tx = mx + Math.cos(back + 1.35) * L * 0.6, ty = my + Math.sin(back + 1.35) * L * 0.6;
-    ctx.strokeStyle = '#b4a3bd'; ctx.lineWidth = Math.max(1, r * 0.24); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
-    ctx.fillStyle = '#6d4a80'; ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.1, r * 0.24), 0, 7); ctx.fill();
   }
 }
 // the mouth: a hinged pair of jaws. Snaps rapidly when biting, opens to take food, shows teeth on meat-eaters.
@@ -1231,7 +1252,8 @@ function drawSquiggle(m, dtv) {
       }
     }
   }
-  if (m.fin > 0.15) drawTail(m, n);
+  if (m.sting) drawStinger(m, n, cam.z >= 0.95);
+  else if (m.fin > 0.15) drawTail(m, n);
   if (fine && m.frill > 0.35) {                           // a fine ruffled hem along both flanks
     ctx.strokeStyle = pal(m.accent, 4, 0.75); ctx.lineWidth = Math.max(0.5, m.r * 0.11); ctx.beginPath();
     for (const s of [1, -1]) for (let i = 0; i < n; i++) { const a = side(i, s, 1.06), b = side(i, s, 1.2 + m.frill * 0.55 + Math.sin(m.ph * 1.4 + i * 1.7 + s) * 0.2), c = Math.cos(PA[i]) * PR[i] * 0.5, d = Math.sin(PA[i]) * PR[i] * 0.5; ctx.moveTo(a[0] - c, a[1] - d); ctx.quadraticCurveTo(b[0], b[1], a[0] + c, a[1] + d); }
