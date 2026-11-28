@@ -367,7 +367,7 @@ const fchip = document.createElement('div');
 fchip.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 96px);left:50%;transform:translateX(-50%);background:#101722f2;border:1px solid #58c08a;border-radius:20px;padding:0 6px 0 16px;display:none;z-index:5;white-space:nowrap;font-size:15px';
 document.body.appendChild(fchip);
 fchip.onclick = e => { if (e.target.dataset.x) { follow = false; inspHidden = false; renderInsp(true); } else { inspHidden = false; renderInsp(true); } updChip(); };
-function updChip() { if (w && w.steer) { const c = document.getElementById('chip'); if (c) c.style.display = 'none'; return; }
+function updChip() { if (w && w.steer) { fchip.style.display = 'none'; return; }
   const m = selected();
   const show = follow && inspHidden && m;
   fchip.style.display = show ? 'block' : 'none';
