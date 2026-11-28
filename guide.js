@@ -128,6 +128,7 @@ export function guideHTML() {
 <li>Creatures put <b>survival first</b>.</li>
 <li>Three parts that may or may not evolve: <b>stinger</b>, <b>camouflage</b>, <b>jet</b>.</li>
 <li>Your powers are rebalanced: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler; <b>New life</b> drops a family of four.</li>
+<li>A <b>new look</b>: natural colours, six body plans, new tails, eyes and skin, walls made of pebbles. No more glow.</li>
 <li>Arms with tools, visible eating and biting, solid bodies and walls.</li>
 <li>A <b>brain panel in plain words</b>: tap a creature, More details, Show brain.</li>
 <li>New senses for prey, threats, food and crowds.</li>
@@ -171,7 +172,7 @@ export function guideHTML() {
 </ul>
 <p><b>⚡ Powers</b></p>
 <ul>
-<li><b>🦠 Plague</b>: touch motes to infect them. Sick motes glow green and pulse, lose energy fast, and pass the sickness to motes they touch, so it can sweep through a crowd. The weak often die of it. It wears off after about half a minute and leaves survivors briefly immune. Touch <i>right on</i> some motes. If you miss you get a message saying so.</li>
+<li><b>🦠 Plague</b>: touch motes to infect them. Sick motes come out in yellow-green spots, lose energy fast, and pass the sickness to motes they touch, so it can sweep through a crowd. The weak often die of it. It wears off after about half a minute and leaves survivors briefly immune. Touch <i>right on</i> some motes. If you miss you get a message saying so.</li>
 <li><b>⚡ Smite</b>: kills the motes under your finger.</li>
 <li><b>☄️ Meteor</b>: tap to drop one. It kills everything in its wide crater, burns the ground bare and leaves it hot and poisoned, then plants spring up around the rim.</li>
 <li><b>✨ New life</b>: tap to drop in a family of four: a new kind with its own look and a working brain.</li>
@@ -187,8 +188,8 @@ export function guideHTML() {
 <li><b>Wiggle strength</b> and <b>wiggle speed</b> — how much it undulates while swimming.</li>
 <li><b>Limbs</b> (0–4 pairs of legs) and <b>limb length</b>.</li>
 <li><b>Arms</b> (0–2 pairs) with a <b>tool</b> on the end: claw, spear, club, pincer, scoop or rake (see Arms and tools below).</li>
-<li><b>Skin pattern</b>: plain, spots, stripes or rainbow bands, with an evolving <b>accent colour</b>.</li>
-<li><b>Antennae</b> (0–3, with glowing tips) and a <b>tail fin</b> (a translucent fan). Antennae see a little further but cost a little to keep; a big fin makes swimming cheaper.</li>
+<li><b>Skin markings</b>: plain, freckles, crosswise bands or lopsided blotches, in a second evolving <b>colour</b>.</li>
+<li><b>Feelers</b> (0–3, some forked) and a <b>tail</b> (forked, a ribbed fan or a leaf paddle). Antennae see a little further but cost a little to keep; a big fin makes swimming cheaper.</li>
 </ul>
 <p>Shape is not just looks:</p>
 <ul>
@@ -281,7 +282,7 @@ export function guideHTML() {
 <li><b>Short-term memory.</b> Each mote remembers where it last saw food and where it last got hurt. The memory fades over about 15 seconds and clears when it gets there. Brains can read these memories as senses (<i>mem_food_f/s/t</i>, <i>mem_foe_f/s/t</i>) plus a slow <i>mood</i> (fed versus hungry). Tap a mote to see the green dotted line to the food it remembers and a red ring where it was hurt.</li>
 <li><b>Instincts you can see.</b> Everything has an inherited like or dislike for each scent. Everything flees toxin. Everything steers toward its favourite temperature. Everything keeps a little personal space.</li>
 <li><b>Pods.</b> Two motes with a strong two-way friendship stay close and even out their energy, so the fed one feeds the hungry one. With “Show smell ripples” on in the 👁 panel, a gold line joins podmates. Pods ride out famine together.</li>
-<li><b>Looks.</b> Bodies come in six styles (beads, smooth tubes, diamonds, stars, rings, leaves) with spikes, one to four eyes or none, dorsal frills and bioluminescent glow. Spikes, frills and glow are for looks and cost a little energy. All of it is inherited and mutates, and big differences make new species.</li>
+<li><b>Looks.</b> There are six body plans: <b>ringed worm</b>, <b>smooth slug</b> with a back stripe, <b>plated crawler</b> with little legs under its shields, <b>see-through microbe</b> full of tiny organs, <b>bristle worm</b>, and <b>flatworm</b> with a rippling edge and veins. Add thorns, ruffled hems, see-through bellies, and eyes: none, one big one, two beads, a spider cluster or stalks (meat-eaters get amber slit eyes). Colours stay natural and muted. Thorns, ruffles and see-through bellies are for looks and cost a little energy. All of it is inherited and mutates, and big differences make new species.</li>
 <li><b>Stories.</b> The Diary now tells you: <b>rivalries</b> (two creatures that each hold a grudge against the other), <b>family lines</b> (“The Hill family has grown to 60 creatures”), <b>records</b> (oldest, most children, deadliest), <b>obituaries</b> for starred and very successful creatures, <b>“last of their kind”</b> alerts (tap 🆘 Help next to the species to give them food, nests and energy), and <b>firsts for each species</b> (“Moskiqui Leafling learned to hunt”). You can rename a species with ✏️ in the Species list.</li>
 <li><b>The plague mutates.</b> Every sickness has a strain. It changes a little each time it spreads, and each creature has an inherited immune type: hosts whose type is close to the strain barely catch it. So a plague sweeps through, survivors become resistant, the strain drifts to get past them, and the cycle repeats.</li>
 <li><b>Soil minerals: sunlight is not a free lunch.</b> Sunlight here is weak, like the real thing: a small still body can live on it, but an active one cannot. Living on sunlight also needs minerals from the ground under you, and it uses them up. Soil slowly recovers by itself, and gets minerals back whenever anything eats (waste) and from every body that dies. Poor soil means weak sun-eaters and slow plant growth, so a clump of still sun-eaters starves its own patch. Eating other creatures needs no soil. That is why hunting and scavenging pay off. Choose 👁 → Soil richness to see it: green is rich, brown is poor.</li>

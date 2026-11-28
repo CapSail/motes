@@ -124,7 +124,7 @@ const TOOLINFO = {
   chemA: ['🔴', 'Red smell', 'A red smell. Some kinds are drawn to it and some run away. Creatures can release smells too.'],
   chemB: ['🟢', 'Green smell', 'A green smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
   chemC: ['🔵', 'Blue smell', 'A blue smell. Some kinds are drawn to it and some run away. Watch who reacts.'],
-  plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
+  plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes come out in yellow-green spots, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
   spark: ['✨', 'New life', 'Tap to drop in a new family of four: a brand-new kind with its own look and a working brain.'],
@@ -258,7 +258,7 @@ function feedback(t, wx, wy) {
     S.paint(w, 'plague', wx, wy, R0, 0.05);
     const n = near().filter(m => m.sick > 0).length - was;
     fx.push({ x: wx, y: wy, r: R0, c: '120,255,90', t: 0 });
-    showHint('', n > 0 ? `🦠 Infected ${n} mote${n > 1 ? 's' : ''}. They glow green and spread it when they touch others.` : '🦠 Those motes are already sick or recently recovered (immune).');
+    showHint('', n > 0 ? `🦠 Infected ${n} mote${n > 1 ? 's' : ''}. They come out in spots and spread it when they touch others.` : '🦠 Those motes are already sick or recently recovered (immune).');
     sfx('sick'); buzz(25);
   } else {
     S.paint(w, 'smite', wx, wy, R0, 0.05);
@@ -365,7 +365,7 @@ function renderInsp(force) {
   ${m.arms ? `<div class="dim" style="margin-top:4px">${esc(S.TOOL_INFO[m.tool])}</div>` : ''}
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
-  ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
+  ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:${pal(m.hue, 4)}"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
   <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
@@ -498,7 +498,7 @@ function renderMenu() {
   }
   if (menuTab === 'species') {
     const list = [...w.species.values()].sort((a, b) => (b.count - a.count) || (a.ext - b.ext));
-    mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:hsl(${s.hue * 360},75%,${s.ext ? 25 : 60}%)"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : (s.count ? `<button data-spot="${s.id}" class="${spot === s.id ? 'on' : ''}" style="padding:1px 9px;margin-left:4px;min-height:36px">🔦</button>${s.count <= 3 && s.peak >= 8 ? `<button data-help="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px">🆘 Help</button>` : ''}` : '') + `<button data-ren="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px" aria-label="Rename">✏️</button>`}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
+    mbody.innerHTML = `<div class="dim">Tap a species to jump to one of its motes. Species are not designed: they split off when genes and brains drift apart.</div>` + list.slice(0, 80).map(s => `<div class="row" data-sp="${s.id}"><span class="dot" style="background:${pal(s.hue, s.ext ? -24 : 4)}"></span><b>${esc(s.name)}</b> ${s.ext ? '<span class="dim">extinct day ' + dayOf(s.ext) + '</span>' : (s.count ? `<button data-spot="${s.id}" class="${spot === s.id ? 'on' : ''}" style="padding:1px 9px;margin-left:4px;min-height:36px">🔦</button>${s.count <= 3 && s.peak >= 8 ? `<button data-help="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px">🆘 Help</button>` : ''}` : '') + `<button data-ren="${s.id}" style="padding:1px 9px;margin-left:4px;min-height:36px" aria-label="Rename">✏️</button>`}<span class="dim"> · alive ${s.count} · peak ${s.peak} · born day ${dayOf(s.born)}${s.par && w.species.get(s.par) ? ' · from ' + esc(w.species.get(s.par).name) : ''}</span></div>`).join('');
     mbody.onclick = e => {
       const rn = e.target.closest('[data-ren]'); if (rn) { const sp = w.species.get(+rn.dataset.ren); const nn = sp && prompt('Name this kind of creature', sp.name); if (nn) { sp.name = nn.slice(0, 28); renderMenu(); } return; }
       const hp = e.target.closest('[data-help]'); if (hp) { const n = S.helpSpecies(w, +hp.dataset.help); menu.style.display = 'none'; showHint('', n ? '🆘 You gave the last ' + n + ' a hand: food, a nest and some energy appeared beside them.' : 'There is nobody left to help.'); return; }
@@ -524,7 +524,7 @@ function renderMenu() {
     <h4>Records</h4>${fr('dynasty', 'Largest family', ' creatures')}${fr('oldest', 'Oldest', 's')}${fr('kids', 'Most children')}${fr('kills', 'Most kills')}${fr('brain', 'Biggest brain')}${fr('gen', 'Deepest generation')}`;
     drawGraph();
   } else if (menuTab === 'stars') {
-    mbody.innerHTML = (w.favs.length ? w.favs.map(f => `<div class="row" data-fid="${f.id}"><span class="dot" style="background:hsl(${f.hue * 360},75%,${f.alive ? 60 : 25}%)"></span><b>${esc(f.name)}</b> <span class="dim">${f.alive ? 'alive' : 'died (' + f.why + ')'} · age ${Math.round(f.age)}s · gen ${f.gen} · kids ${f.kids}</span></div>`).join('') : '<div class="dim">Select a mote and tap ☆ Star to keep an eye on it. Its story is saved here, even after it dies.</div>');
+    mbody.innerHTML = (w.favs.length ? w.favs.map(f => `<div class="row" data-fid="${f.id}"><span class="dot" style="background:${pal(f.hue, f.alive ? 4 : -24)}"></span><b>${esc(f.name)}</b> <span class="dim">${f.alive ? 'alive' : 'died (' + f.why + ')'} · age ${Math.round(f.age)}s · gen ${f.gen} · kids ${f.kids}</span></div>`).join('') : '<div class="dim">Select a mote and tap ☆ Star to keep an eye on it. Its story is saved here, even after it dies.</div>');
     mbody.onclick = e => { const r = e.target.closest('[data-fid]'); if (!r) return; const m = w.motes.find(m => m.id === +r.dataset.fid); if (m) { menu.style.display = 'none'; startFollow(m); } };
   } else if (menuTab === 'dish') {
     mbody.onclick = null;
@@ -577,7 +577,7 @@ function renderTree() {
   c.font = '11px sans-serif';
   for (const s of order) { const p = pos.get(s._p); if (!p) continue; const q = pos.get(s.id); c.strokeStyle = '#ffffff40'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0], q[1]); c.lineTo(q[0], q[1]); c.stroke(); }
   for (const s of order) {
-    const [x, y] = pos.get(s.id), r = 3 + Math.min(9, Math.sqrt(s.count || 1) * 1.1), col = 'hsl(' + (s.hue * 360) + ',75%,60%)';
+    const [x, y] = pos.get(s.id), r = 3 + Math.min(9, Math.sqrt(s.count || 1) * 1.1), col = pal(s.hue, 4) + '';
     const xe = s.count > 0 ? W2 - 140 : X(s.ext || w.t);
     c.strokeStyle = s.count ? col : '#ffffff30'; c.globalAlpha = s.count ? 0.55 : 1; c.lineWidth = 3; c.beginPath(); c.moveTo(x, y); c.lineTo(xe, y); c.stroke(); c.globalAlpha = 1;
     c.fillStyle = s.count ? col : '#0a0f16'; c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.stroke();
@@ -691,7 +691,7 @@ function captionFor(m) {
   else feeling = 'Calm';
   return [doing, feeling];
 }
-const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
+const STC = [null, '#585b55', '#4d4029', '#715a3e', '#77633f'];
 // A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
 const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
 // Arms are grown out of the body: tapered flesh in the creature's own colour, knobby joints, and little grabby hands.
@@ -770,11 +770,10 @@ function ik(sx, sy, tx, ty, L1, L2, bend) {
   const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - a * a)), ux = dx / d, uy = dy / d;
   return [sx + ux * a - uy * h * bend, sy + uy * a + ux * h * bend, tx, ty];
 }
-const EAT_COL = ['#7fe08a', '#d96a6a'];
+const EAT_COL = ['#8fa86c', '#a15a4c'];
 // arms do their job. Resting: they twitch and flex their fingers. Eating: reach, snatch, stuff it in the mouth. Fighting: jab and grab.
 function drawArms(m, n, dtv) {
-  const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
-  FLESH = `hsl(${hh},58%,${light - 7}%)`; SKIN = `hsl(${hh},55%,${light - 31}%)`; SHINE = `hsl(${hh},70%,${light + 16}%)`; FINE = cam.z >= 0.85;
+  FLESH = pal(m.hue, shade(m) - 3); SKIN = pal(m.hue, shade(m) - 26); SHINE = pal(m.hue, shade(m) + 17); FINE = cam.z >= 0.85;
   const L1 = m.r * (0.72 + 0.48 * m.armLen), L2 = m.r * (0.68 + 0.56 * m.armLen);
   const hs = m.r * (0.64 + 0.34 * m.armLen);
   const fresh = m.aimK > 0 && w.t - m.aimT < 1.2;
@@ -844,14 +843,14 @@ function drawParts(m, n) {
     if (m.jetOn) {                                     // the burst: two flickering streams behind
       for (const sd of [-1, 1]) {
         const a = back + sd * 0.9, ox = bx + Math.cos(a) * PR[t] * 0.9, oy = by + Math.sin(a) * PR[t] * 0.9, L = r * (1.6 + 1.2 * m.jet) * (0.75 + 0.25 * Math.sin(w.t * 40 + sd + m.id)), w2 = r * 0.2;
-        ctx.fillStyle = 'rgba(130,215,255,0.75)'; ctx.beginPath(); ctx.moveTo(ox + Math.cos(back + 1.57) * w2, oy + Math.sin(back + 1.57) * w2); ctx.lineTo(ox + Math.cos(back) * L, oy + Math.sin(back) * L); ctx.lineTo(ox - Math.cos(back + 1.57) * w2, oy - Math.sin(back + 1.57) * w2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(160,190,200,0.55)'; ctx.beginPath(); ctx.moveTo(ox + Math.cos(back + 1.57) * w2, oy + Math.sin(back + 1.57) * w2); ctx.lineTo(ox + Math.cos(back) * L, oy + Math.sin(back) * L); ctx.lineTo(ox - Math.cos(back + 1.57) * w2, oy - Math.sin(back + 1.57) * w2); ctx.closePath(); ctx.fill();
       }
     }
   }
   if (m.sting) {                                       // a hooked barb with a violet venom tip
     const L = r * (1.1 + 0.9 * m.sting), mx = bx + Math.cos(back) * L, my = by + Math.sin(back) * L, tx = mx + Math.cos(back + 1.35) * L * 0.6, ty = my + Math.sin(back + 1.35) * L * 0.6;
-    ctx.strokeStyle = '#d9c2ff'; ctx.lineWidth = Math.max(1, r * 0.24); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
-    ctx.fillStyle = '#b44bff'; ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.1, r * 0.24), 0, 7); ctx.fill();
+    ctx.strokeStyle = '#b4a3bd'; ctx.lineWidth = Math.max(1, r * 0.24); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+    ctx.fillStyle = '#6d4a80'; ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.1, r * 0.24), 0, 7); ctx.fill();
   }
 }
 // the mouth: a hinged pair of jaws. Snaps rapidly when biting, opens to take food, shows teeth on meat-eaters.
@@ -869,7 +868,7 @@ function drawMouth(m) {
   const r = m.r, hx = m.x + ch * r * 0.45, hy = m.y + sh * r * 0.45, ang = 0.12 + 0.6 * open, jl = r * 0.78;
   const ua = m.h + ang, la = m.h - ang, ux = hx + Math.cos(ua) * jl, uy = hy + Math.sin(ua) * jl, lx = hx + Math.cos(la) * jl, ly = hy + Math.sin(la) * jl;
   ctx.fillStyle = '#4a0d1a'; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ux, uy); ctx.lineTo(lx, ly); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = `hsl(${m.hue * 360},55%,30%)`; ctx.lineWidth = Math.max(0.9, r * 0.2); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = pal(m.hue, shade(m) - 24); ctx.lineWidth = Math.max(0.9, r * 0.2); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(hx, hy); ctx.lineTo(lx, ly); ctx.stroke();
   if (m.diet > 0.2 || bit) {
     ctx.fillStyle = '#fff'; ctx.beginPath();
@@ -899,9 +898,130 @@ function drawBiteFx() {
     }
   }
 }
+// ---------- looks ----------
+// A muted, natural palette (pond life, not neon). The hue gene slides along it, so relatives look related.
+const PAL = [[10, 42, 47], [26, 40, 50], [42, 40, 48], [60, 28, 40], [88, 23, 41], [138, 19, 39], [174, 25, 41], [204, 23, 47], [230, 19, 52], [284, 17, 45], [332, 25, 46], [34, 17, 63]];
+function toneOf(h01) {
+  const x = ((h01 % 1) + 1) % 1 * PAL.length, i = Math.floor(x), f = x - i, a = PAL[i % PAL.length], b = PAL[(i + 1) % PAL.length];
+  const dh = ((b[0] - a[0] + 540) % 360) - 180;
+  return [(a[0] + dh * f + 360) % 360, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+function pal(h01, dl = 0, al = 1) { const t = toneOf(h01), l = Math.max(8, Math.min(86, t[2] + dl)); return al < 1 ? `hsla(${t[0] | 0},${t[1] | 0}%,${l | 0}%,${al})` : `hsl(${t[0] | 0},${t[1] | 0}%,${l | 0}%)`; }
+const shade = m => (m.diet > 0.6 ? -9 : m.diet > 0.3 ? -4 : 0);        // meat-eaters run darker
+// the outline of the whole body as one smooth shape; wid(i) widens or narrows it segment by segment
+function hull(n, wid, ruffle, ph) {
+  const L = [], R2 = [];
+  for (let i = 0; i < n; i++) {
+    const w2 = PR[i] * wid * (ruffle ? 1 + ruffle * Math.sin(i * 2.4 + ph) : 1), nx = -Math.sin(PA[i]) * w2, ny = Math.cos(PA[i]) * w2;
+    L.push([PX[i] + nx, PY[i] + ny]); R2.push([PX[i] - nx, PY[i] - ny]);
+  }
+  const t = n - 1;
+  ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+  const run = S0 => { for (let i = 1; i < S0.length; i++) { const p = S0[i - 1], q = S0[i]; ctx.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); } ctx.lineTo(S0[S0.length - 1][0], S0[S0.length - 1][1]); };
+  run(L);
+  ctx.quadraticCurveTo(PX[t] + Math.cos(PA[t]) * PR[t] * wid * 1.5, PY[t] + Math.sin(PA[t]) * PR[t] * wid * 1.5, R2[t][0], R2[t][1]);
+  run(R2.slice().reverse());
+  const f = PA[0] + Math.PI;
+  ctx.bezierCurveTo(R2[0][0] + Math.cos(f) * PR[0] * wid * 1.3, R2[0][1] + Math.sin(f) * PR[0] * wid * 1.3, L[0][0] + Math.cos(f) * PR[0] * wid * 1.3, L[0][1] + Math.sin(f) * PR[0] * wid * 1.3, L[0][0], L[0][1]);
+  ctx.closePath();
+}
+const side = (i, s, k) => [PX[i] - Math.sin(PA[i]) * PR[i] * k * s, PY[i] + Math.cos(PA[i]) * PR[i] * k * s];
+function dot(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 7); }
+function creases(n, col, lw, k) {
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
+  for (let i = 1; i < n; i++) { const a = side(i, 1, k), b = side(i, -1, k), mx = (PX[i] + PX[i - 1]) / 2, my = (PY[i] + PY[i - 1]) / 2; ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(mx * 2 - PX[i], my * 2 - PY[i], b[0], b[1]); }
+  ctx.stroke();
+}
+function spineLine(n, col, lw) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(PX[0], PY[0]); for (let i = 1; i < n; i++) ctx.lineTo(PX[i], PY[i]); ctx.stroke(); }
+// skin markings: 1 freckles, 2 crosswise bands, 3 lopsided blotches
+function markings(m, n, sh0) {
+  if (!m.pat) return;
+  const mark = pal(m.accent, -14 + sh0, 0.62), pale = pal(m.accent, 20, 0.5);
+  if (m.pat === 1) {
+    ctx.fillStyle = mark; ctx.beginPath();
+    for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) { const a = (m.id * 7 + i * 13 + q * 29) % 63 / 10, d = PR[i] * (0.2 + ((m.id + i * 5 + q * 3) % 7) / 13); dot(PX[i] + Math.cos(a) * d, PY[i] + Math.sin(a) * d, PR[i] * (0.09 + (q & 1) * 0.06)); }
+    ctx.fill();
+  } else if (m.pat === 2) {
+    ctx.strokeStyle = mark; ctx.lineCap = 'butt'; ctx.beginPath(); let wmax = 1;
+    for (let i = 1; i < n; i += 2) { const a = side(i, 1, 0.78), b = side(i, -1, 0.78); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); wmax = Math.max(wmax, PR[i] * 0.45); }
+    ctx.lineWidth = wmax; ctx.stroke();
+  } else {
+    for (let i = 0; i < n; i++) { const s = (i + m.id) & 1 ? 1 : -1, c = side(i, s, 0.34); ctx.fillStyle = (i + m.id) % 3 ? mark : pale; ctx.beginPath(); ctx.ellipse(c[0], c[1], PR[i] * 0.5, PR[i] * 0.34, PA[i] + s * 0.5, 0, 7); ctx.fill(); }
+  }
+}
+// six body plans
+function drawBody(m, n, fine) {
+  const sh0 = shade(m), base = pal(m.hue, sh0), dark = pal(m.hue, sh0 - 23), lite = pal(m.hue, sh0 + 15), r = m.r;
+  const edge = Math.max(0.5, r * (m.armor > 0.4 ? 0.13 + m.armor * 0.12 : 0.1)), edgeCol = m.armor > 0.4 ? pal(m.hue, sh0 - 30) : dark;
+  const st = m.style;
+  const skin = (wid, fill, ruffle) => { hull(n, wid, ruffle, m.ph * 0.9); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = edgeCol; ctx.lineWidth = edge; ctx.lineJoin = 'round'; ctx.stroke(); };
+  if (st === 2) {                                        // plated crawler: overlapping shields, tail first
+    if (fine) { ctx.strokeStyle = dark; ctx.lineWidth = Math.max(0.5, r * 0.11); ctx.beginPath(); for (let i = 1; i < n; i++) for (const s of [1, -1]) { const a = side(i, s, 0.8), b = side(i, s, 1.38); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0] + Math.cos(PA[i]) * PR[i] * 0.4, b[1] + Math.sin(PA[i]) * PR[i] * 0.4); } ctx.stroke(); }
+    ctx.lineWidth = edge; ctx.strokeStyle = edgeCol;
+    for (let i = n - 1; i >= 0; i--) { ctx.fillStyle = i & 1 ? pal(m.hue, sh0 - 6) : base; ctx.beginPath(); ctx.ellipse(PX[i], PY[i], PR[i] * 0.86, PR[i] * 1.14, PA[i], 0, 7); ctx.fill(); ctx.stroke(); }
+    if (fine) { markings(m, n, sh0); spineLine(n, lite, Math.max(0.5, r * 0.09)); }
+  } else if (st === 3) {                                 // see-through microbe: a membrane full of little organs
+    skin(1.14, pal(m.hue, sh0 + 6, 0.42));
+    if (fine) {
+      ctx.fillStyle = pal(m.accent, -16, 0.85); ctx.beginPath(); const ni = Math.min(1, n - 1); dot(PX[ni], PY[ni], PR[ni] * 0.42); ctx.fill();
+      ctx.strokeStyle = pal(m.accent, 18, 0.8); ctx.lineWidth = Math.max(0.4, r * 0.07); ctx.beginPath();
+      for (let i = 0; i < n; i++) for (let q = 0; q < 2; q++) { const a = (m.id + i * 11 + q * 31) % 63 / 10 + m.ph * 0.07, d = PR[i] * (0.35 + q * 0.25); dot(PX[i] + Math.cos(a) * d, PY[i] + Math.sin(a) * d, PR[i] * (0.12 + ((i + q + m.id) % 3) * 0.05)); }
+      ctx.stroke(); markings(m, n, sh0);
+    }
+  } else if (st === 4) {                                 // bristle worm
+    if (fine) { ctx.strokeStyle = pal(m.hue, sh0 + 18, 0.85); ctx.lineWidth = Math.max(0.35, r * 0.06); ctx.beginPath(); for (let i = 0; i < n; i++) for (const s of [1, -1]) for (let q = -1; q <= 1; q++) { const a = side(i, s, 0.7), ang = PA[i] + s * (1.45 + q * 0.38) + Math.sin(m.ph * 1.6 + i + q) * 0.2, L = PR[i] * 0.95; ctx.moveTo(a[0], a[1]); ctx.lineTo(a[0] + Math.cos(ang) * L, a[1] + Math.sin(ang) * L); } ctx.stroke(); }
+    skin(0.86, base); if (fine) { creases(n, dark, Math.max(0.4, r * 0.1), 0.8); markings(m, n, sh0); }
+  } else if (st === 5) {                                 // flatworm: broad, thin, with a rippling edge and veins
+    skin(1.24, pal(m.hue, sh0 + 3, 0.9), 0.14);
+    if (fine) { markings(m, n, sh0); spineLine(n, dark, Math.max(0.4, r * 0.1)); ctx.strokeStyle = pal(m.hue, sh0 - 16, 0.55); ctx.lineWidth = Math.max(0.35, r * 0.06); ctx.beginPath(); for (let i = 1; i < n; i++) for (const s of [1, -1]) { const b = side(i, s, 0.95); ctx.moveTo(PX[i - 1], PY[i - 1]); ctx.quadraticCurveTo(PX[i], PY[i], b[0], b[1]); } ctx.stroke(); }
+  } else if (st === 1) {                                 // smooth slug with a dark back stripe
+    skin(1.0, base); if (fine) { spineLine(n, pal(m.hue, sh0 - 12, 0.75), Math.max(0.8, r * 0.46)); markings(m, n, sh0); spineLine(Math.max(2, n - 1), pal(m.hue, sh0 + 22, 0.45), Math.max(0.35, r * 0.07)); }
+  } else {                                               // ringed worm
+    skin(0.98, base); if (fine) { markings(m, n, sh0); creases(n, dark, Math.max(0.5, r * 0.13), 0.94); spineLine(n, pal(m.hue, sh0 + 16, 0.4), Math.max(0.5, r * 0.2)); }
+  }
+  if (fine && m.glow > 0.45) {                           // some are a bit see-through: you can make out the gut
+    ctx.strokeStyle = pal(m.accent, -20, 0.5); ctx.lineWidth = Math.max(0.5, r * 0.2); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(PX[0], PY[0]);
+    for (let i = 1; i < n; i++) { const c = side(i, (i & 1 ? 1 : -1), 0.22); ctx.lineTo(c[0], c[1]); } ctx.stroke();
+  }
+  if (fine && m.armor > 0.4) { ctx.fillStyle = '#b9b09a'; ctx.beginPath(); for (let i = 0; i < n; i++) for (const s of [1, -1]) { const c = side(i, s, st === 5 ? 0.9 : 0.68); dot(c[0], c[1], PR[i] * (0.07 + m.armor * 0.08)); } ctx.fill(); }
+}
+// tails: a forked tail, a ribbed fan or a leaf paddle
+function drawTail(m, n) {
+  const t = n - 1, sh0 = shade(m), len = m.r * (0.7 + m.fin * 1.5), sw = Math.sin(m.ph * 1.2) * 0.22, a = PA[t] + sw, x = PX[t], y = PY[t], kind = (m.style + m.pat + (m.accent > 0.5 ? 1 : 0)) % 3;
+  if (kind === 0) {
+    for (const s of [1, -1]) taper([[x, y], at(x, y, a + s * 0.3, len * 0.65), at(x, y, a + s * 0.62, len * 1.25)], [PR[t] * 0.8, PR[t] * 0.42, 0.1], pal(m.hue, sh0 - 7), pal(m.hue, sh0 - 24));
+  } else if (kind === 1) {
+    ctx.fillStyle = pal(m.accent, 2, 0.42); ctx.beginPath(); ctx.moveTo(x, y); const tips = [];
+    for (let q = -2; q <= 2; q++) tips.push(at(x, y, a + q * 0.33, len * (1.2 - Math.abs(q) * 0.1)));
+    ctx.lineTo(tips[0][0], tips[0][1]); for (let q = 1; q < 5; q++) { const c = at(x, y, a + (q - 2.5) * 0.33, len * 0.88); ctx.quadraticCurveTo(c[0], c[1], tips[q][0], tips[q][1]); } ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = pal(m.accent, -14, 0.85); ctx.lineWidth = Math.max(0.35, m.r * 0.07); ctx.beginPath(); for (const p of tips) { ctx.moveTo(x, y); ctx.lineTo(p[0], p[1]); } ctx.stroke();
+  } else {
+    const mid = at(x, y, a, len * 0.8);
+    ctx.fillStyle = pal(m.hue, sh0 - 5, 0.85); ctx.strokeStyle = pal(m.hue, sh0 - 24); ctx.lineWidth = Math.max(0.4, m.r * 0.08);
+    ctx.beginPath(); ctx.ellipse(mid[0], mid[1], len * 0.72, len * 0.3, a, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); const e = at(x, y, a, len * 1.35); ctx.lineTo(e[0], e[1]); ctx.stroke();
+  }
+}
+// eyes: none (sense pits), one big eye, two beads, a spider cluster, or short stalks
+function drawEyes(m) {
+  const ch = Math.cos(m.h), sh = Math.sin(m.h), r = m.r, hx = m.x + ch * r * 0.36, hy = m.y + sh * r * 0.36, hunter = m.diet > 0.55;
+  const P = (f, l) => [hx + ch * f * r - sh * l * r, hy + sh * f * r + ch * l * r];
+  const bead = (p, er) => {
+    ctx.fillStyle = hunter ? '#b8832f' : '#14100f'; ctx.beginPath(); ctx.arc(p[0], p[1], er, 0, 7); ctx.fill();
+    if (hunter) { ctx.fillStyle = '#140c08'; ctx.beginPath(); ctx.ellipse(p[0], p[1], er * 0.78, er * 0.26, m.h, 0, 7); ctx.fill(); }
+    if (cam.z >= 1.4) { ctx.fillStyle = 'rgba(235,232,220,0.75)'; ctx.beginPath(); ctx.arc(p[0] + er * 0.3, p[1] - er * 0.3, er * 0.22, 0, 7); ctx.fill(); }
+  };
+  if (m.eyes === 1) { const p = P(0.14, 0); ctx.fillStyle = '#c9c0a6'; ctx.beginPath(); ctx.arc(p[0], p[1], r * 0.42, 0, 7); ctx.fill(); bead(P(0.22, 0), r * 0.25); }
+  else if (m.eyes === 2) { bead(P(0.1, 0.4), r * 0.2); bead(P(0.1, -0.4), r * 0.2); }
+  else if (m.eyes === 3) { for (const [f, l, s] of [[0.28, 0.2, 0.15], [0.28, -0.2, 0.15], [0.04, 0.46, 0.11], [0.04, -0.46, 0.11], [0.48, 0, 0.09]]) bead(P(f, l), r * s); }
+  else if (m.eyes === 4) { ctx.lineWidth = Math.max(0.6, r * 0.15); ctx.lineCap = 'round'; for (const s of [1, -1]) { const a = P(0, s * 0.42), b = P(0.82 + Math.sin(m.ph + s) * 0.1, s * 0.78); ctx.strokeStyle = pal(m.hue, shade(m) - 8); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); bead(b, r * 0.17); } }
+  else { ctx.fillStyle = pal(m.hue, shade(m) - 26); ctx.beginPath(); for (const s of [1, -1]) { const p = P(0.3, s * 0.26); dot(p[0], p[1], r * 0.09); } ctx.fill(); }
+}
 function drawSquiggle(m, dtv) {
-  const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
-  if (cam.z < 0.32) { ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * (0.8 + m.segs * 0.12), 0, 7); ctx.fill(); return; }
+  if (cam.z < 0.32) {                                     // far away: one cheap stroke that still shows how long and thick it is
+    const L = m.r * (0.55 * m.segs * m.lenF);
+    ctx.strokeStyle = pal(m.hue, shade(m)); ctx.lineCap = 'round'; ctx.lineWidth = m.r * 1.5; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x - Math.cos(m.h) * L, m.y - Math.sin(m.h) * L); ctx.stroke(); return;
+  }
   m.ph += dtv * (1.5 + m.wfreq * 9) * (0.25 + m.v / m.maxSp);
   const n = m.segs, segLen = m.r * 0.8 * m.lenF;
   // the body follows the trail the head leaves, like a snake, so it never looks like it is sliding sideways
@@ -929,108 +1049,98 @@ function drawSquiggle(m, dtv) {
       PX[i] -= Math.sin(PA[i]) * off; PY[i] += Math.cos(PA[i]) * off;
     }
   }
-  if (m.glow > 0.45) {                      // bioluminescence: soft halo and glowing belly dots
-    const ga = (m.glow - 0.4) * (0.5 + 0.25 * Math.sin(m.ph * 0.6 + m.id)); ctx.fillStyle = `hsla(${(m.accent * 360)},95%,65%,${ga})`;
-    for (let i = 0; i < n; i += 1) { ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i] * 1.9, 0, 7); ctx.fill(); }
-  }
+  const fine = cam.z >= 0.75;
   if (m.arms > 0) drawArms(m, n, dtv);
   if (m.limbs > 0) {
     const len = m.r * (0.65 + m.limbLen * 1.35), thick = Math.max(0.9, m.r * 0.3);
-    FLESH = `hsl(${hh},55%,${light - 13}%)`; SKIN = `hsl(${hh},50%,${light - 32}%)`; FINE = cam.z >= 0.85;
+    FLESH = pal(m.hue, shade(m) - 9); SKIN = pal(m.hue, shade(m) - 27); FINE = cam.z >= 0.85;
     for (let k = 0; k < m.limbs; k++) {
       const i = Math.min(n - 1, 1 + Math.floor(k * (n - 1) / m.limbs));
-      for (const side of [-1, 1]) {
-        const sw2 = Math.sin(m.ph * 1.3 + i * 1.4 + (side > 0 ? 1.6 : 0)), ang = PA[i] + side * (1.5 + sw2 * 0.35);
-        const kn = at(PX[i], PY[i], ang, len * 0.62), tip = at(kn[0], kn[1], ang - side * (0.85 + sw2 * 0.3), len * 0.55);
+      for (const s of [-1, 1]) {
+        const sw2 = Math.sin(m.ph * 1.3 + i * 1.4 + (s > 0 ? 1.6 : 0)), ang = PA[i] + s * (1.5 + sw2 * 0.35);
+        const kn = at(PX[i], PY[i], ang, len * 0.62), tip = at(kn[0], kn[1], ang - s * (0.85 + sw2 * 0.3), len * 0.55);
         taper([[PX[i], PY[i]], kn, tip], [thick * 1.15, thick * 0.62, 0.15], FLESH, SKIN);
       }
     }
   }
-  const acc = m.accent * 360;
-  if (m.fin > 0.15) {                       // tail fin: a translucent fan behind the last segment
-    const t = n - 1, fl = m.r * (0.8 + m.fin * 2.4), sw = Math.sin(m.ph * 1.2) * 0.25;
-    ctx.fillStyle = `hsla(${acc},80%,65%,0.55)`; ctx.beginPath(); ctx.moveTo(PX[t], PY[t]);
-    ctx.lineTo(PX[t] + Math.cos(PA[t] + 0.7 + sw) * fl, PY[t] + Math.sin(PA[t] + 0.7 + sw) * fl);
-    ctx.lineTo(PX[t] + Math.cos(PA[t] + sw) * fl * 1.25, PY[t] + Math.sin(PA[t] + sw) * fl * 1.25);
-    ctx.lineTo(PX[t] + Math.cos(PA[t] - 0.7 + sw) * fl, PY[t] + Math.sin(PA[t] - 0.7 + sw) * fl); ctx.closePath(); ctx.fill();
+  if (m.fin > 0.15) drawTail(m, n);
+  if (fine && m.frill > 0.35) {                           // a fine ruffled hem along both flanks
+    ctx.strokeStyle = pal(m.accent, 4, 0.75); ctx.lineWidth = Math.max(0.5, m.r * 0.11); ctx.beginPath();
+    for (const s of [1, -1]) for (let i = 0; i < n; i++) { const a = side(i, s, 1.06), b = side(i, s, 1.2 + m.frill * 0.55 + Math.sin(m.ph * 1.4 + i * 1.7 + s) * 0.2), c = Math.cos(PA[i]) * PR[i] * 0.5, d = Math.sin(PA[i]) * PR[i] * 0.5; ctx.moveTo(a[0] - c, a[1] - d); ctx.quadraticCurveTo(b[0], b[1], a[0] + c, a[1] + d); }
+    ctx.stroke();
   }
-  const st = m.style;
-  if (st === 1) {                           // smooth tube: one continuous tapering body
-    ctx.fillStyle = `hsl(${hh},70%,${light}%)`; ctx.beginPath();
-    for (let i = 0; i < n; i++) { const nx = Math.cos(PA[i] + 1.5708) * PR[i], ny = Math.sin(PA[i] + 1.5708) * PR[i]; i ? ctx.lineTo(PX[i] + nx, PY[i] + ny) : ctx.moveTo(PX[i] + nx, PY[i] + ny); }
-    ctx.arc(PX[n - 1], PY[n - 1], PR[n - 1], PA[n - 1] + 1.5708, PA[n - 1] - 1.5708, false);
-    for (let i = n - 1; i >= 0; i--) ctx.lineTo(PX[i] - Math.cos(PA[i] + 1.5708) * PR[i], PY[i] - Math.sin(PA[i] + 1.5708) * PR[i]);
-    ctx.arc(PX[0], PY[0], PR[0], PA[0] - 1.5708, PA[0] + 1.5708, true);
-    ctx.closePath(); ctx.fill();
-    if (m.pat) for (let i = 0; i < n; i++) {
-      if (m.pat === 1) { ctx.fillStyle = `hsl(${acc},85%,72%)`; ctx.beginPath(); ctx.arc(PX[i] + PR[i] * 0.2, PY[i] - PR[i] * 0.2, PR[i] * 0.35, 0, 7); ctx.fill(); }
-      else if (m.pat === 2 && (i & 1)) { ctx.strokeStyle = `hsl(${acc},75%,${light - 8}%)`; ctx.lineWidth = Math.max(1, PR[i] * 0.7); ctx.beginPath(); ctx.moveTo(PX[i] - Math.cos(PA[i] + 1.5708) * PR[i], PY[i] - Math.sin(PA[i] + 1.5708) * PR[i]); ctx.lineTo(PX[i] + Math.cos(PA[i] + 1.5708) * PR[i], PY[i] + Math.sin(PA[i] + 1.5708) * PR[i]); ctx.stroke(); }
-      else if (m.pat === 3) { ctx.fillStyle = `hsla(${hh + i * 24},80%,60%,0.5)`; ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i] * 0.8, 0, 7); ctx.fill(); }
-    }
-    if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 0.6 + m.armor * 1.6; ctx.stroke(); }
-  } else {
-    for (let i = n - 1; i >= 0; i--) {
-      const stripe = m.pat === 2 && (i & 1), band = m.pat === 3, r = PR[i], px = PX[i], py = PY[i], pa = PA[i];
-      ctx.fillStyle = stripe ? `hsl(${acc},75%,${light - 8}%)` : `hsl(${band ? hh + i * 24 : hh + i * 5},70%,${light - i * 1.5}%)`;
-      ctx.beginPath();
-      if (st === 2) {                       // diamonds
-        const c = Math.cos(pa), sn = Math.sin(pa);
-        ctx.moveTo(px + c * r * 1.5, py + sn * r * 1.5); ctx.lineTo(px - sn * r * 0.95, py + c * r * 0.95); ctx.lineTo(px - c * r * 1.5, py - sn * r * 1.5); ctx.lineTo(px + sn * r * 0.95, py - c * r * 0.95); ctx.closePath();
-      } else if (st === 3) {                // stars
-        for (let q = 0; q < 12; q++) { const ang = pa + q * 0.5236, rr = q & 1 ? r * 0.55 : r * 1.45; q ? ctx.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr) : ctx.moveTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr); }
-        ctx.closePath();
-      } else if (st === 5) {                // leaves
-        ctx.ellipse(px, py, r * 1.55, r * 0.8, pa, 0, 7);
-      } else ctx.arc(px, py, r, 0, 7);
-      ctx.fill();
-      if (st === 4) { ctx.strokeStyle = `hsl(${hh},70%,${light + 18}%)`; ctx.lineWidth = Math.max(1, r * 0.35); ctx.beginPath(); ctx.arc(px, py, r * 0.62, 0, 7); ctx.stroke(); ctx.fillStyle = `hsl(${acc},85%,70%)`; ctx.beginPath(); ctx.arc(px, py, r * 0.22, 0, 7); ctx.fill(); }
-      if (m.pat === 1) { ctx.fillStyle = `hsl(${acc},85%,72%)`; ctx.beginPath(); ctx.arc(px + r * 0.2, py - r * 0.15, r * 0.38, 0, 7); ctx.fill(); }
-      if (m.armor > 0.4) { ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 0.6 + m.armor * 1.6; ctx.beginPath(); ctx.arc(px, py, r, 0, 7); ctx.stroke(); }
-    }
-  }
-  if (m.spikes > 0) {                       // spikes along both flanks (1: tail only, 2: every other segment, 3: all)
-    ctx.fillStyle = `hsl(${acc},70%,78%)`; ctx.beginPath();
+  if (m.spikes > 0) {                                     // thorns (1: tail only, 2: every other segment, 3: all)
+    ctx.fillStyle = pal(m.hue, shade(m) - 28); ctx.beginPath();
     for (let i = m.spikes === 1 ? n - 1 : 1; i < n; i += m.spikes === 2 ? 2 : 1) {
-      for (const side of [-1, 1]) { const an = PA[i] + side * 1.5708, bx = PX[i] + Math.cos(an) * PR[i] * 0.8, by = PY[i] + Math.sin(an) * PR[i] * 0.8, L = PR[i] * (0.9 + m.spikes * 0.35), w2 = PR[i] * 0.3;
-        ctx.moveTo(bx + Math.cos(PA[i]) * w2, by + Math.sin(PA[i]) * w2); ctx.lineTo(bx + Math.cos(an) * L + Math.cos(PA[i] + Math.PI) * w2 * 0.2, by + Math.sin(an) * L + Math.sin(PA[i] + Math.PI) * w2 * 0.2); ctx.lineTo(bx - Math.cos(PA[i]) * w2, by - Math.sin(PA[i]) * w2); }
+      for (const s of [-1, 1]) { const an = PA[i] + s * 1.5708, bx = PX[i] + Math.cos(an) * PR[i] * 0.75, by = PY[i] + Math.sin(an) * PR[i] * 0.75, L = PR[i] * (0.55 + m.spikes * 0.2), w2 = PR[i] * 0.26;
+        ctx.moveTo(bx + Math.cos(PA[i]) * w2, by + Math.sin(PA[i]) * w2); ctx.lineTo(bx + Math.cos(an) * L + Math.cos(PA[i]) * L * 0.45, by + Math.sin(an) * L + Math.sin(PA[i]) * L * 0.45); ctx.lineTo(bx - Math.cos(PA[i]) * w2, by - Math.sin(PA[i]) * w2); }
     }
     ctx.fill();
   }
-  if (m.frill > 0.35) {                     // dorsal frill: a row of translucent fins that ripples
-    ctx.fillStyle = `hsla(${acc},85%,70%,0.5)`; ctx.beginPath();
-    for (let i = 0; i < n; i++) { const an = PA[i] - 1.5708 + Math.sin(m.ph + i) * 0.25, L = PR[i] * (0.8 + m.frill * 1.8); ctx.moveTo(PX[i] - Math.cos(PA[i]) * PR[i] * 0.7, PY[i] - Math.sin(PA[i]) * PR[i] * 0.7); ctx.lineTo(PX[i] + Math.cos(an) * (PR[i] + L), PY[i] + Math.sin(an) * (PR[i] + L)); ctx.lineTo(PX[i] + Math.cos(PA[i]) * PR[i] * 0.7, PY[i] + Math.sin(PA[i]) * PR[i] * 0.7); }
-    ctx.fill();
-  }
+  drawBody(m, n, fine);
   if (m.sting || m.camo || m.jet) drawParts(m, n);
-  if (m.ant > 0) {                          // antennae with little bulbs
-    ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;
+  if (fine && m.ant > 0) {                                // thin curved feelers; some are forked
+    ctx.strokeStyle = pal(m.hue, shade(m) + 14); ctx.lineWidth = Math.max(0.45, m.r * 0.09); ctx.lineCap = 'round'; ctx.beginPath();
     for (let k = 0; k < m.ant; k++) {
-      const spread = m.ant === 1 ? 0 : (k / (m.ant - 1) - 0.5) * 1.1, ang = m.h + spread + Math.sin(m.ph * 0.8 + k) * 0.25, L = m.r * 1.7;
-      const ex = m.x + Math.cos(ang) * L, ey = m.y + Math.sin(ang) * L;
-      ctx.beginPath(); ctx.moveTo(m.x + Math.cos(m.h) * m.r * 0.6, m.y + Math.sin(m.h) * m.r * 0.6); ctx.lineTo(ex, ey); ctx.stroke();
-      ctx.beginPath(); ctx.arc(ex, ey, m.r * 0.18, 0, 7); ctx.fill();
+      const s = m.ant === 1 ? (m.id & 1 ? 1 : -1) : (k / (m.ant - 1) - 0.5) * 2, ang = m.h + s * 0.62 + Math.sin(m.ph * 0.8 + k) * 0.2, L = m.r * 2;
+      const sx = m.x + Math.cos(m.h + s * 0.3) * m.r * 0.8, sy = m.y + Math.sin(m.h + s * 0.3) * m.r * 0.8, ex = m.x + Math.cos(ang) * L, ey = m.y + Math.sin(ang) * L, bx = ex + Math.cos(ang + s * 0.9) * m.r * 0.55, by = ey + Math.sin(ang + s * 0.9) * m.r * 0.55;
+      ctx.moveTo(sx, sy); ctx.quadraticCurveTo(ex, ey, bx, by);
+      if (m.id % 3 === 0) { ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(ang - s * 0.5) * m.r * 0.6, ey + Math.sin(ang - s * 0.5) * m.r * 0.6); }
     }
+    ctx.stroke();
   }
-  const ch = Math.cos(m.h), sh = Math.sin(m.h), e = m.r * 0.42, pupil = m.diet > 0.6 ? '#e22' : '#111';
-  const eye = (ex, ey, er) => { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, er, 0, 7); ctx.fill(); ctx.fillStyle = pupil; ctx.beginPath(); ctx.arc(ex + ch * er * 0.35, ey + sh * er * 0.35, er * 0.5, 0, 7); ctx.fill(); };
-  const hx = m.x + ch * m.r * 0.4, hy = m.y + sh * m.r * 0.4;
-  if (m.eyes === 1) eye(hx, hy, m.r * 0.5);
-  else if (m.eyes === 2) { eye(hx - sh * e, hy + ch * e, m.r * 0.25); eye(hx + sh * e, hy - ch * e, m.r * 0.25); }
-  else if (m.eyes === 3) { eye(hx - sh * e, hy + ch * e, m.r * 0.22); eye(hx + sh * e, hy - ch * e, m.r * 0.22); eye(hx + ch * e * 0.9, hy + sh * e * 0.9, m.r * 0.2); }
-  else if (m.eyes === 4) { ctx.strokeStyle = `hsl(${hh},60%,70%)`; ctx.lineWidth = Math.max(0.8, m.r * 0.1); for (const sd of [-1, 1]) { const ex = hx + ch * m.r * 0.7 - sh * sd * e * 1.5, ey = hy + sh * m.r * 0.7 + ch * sd * e * 1.5; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke(); eye(ex, ey, m.r * 0.22); } }
-  else { ctx.fillStyle = pupil; ctx.beginPath(); ctx.arc(hx, hy, m.r * 0.12, 0, 7); ctx.fill(); }
+  drawEyes(m);
   drawMouth(m);
+}
+// walls are pebbles, farms are tilled soil with sprouts, nests are woven rings, granaries are clay pots
+function drawTile(t, x, y, h, stored) {
+  const c = CELL;
+  if (cam.z < 0.5) { ctx.fillStyle = STC[t]; ctx.fillRect(x + 0.5, y + 0.5, c - 1, c - 1); return; }
+  if (t === 1) {
+    const j = k => ((h * (k + 3)) % 7) / 7 * 2.6;
+    ctx.fillStyle = h % 3 === 0 ? '#575a55' : h % 3 === 1 ? '#63625a' : '#4f5453';
+    ctx.beginPath(); ctx.moveTo(x + j(1), y + 3 + j(2)); ctx.lineTo(x + 4 + j(3), y + j(4) * 0.4); ctx.lineTo(x + c - 3 - j(5), y + j(6) * 0.4); ctx.lineTo(x + c, y + 4 + j(7)); ctx.lineTo(x + c - j(8) * 0.6, y + c - 3); ctx.lineTo(x + c - 5, y + c); ctx.lineTo(x + 3 + j(9), y + c); ctx.lineTo(x, y + c - 4 - j(10)); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2b2d2a'; ctx.lineWidth = 0.9; ctx.stroke();
+    ctx.strokeStyle = 'rgba(190,188,170,0.28)'; ctx.beginPath(); ctx.moveTo(x + 3, y + 5 + j(2)); ctx.quadraticCurveTo(x + 4, y + 3, x + 8 + j(5), y + 2.5); ctx.stroke();
+  } else if (t === 2) {
+    ctx.fillStyle = 'rgba(74,58,40,0.72)'; ctx.fillRect(x, y, c, c);
+    ctx.strokeStyle = 'rgba(44,33,22,0.9)'; ctx.lineWidth = 1.2; ctx.beginPath(); for (let k = 3; k < c; k += 5) { ctx.moveTo(x, y + k); ctx.lineTo(x + c, y + k); } ctx.stroke();
+    ctx.strokeStyle = '#7e9558'; ctx.lineWidth = 0.9; ctx.beginPath(); for (let k = 0; k < 2; k++) { const px = x + 3 + (h * (k + 2)) % 9, py = y + 4 + k * 6; ctx.moveTo(px, py + 2); ctx.lineTo(px, py - 1); ctx.lineTo(px - 2, py - 3); ctx.moveTo(px, py - 1); ctx.lineTo(px + 2, py - 3); } ctx.stroke();
+  } else if (t === 3) {
+    ctx.strokeStyle = '#7b6143'; ctx.lineWidth = 1.1; ctx.beginPath(); for (let k = 0; k < 5; k++) { const a = (h + k * 13) % 63 / 10; ctx.moveTo(x + c / 2 + Math.cos(a) * (c * 0.46 - k % 2 * 1.5), y + c / 2 + Math.sin(a) * (c * 0.46 - k % 2 * 1.5)); ctx.arc(x + c / 2, y + c / 2, c * 0.46 - k % 2 * 1.5, a, a + 2.2); } ctx.stroke();
+    ctx.fillStyle = 'rgba(120,96,66,0.35)'; ctx.beginPath(); ctx.arc(x + c / 2, y + c / 2, c * 0.26, 0, 7); ctx.fill();
+  } else {
+    ctx.fillStyle = '#6d5a3c'; ctx.beginPath(); ctx.arc(x + c / 2, y + c / 2, c * 0.46, 0, 7); ctx.fill(); ctx.strokeStyle = '#33291b'; ctx.lineWidth = 1.2; ctx.stroke();
+    const f = Math.min(1, stored / 150); ctx.fillStyle = '#221b12'; ctx.beginPath(); ctx.arc(x + c / 2, y + c / 2, c * 0.3, 0, 7); ctx.fill();
+    if (f > 0.03) { ctx.fillStyle = '#b79c5e'; ctx.beginPath(); ctx.arc(x + c / 2, y + c / 2, c * 0.28 * Math.sqrt(f), 0, 7); ctx.fill(); }
+  }
+}
+// plant food is algae in three little shapes, meat is ragged scraps. Only what is on screen is drawn.
+function drawFood() {
+  const x0 = cam.x - W / 2 / cam.z - 6, x1 = cam.x + W / 2 / cam.z + 6, y0 = cam.y - H / 2 / cam.z - 6, y1 = cam.y + H / 2 / cam.z + 6, near = cam.z >= 0.75;
+  const seen = [];
+  for (const f of w.food) if (f.x > x0 && f.x < x1 && f.y > y0 && f.y < y1) seen.push(f);
+  if (!near) { for (const k of [0, 1]) { ctx.fillStyle = k ? '#9c5a4c' : '#7f9962'; for (const f of seen) if (f.k === k) ctx.fillRect(f.x - 1.7, f.y - 1.7, 3.4, 3.4); } return; }
+  const hs = f => ((f.x * 7.3 + f.y * 13.1) & 1023);
+  ctx.fillStyle = '#718b55'; ctx.beginPath();
+  for (const f of seen) if (f.k === 0) { const q = hs(f) % 3, a = hs(f) / 160; if (q === 0) dot(f.x, f.y, 2.1); else if (q === 1) { dot(f.x + Math.cos(a) * 1.4, f.y + Math.sin(a) * 1.4, 1.6); dot(f.x - Math.cos(a) * 1.4, f.y - Math.sin(a) * 1.4, 1.35); } else for (let k = 0; k < 3; k++) dot(f.x + Math.cos(a + k * 2.1) * 1.5, f.y + Math.sin(a + k * 2.1) * 1.5, 1.25); }
+  ctx.fill();
+  ctx.fillStyle = '#a9bd83'; ctx.beginPath(); for (const f of seen) if (f.k === 0) dot(f.x - 0.5, f.y - 0.6, 0.75); ctx.fill();
+  ctx.fillStyle = '#8f4a40'; ctx.beginPath();
+  for (const f of seen) if (f.k === 1) { const a = hs(f) / 160; for (let k = 0; k < 5; k++) { const d = k & 1 ? 1.5 : 3.1, px = f.x + Math.cos(a + k * 1.26) * d, py = f.y + Math.sin(a + k * 1.26) * d; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); }
+  ctx.fill();
+  ctx.fillStyle = '#d3bfa3'; ctx.beginPath(); for (const f of seen) if (f.k === 1) dot(f.x + 0.4, f.y - 0.3, 0.7); ctx.fill();
 }
 let dtv = 0.016;
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#05080c'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#080b0a'; ctx.fillRect(0, 0, W, H);
   if (shake > 0.02) { ctx.translate((Math.random() - 0.5) * 14 * shake, (Math.random() - 0.5) * 14 * shake); shake *= 0.9; }
   ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
   // dish: darker at night
   const lum = Math.round(14 + 14 * w.light);
-  ctx.fillStyle = `rgb(${lum},${lum + 4},${lum + 10})`; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
-  ctx.strokeStyle = '#2a3a4e'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = `rgb(${lum + 1},${lum + 5},${lum + 4})`; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#39433c'; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = 'rgba(170,180,160,0.14)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R + 5, 0, 7); ctx.stroke();
   if (performance.now() - ovT > 200) { updOverlay(); ovT = performance.now(); }
   ctx.imageSmoothingEnabled = true; ctx.drawImage(ov, -R, -R, GN * CELL, GN * CELL);
   // structures
@@ -1038,20 +1148,12 @@ function draw() {
   const y0 = Math.max(0, Math.floor((cam.y - H / 2 / cam.z + R) / CELL)), y1 = Math.min(GN - 1, Math.floor((cam.y + H / 2 / cam.z + R) / CELL));
   for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
     const t = w.st[gy * GN + gx]; if (t === 0 || t === 255) continue;
-    ctx.fillStyle = STC[t]; ctx.globalAlpha = t === 1 ? 0.95 : 0.55;
-    ctx.fillRect(gx * CELL - R + 0.5, gy * CELL - R + 0.5, CELL - 1, CELL - 1);
-    if (t === 4) { ctx.globalAlpha = 1; ctx.fillStyle = '#fff6'; const f = Math.min(1, w.store[gy * GN + gx] / 150); ctx.fillRect(gx * CELL - R + 3, gy * CELL - R + CELL - 3 - f * (CELL - 6), CELL - 6, f * (CELL - 6)); }
+    drawTile(t, gx * CELL - R, gy * CELL - R, gx * 31 + gy * 17, w.store[gy * GN + gx]);
   }
   ctx.globalAlpha = 1;
-  // food
-  ctx.fillStyle = '#7fe08a'; ctx.beginPath();
-  for (const f of w.food) if (f.k === 0) { ctx.moveTo(f.x + 2, f.y); ctx.arc(f.x, f.y, 2, 0, 7); }
-  ctx.fill();
-  ctx.fillStyle = '#d96a6a'; ctx.beginPath();
-  for (const f of w.food) if (f.k === 1) { ctx.moveTo(f.x + 2.2, f.y); ctx.arc(f.x, f.y, 2.2, 0, 7); }
-  ctx.fill();
+  drawFood();
   // motes
-  const nowMs = performance.now(), showG = cam.z >= 0.9;
+  const nowMs = performance.now(), showG = cam.z >= 1.25;
   const vx0 = cam.x - W / 2 / cam.z - 40, vx1 = cam.x + W / 2 / cam.z + 40, vy0 = cam.y - H / 2 / cam.z - 40, vy1 = cam.y + H / 2 / cam.z + 40;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const m of w.motes) {
@@ -1065,12 +1167,12 @@ function draw() {
       if (m.pod && m.id < m.pod) { const po = w.byId.get(m.pod); if (po) { ctx.strokeStyle = '#ffe14d70'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(po.x, po.y); ctx.stroke(); } }
       for (let k = 0; k < 3; k++) { const e = m.o[S.OUT.EMIT_A + k]; if (e > 0.05) { const ph = ((nowMs / 700 + m.id * 0.37 + k * 0.33) % 1); ctx.strokeStyle = ['#ff4646', '#46ff6e', '#5a8cff'][k]; ctx.globalAlpha = (1 - ph) * 0.8; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 3 + ph * 22, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
     }
-    if (m.sick > 0) { const pu = 0.5 + 0.5 * Math.sin(nowMs / 160 + m.id); ctx.fillStyle = `rgba(120,255,90,${0.14 + 0.2 * pu})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2 + 3, 0, 7); ctx.fill(); }
+    if (m.sick > 0) { ctx.fillStyle = 'rgba(176,196,74,0.85)'; ctx.beginPath(); for (let q = 0; q < 6; q++) { const a = q * 1.05 + m.id + nowMs / 900, d = m.r * (0.5 + (q % 3) * 0.45); dot(m.x + Math.cos(a) * d, m.y + Math.sin(a) * d, m.r * 0.17); } ctx.fill(); }
     if (cam.z >= 0.45) {
       const gl = showG ? glyphFor(m, nowMs) : '';
-      const sz = Math.max(10, m.r * 1.8);
+      const sz = Math.max(8, m.r * 1.1);
       if (m.fav) { ctx.font = sz + 'px sans-serif'; ctx.fillStyle = '#ffe14d'; ctx.fillText('★', m.x - (gl ? sz * 0.7 : 0), m.y - m.r * 2.3 - 2); }
-      if (gl) { ctx.font = sz + 'px sans-serif'; ctx.fillText(gl, m.x + (m.fav ? sz * 0.5 : 0), m.y - m.r * 2.3 - 2 - Math.sin(nowMs / 300 + m.id) * 1); }
+      if (gl) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.72; ctx.font = sz + 'px sans-serif'; ctx.fillText(gl, m.x + (m.fav ? sz * 0.5 : 0), m.y - m.r * 2.1 - 2); ctx.globalAlpha = ga; }
     }
   }
   if (cam.z >= 0.45) drawBiteFx();
