@@ -71,7 +71,7 @@ export const PART_AT = 0.64;
 export const PARTS = {
   sting: ['Stinger', 'A jointed tail with a venom sac and a hooked barb. Anything that bites this creature (or that it bites) is poisoned for a few seconds. Costs energy to keep.'],
   camo: ['Camouflage', 'Faded, mottled skin. While it moves slowly, others only notice it from much closer. Costs energy to keep.'],
-  jet: ['Jet', 'A water jet. A burst of speed to escape a threat or run down prey, paid for with a lot of energy.'],
+  jet: ['Speed boost', 'A water-powered kick. A burst of speed to escape a threat or run down prey, paid for with a lot of energy.'],
 };
 export const TOOLS = ['claw', 'spear', 'club', 'pincer', 'scoop', 'rake'];
 export const TOOL_INFO = [
