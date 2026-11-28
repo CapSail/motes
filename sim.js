@@ -560,6 +560,8 @@ function infect(w, m, strain) {
 
 function kill(w, m, why, killer) {
   if (m.dead) return false;
+  // the god rule: a starred creature is immortal. Nothing kills it (hunger, age, teeth, sickness, poison, weather, your own powers) until it is unstarred.
+  if (m.fav) { if (why !== 'old age') m.e = Math.max(m.e, m.cap * 0.35); return false; }
   if (w.mercy && (why === 'starved' || why === 'old age') && w.motes.length - w.deadN < 14) { m.e = m.cap * 0.5; m.age *= 0.6; return false; }
   m.dead = true; m.why = why; m.killer = killer || 0; w.deadN++;
   w.counters.deaths++;
@@ -994,7 +996,7 @@ function think(w, m, i, dtt) {
     if (tgt.sting) m.venom = Math.max(m.venom, 3 + 4 * tgt.sting);          // biting a stinger hurts
     if (m.sting) tgt.venom = Math.max(tgt.venom, 2 + 3 * m.sting);
     const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
-    if (rand() < p) {
+    if (!tgt.fav && rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++; m.actK = 3;
       if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
@@ -1009,7 +1011,7 @@ function think(w, m, i, dtt) {
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
       if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone2(w, m, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone2(w, m, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone2(w, m, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      else { const a = tgt.fav ? 0 : Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone2(w, m, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -1324,7 +1326,7 @@ export function triggerEvent(w, kind) {
 // a meteor: kills everything in the crater, burns the ground bare, heats and poisons it, then the rim blooms with ash-fed plants
 export function meteor(w, x, y, rad = 135) {
   let dead = 0;
-  for (const m of w.motes) if (!m.dead && Math.hypot(m.x - x, m.y - y) < rad) { kill(w, m, 'meteor'); dead++; }
+  for (const m of w.motes) if (!m.dead && Math.hypot(m.x - x, m.y - y) < rad) { if (kill(w, m, 'meteor')) dead++; }
   if (w.deadN) { let j = 0; for (let i = 0; i < w.motes.length; i++) if (!w.motes[i].dead) w.motes[j++] = w.motes[i]; w.motes.length = j; w.deadN = 0; }
   for (const f of w.food) if (Math.hypot(f.x - x, f.y - y) < rad) f.dead = true;
   const gx0 = Math.floor((x - rad + R) / CELL), gx1 = Math.floor((x + rad + R) / CELL), gy0 = Math.floor((y - rad + R) / CELL), gy1 = Math.floor((y + rad + R) / CELL);

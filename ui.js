@@ -263,7 +263,8 @@ function feedback(t, wx, wy) {
   } else {
     S.paint(w, 'smite', wx, wy, R0, 0.05);
     fx.push({ x: wx, y: wy, r: R0, c: '255,230,90', t: 0 });
-    showHint('', `⚡ Smote ${n0.length} mote${n0.length > 1 ? 's' : ''}.`);
+    const gone = n0.filter(m => m.dead).length, kept = n0.length - gone;
+    showHint('', `⚡ Smote ${gone} mote${gone === 1 ? '' : 's'}.${kept ? ` Your ★ immortal${kept > 1 ? 's' : ''} shrugged it off.` : ''}`);
     sfx('zap'); buzz(25);
   }
 }
@@ -366,8 +367,8 @@ function renderInsp(force) {
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:${pal(m.hue, 4)}"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
-  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
-  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
+  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
+  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}${m.fav ? `age ${Math.round(m.age)}s · <b style="color:#d9c36a">★ immortal</b>` : `age ${Math.round(m.age)} of ${Math.round(m.life)}s`} · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
   <button data-a="more" style="width:100%;margin-top:8px;min-height:44px">${showMore ? '▴ Fewer details' : '▾ More details'}</button>${more}`;
@@ -397,7 +398,7 @@ insp.addEventListener('click', e => {
     if (a === 'wire') { showWire = !showWire; renderInsp(true); return; }
     if (a === 'more') { showMore = !showMore; renderInsp(true); return; }
     if (a === 'follow') { if (!follow) { startFollow(m); return; } follow = false; }
-    if (a === 'fav') S.toggleFav(w, m);
+    if (a === 'fav') { S.toggleFav(w, m); showHint('', m.fav ? `★ ${m.name} is immortal now. Nothing can kill it until you remove the star.` : `${m.name} is mortal again.`); }
     if (a === 'feed') S.feedMote(m);
     if (a === 'clone') { const c = S.cloneMote(w, m); selId = c.id; }
     if (a === 'rename') { const n = prompt('Name', m.name); if (n) { m.name = n.slice(0, 28); const f = w.favs.find(f => f.id === m.id); if (f) f.name = m.name; } }

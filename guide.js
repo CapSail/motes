@@ -128,6 +128,7 @@ export function guideHTML() {
 <li>Creatures put <b>survival first</b>.</li>
 <li>Three parts that may or may not evolve: <b>stinger</b>, <b>camouflage</b>, <b>jet</b>.</li>
 <li>Your powers are rebalanced: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler; <b>New life</b> drops a family of four.</li>
+<li><b>Immortality</b>: any creature you ☆ star can no longer die.</li>
 <li>A <b>new look</b>: natural colours, six body plans, new tails, eyes and skin, walls made of pebbles. No more glow.</li>
 <li>Arms with tools, visible eating and biting, solid bodies and walls.</li>
 <li>A <b>brain panel in plain words</b>: tap a creature, More details, Show brain.</li>
@@ -151,7 +152,7 @@ export function guideHTML() {
 <li>When you use a power, you get a message saying what happened (for example “Infected 3 motes”) and a ring flashes where it hit.</li>
 <li>The first time you open the app you get a short tour of these buttons. Menu → 🎓 Show me around replays it.</li>
 <li><b>The little icon over a creature's head</b> (when you zoom in) shows what it is doing right now: 💢 hurt or attacked, ☠️ poisoned, 🤢 sick, 😈 hunting, 😠 stealing energy, 💛 giving energy, ❤️ looking for a mate, 🔨 building, 🍽️ hungry, 🤝 in a pod with a friend. ★ means you starred it. Tap a creature and its panel says in words what it is <b>doing</b> and how it is <b>feeling</b>; its best friend (💚), rival (💢) and nearest relatives (🏠) get a name tag and a line.</li>
-<li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (keep its story forever), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>. Under <b>More details</b>: <b>🧠 Show brain</b> lists what it senses and decides right now and why, with an optional wiring map.</li>
+<li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (makes it <b>immortal</b>, and keeps its story), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>. Under <b>More details</b>: <b>🧠 Show brain</b> lists what it senses and decides right now and why, with an optional wiring map.</li>
 </ul></details>
 
 <details><summary>The tools, one by one</summary>
@@ -260,7 +261,7 @@ export function guideHTML() {
 <ul>
 <li><b>Diary</b> (menu): the journal of the dish, stamped with the dish year and day. Filter it by Years (an "in review" entry is written at the end of every dish-year), Firsts (first kill, first granary, first best friends…), Species, Events and Stars. Firsts, year reviews and star stories are never pushed out; smaller news scrolls away.</li>
 <li><b>Species</b> (menu): everyone alive and extinct, with population, peak, birth day and parent species. Tap one to jump to a member.</li>
-<li><b>Stars</b>: star any mote and its story is kept even after it dies (age, children, how it died).</li>
+<li><b>Stars, the god rule</b>: a starred creature is <b>immortal</b>. Hunger, old age, teeth, plague, poison, heat, cold, Smite and Meteor cannot kill it, and nothing can eat it or steal from it. It still lives, eats, breeds and fights as normal; its children are ordinary mortals. Tap the star again to make it mortal (one past its natural lifespan dies of old age right away). Starting a new dish removes everything, stars included.</li>
 <li><b>Stats → Records</b>: oldest, most children, most kills, biggest brain, deepest generation.</li>
 </ul></details>
 
