@@ -1055,6 +1055,7 @@ function think(w, m, i, dtt) {
           if (cur === bt && w.hp[ti] < 255 && w.hp[ti] > 0) { w.hp[ti] = Math.min(250, w.hp[ti] + 60); m.e -= cost * 0.4; m.cdB = 2; }
           else if (cur === 0) {
             w.st[ti] = bt; w.hp[ti] = 200; m.e -= cost; m.cdB = 3; w.counters.built++; w.stCount++;
+            if (bt === 1) for (const f of w.food) if (cidx(f.x, f.y) === ti) f.dead = true;
             if (m.fav && w.journals && w.journals[m.id]) { const what = ['', 'wall', 'farm', 'nest', 'granary'][bt], b = w.journals[m.id].stats.built; b[what] = (b[what] || 0) + 1; if (b[what] === 1 || b[what] % 10 === 0) jAdd(w, m, 'deed', b[what] === 1 ? `Built its first ${what} as an immortal.` : `Has now built ${b[what]} ${what === 'granary' ? 'granaries' : what + 's'}.`); }
             milestone2(w, m, 'build' + bt, `First ${['', 'wall', 'farm', 'nest', 'granary'][bt]} built by ${m.name}.`);
           } else m.cdB = 1;
@@ -1152,7 +1153,7 @@ function growFood(w, dt) {
   if (w.bloom > 0) w.bloom -= dt;
   let n = rate * dt, k = 0;
   while (n > 0 && k < room) {
-    if (n >= 1 || rand() < n) { const f = spawnFood(w, null, null, 0, 18); if (f) { const ix = cidx(f.x, f.y); if (ix >= 0) { if (rand() > w.nut[ix]) f.dead = true; else w.nut[ix] = Math.max(0, w.nut[ix] - NUT.pellet); } } }
+    if (n >= 1 || rand() < n) { const f = spawnFood(w, null, null, 0, 18); if (f) { const ix = cidx(f.x, f.y); if (ix >= 0) { if (rand() > w.nut[ix]) w.food.pop(); else w.nut[ix] = Math.max(0, w.nut[ix] - NUT.pellet); } } }
     n -= 1; k++;
   }
 }
@@ -1176,10 +1177,14 @@ export function clearWalls(w) {
   for (let i = 0; i < f.length; i++) { const p = f[i]; if (!p.dead && !solidAt(w, p.x, p.y)) f[j++] = p; }
   f.length = j;
 }
+const FARM_FULL = 2;                                    // how many plants a farm tile holds before it waits to be harvested
+const farmHasRoom = (w, i, strength) => w.crop[i] < FARM_FULL || (strength < 255 && w.food.length < w.foodMax);      // your farms stop at a couple per tile; creature farms may pile higher while the dish has room
 function structures(w, dt) {
   if (w.walls > 0) clearWalls(w);
   const N = GN * GN, st = w.st, hp = w.hp;
   let count = 0, walls = 0;
+  const crop = w.crop || (w.crop = new Uint8Array(N)); crop.fill(0);
+  for (const f of w.food) { const c = cidx(f.x, f.y); if (c >= 0 && !f.dead && f.k === 0 && crop[c] < 250) crop[c]++; }
   for (let i = 0; i < N; i++) {
     const t = st[i]; if (t === 0 || t === 255) continue;
     count++; if (t === 1) walls++;
@@ -1188,7 +1193,7 @@ function structures(w, dt) {
       if (v <= 0) { if (t === 4 && w.store[i] > 0) { const n = Math.min(10, Math.ceil(w.store[i] / 18)); for (let q = 0; q < n; q++) spawnFood(w, (i % GN + 0.5) * CELL - R + gauss() * 4, Math.floor(i / GN) * CELL + CELL / 2 - R + gauss() * 4, 0, 18); w.store[i] = 0; } st[i] = 0; hp[i] = 0; count--; }
       else hp[i] = v;
     }
-    if (t === 2 && w.food.length < w.foodMax && rand() < (hp[i] === 255 ? 0.07 : 0.16) * w.light * dt) spawnFood(w, (i % GN + 0.5) * CELL - R + (rand() - 0.5) * CELL, Math.floor(i / GN) * CELL + CELL / 2 - R + (rand() - 0.5) * CELL, 0, 18);
+    if (t === 2 && farmHasRoom(w, i, hp[i]) && rand() < (hp[i] === 255 ? 0.12 : 0.16) * w.light * dt) spawnFood(w, (i % GN + 0.5) * CELL - R + (rand() - 0.5) * CELL, Math.floor(i / GN) * CELL + CELL / 2 - R + (rand() - 0.5) * CELL, 0, 18);
   }
   w.stCount = count; w.walls = walls;
 }

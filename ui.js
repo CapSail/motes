@@ -1256,7 +1256,7 @@ function drawTile(t, x, y, h, stored) {
 function drawFood() {
   const x0 = cam.x - W / 2 / cam.z - 6, x1 = cam.x + W / 2 / cam.z + 6, y0 = cam.y - H / 2 / cam.z - 6, y1 = cam.y + H / 2 / cam.z + 6, near = cam.z >= 0.75;
   const seen = [];
-  for (const f of w.food) if (f.x > x0 && f.x < x1 && f.y > y0 && f.y < y1) seen.push(f);
+  for (const f of w.food) if (!f.dead && f.x > x0 && f.x < x1 && f.y > y0 && f.y < y1) seen.push(f);
   if (!near) { for (const k of [0, 1]) { ctx.fillStyle = k ? '#9c5a4c' : '#7f9962'; for (const f of seen) if (f.k === k) ctx.fillRect(f.x - 1.7, f.y - 1.7, 3.4, 3.4); } return; }
   const hs = f => ((f.x * 7.3 + f.y * 13.1) & 1023);
   // plants are leaf sprigs: pointed leaves and a stem, and nothing round-with-a-dot that could pass for a little animal
