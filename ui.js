@@ -530,7 +530,7 @@ function renderMenu() {
     mbody.onclick = null;
     mbody.innerHTML = `<label>Max population <input id="sMax" type="range" min="100" max="1200" step="50" value="${w.maxPop}"><span id="vMax">${w.maxPop}</span></label>
     <label>Food abundance <input id="sFert" type="range" min="0.3" max="3" step="0.1" value="${w.fert}"><span id="vFert">${w.fert}</span></label>
-    <label>Random events (blooms, cold, plague, spills, meteors) <input id="cEv" type="checkbox" ${w.events ? 'checked' : ''}></label>
+    <label>Random events (blooms, cold, heat, plague, spills, droughts, meteors) <input id="cEv" type="checkbox" ${w.events ? 'checked' : ''}></label>
     <h4>Make something happen now</h4><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button id="eBloom">Call a bloom</button><button id="eCold">Cold snap</button><button id="eHeat">Heatwave</button><button id="eIce">Ice age</button><button id="eDry">Drought</button><button id="ePlague">Plague</button></div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0"><button id="bSound">${sndOn ? '🔊 Sound: on' : '🔈 Sound: off'}</button><button id="bPhoto">📷 Save a picture of the dish</button></div>
     <h4>Save or share this dish (phone ⇄ computer)</h4>
