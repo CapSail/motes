@@ -124,3 +124,5 @@ Cap called it a finished product. Guide, tool tips, README and this log were aud
 - 2026-11-28: Cap said the two-finger fix felt buggy. Tightened: brushes respond at once (ring on touch, paint after a 70 ms blink; a second finger within it leaves nothing, and a stroke under 400 ms old is quietly restored with no message), Smite and Plague fire on lift or after 120 ms or a 10 px drag, New life and Meteor on lift, and the finger left after a pinch keeps panning instead of going dead. Simulated touch tests: no tool effect from any pinch at 35 or 200 ms gap.
 
 - 2026-11-28: stinger redrawn (Cap: "stingers look dumb"). `drawStinger` in `ui.js`: two pinched tail joints in body colour, a venom sac with a violet cast, a hooked bone barb and two small spurs, drawn from beneath the tail instead of a tail fin; a simple curved line when zoomed out.
+
+- 2026-11-28 (end of day): How it works audited and brought up to date with every change so far: What is new split into Latest and Also recent, touch rules, farm behaviour, food look and where food grows, poison description, Farm tool tip.

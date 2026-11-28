@@ -115,7 +115,7 @@ function catchStep() {
 const TOOLINFO = {
   food: ['🍃', 'Food', 'Sprinkle plants for them to eat. Hungry motes smell it from far away.'],
   wall: ['🧱', 'Wall', 'A solid barrier. Nothing walks, sees or smells through it, and creatures cannot dig it out.'],
-  farm: ['🌱', 'Farm', 'Ground that keeps growing food by itself.'],
+  farm: ['🌱', 'Farm', 'Soil that grows plants on itself, a couple per tile, even when the dish is full of food.'],
   nest: ['🪺', 'Nest', 'A safe spot that heals motes and gives newborns a boost.'],
   granary: ['🏺', 'Granary', 'A pantry. Motes can store spare energy here for later.'],
   erase: ['🧹', 'Erase', 'Rub out walls, farms, food, smells, heat and poison.'],

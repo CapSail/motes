@@ -124,22 +124,29 @@ export function guideHTML() {
 <p>Welcome to <b>Motes</b>: a petri dish of tiny digital creatures that live, eat, breed, build, fight, cooperate and evolve on their own. You are not the boss of them. You are the weather, the gardener and the meddling giant hand. Nothing in here is scripted past a few starting instincts; everything you see them do was discovered by evolution.</p>
 
 <details><summary>🆕 What is new</summary>
+<p><b>Latest</b></p>
 <ul>
-<li>Creatures put <b>survival first</b>.</li>
+<li><b>New stingers</b>: jointed scorpion-like tails with a venom sac and a hooked barb.</li>
+<li><b>Smoother touch</b>: two fingers only move and zoom, and never set off a tool.</li>
+<li><b>Food fixed and redrawn</b>: plants are leaf sprigs, meat is soft chunks. Farms now grow even when the dish is full of food, and pellets no longer flash and vanish.</li>
+<li><b>A richer look</b>: rounded, wet-looking bodies with shadows, a head for each body plan, eyes that look and blink, and a textured dish floor.</li>
+<li><b>Absolute killers</b>: about one New life in three drops three true predators. Nothing can be dropped outside the dish.</li>
+</ul>
+<p><b>Also recent</b></p>
+<ul>
+<li><b>The god rule</b>: any creature you ☆ star is immortal and never grows old.</li>
+<li><b>📔 Immortal journals</b>: a detailed life story for every starred creature.</li>
+<li><b>Survival comes first</b> for every creature.</li>
 <li>Three parts that may or may not evolve: <b>stinger</b>, <b>camouflage</b>, <b>jet</b>.</li>
-<li>Your powers are rebalanced: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler; <b>New life</b> drops a family of four.</li>
-<li><b>Immortal journals</b>: every starred creature keeps a detailed life story (☰ Menu → 📔 Immortal journals).</li>
-<li><b>Immortality</b>: any creature you ☆ star can no longer die.</li>
-<li>A <b>new look</b>: natural colours, six body plans, walls made of pebbles, no glow. Creatures are now rounded and wet-looking with shadows, each body plan has its own head, meat-eaters show fangs, and their <b>eyes look at what they are doing, blink, and droop when hurt or sick</b>.</li>
-<li>Arms with tools, visible eating and biting, solid bodies and walls.</li>
-<li>A <b>brain panel in plain words</b>: tap a creature, More details, Show brain.</li>
-<li>New senses for prey, threats, food and crowds.</li>
+<li><b>Rebalanced powers</b>: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler.</li>
+<li><b>Creepy grabby arms</b> with tools, six body plans in natural colours, visible eating and biting, solid bodies and walls.</li>
+<li>A <b>brain panel in plain words</b>, and senses for prey, threats, food and crowds.</li>
 </ul></details>
 
 <details open><summary>The 30-second version</summary>
 <ul>
 <li>Every squiggle is a <b>mote</b>. It has a <b>body</b> (shape, size, speed, diet…) and a <b>brain</b> (a tiny neural network).</li>
-<li>Motes eat green <b>plant pellets</b> or red <b>meat</b>, burn energy to move and think, and when they have spare energy they <b>mate</b> or bud. Children inherit a mix of the parents' bodies and brains, plus random <b>mutations</b>.</li>
+<li>Motes eat <b>plants</b> (green leaf sprigs) or <b>meat</b> (red chunks), burn energy to move and think, and when they have spare energy they <b>mate</b> or bud. Children inherit a mix of the parents' bodies and brains, plus random <b>mutations</b>.</li>
 <li>Motes that do well leave more children, so over time the population changes. That is evolution. Let it run, then come back.</li>
 <li>Tap a mote with <b>👆 Look</b> to see its stats, what it is doing and feeling, and (under More details) its <b>🧠 brain in plain words</b>. The <b>☰ Menu</b> button (top right) opens species, the family tree, the diary, stats and this guide.</li>
 </ul></details>
@@ -148,7 +155,7 @@ export function guideHTML() {
 <ul>
 <li><b>Top left:</b> <b>⏸</b> pauses (Space on a computer). <b>1×</b> changes speed: 1×, 3×, 8× and slow-motion 0.4×. <b>👁</b> chooses what the dish shows: everything at once, or just one smell, heat and cold, or poison. <b>☰ Menu</b> (top right) opens everything else.</li>
 <li><b>Bottom row</b> has four big buttons. <b>👆 Look</b> is the normal mode: drag to move the map, pinch (or mouse wheel) to zoom, tap a mote to inspect it. <b>🌱 Build</b>, <b>🌡️ Climate</b> and <b>⚡ Powers</b> each open a panel of tools. Every tool says in plain words what it does. Tap one to pick it, then touch the dish.</li>
-<li>With a tool picked, a bar appears above the buttons with its name, what it does, the brush size (<b>S / M / L</b>) and a green <b>✔ Done</b> that takes you back to Look. <b>Two fingers</b> always move and zoom the map, even with a tool picked.</li>
+<li>With a tool picked, a bar appears above the buttons with its name, what it does, the brush size (<b>S / M / L</b>) and a green <b>✔ Done</b> that takes you back to Look. <b>Two fingers</b> always move and zoom the map, even with a tool picked, and never set the tool off. Brushes start as you touch; <b>New life</b> and <b>Meteor</b> go off as you lift a single finger (drag first to cancel). If one finger stays down after pinching, it moves the map.</li>
 <li><b>↶ Undo</b> appears after you paint with a Build or Climate tool (walls, farms, heat, poison, smells, food, erase). It undoes your last brush stroke, up to ten in a row. Powers like Smite and Meteor cannot be undone.</li>
 <li>When you use a power, you get a message saying what happened (for example “Infected 3 motes”) and a ring flashes where it hit.</li>
 <li>The first time you open the app you get a short tour of these buttons. Menu → 🎓 Show me around replays it.</li>
@@ -161,7 +168,7 @@ export function guideHTML() {
 <ul>
 <li><b>🍃 Food</b>: sprinkle plant pellets.</li>
 <li><b>🧱 Wall</b>: a permanent wall. Nothing swims, sees or smells through it. Fence off a species, build mazes, protect a nest.</li>
-<li><b>🌱 Farm</b>: ground that keeps growing food by itself. It feeds a neighbourhood at a gentle pace (farms creatures build grow faster, but crumble).</li>
+<li><b>🌱 Farm</b>: soil that grows plants on itself, even when the rest of the dish is full of food. Each tile of yours holds about two plants and regrows them as they are eaten (creature-built farms can pile higher, but crumble). Growth slows at night.</li>
 <li><b>🪺 Nest</b>: heals motes standing on it, slows their energy drain, and gives newborns a boost.</li>
 <li><b>🏺 Granary</b>: stores energy. Motes can learn to put some in and take some out.</li>
 <li><b>🧹 Erase</b>: clears structures, food, smells, heat and poison.</li>
@@ -169,7 +176,7 @@ export function guideHTML() {
 <p><b>🌡️ Climate</b></p>
 <ul>
 <li><b>🔥 Heat / ❄️ Cold</b>: warm or chilly patches. A short stroke is enough to be felt. Every kind has a favourite temperature and a tolerance, so some shrug off cold and others heat. They steer toward what they like and away from what is too hot or cold, and evolution adapts to your climate.</li>
-<li><b>☠️ Poison</b>: a purple cloud that lingers, spreading and fading slowly. It is deadly to stay in. Everything flees it, motes standing in it get a purple ring and lose energy fast. Resistance costs energy but evolves.</li>
+<li><b>☠️ Poison</b>: a purple cloud that lingers, spreading and fading slowly. It is deadly to stay in. Everything flees it; motes caught in it lose energy fast (zoom in to see ☠️ over their heads). Resistance costs energy but evolves.</li>
 <li><b>🔴🟢🔵 Red / Green / Blue smell</b>: every mote has an inherited like or dislike for each smell. Some kinds are drawn to a smell and some run from it, and that taste evolves. Brains can also sense and release smells, and what that <i>means</i> is up to evolution.</li>
 </ul>
 <p><b>⚡ Powers</b></p>
@@ -208,7 +215,7 @@ export function guideHTML() {
 <li><b>Survival comes first.</b> A hungry creature turns to food and eases off sprinting when nothing is in sight. It stops building, smelling and giving away when it runs low, unarmed plant-eaters run from things that bite, and nobody breeds into a famine: they need food around or a very full belly. These are body instincts; nothing in the app ever rescues a dish.</li>
 <li><b>Arms and tools.</b> Some creatures grow one or two pairs of little grabby arms out of their sides, in their own colour, and every tool is part of the body. <b>Weapons</b> are bone: <i>claws</i> (hooked talons) make bites land, a <i>spear</i> (barbed bone spike) reaches further, a <i>club</i> (knobbed fist) gets through armor. <b>Gathering hands</b>: <i>pincers</i> (snapping jaws) make each pellet worth more, a <i>scoop</i> (webbed hand with pale fingertips) and a <i>rake</i> (long spindly fingers) bring in food from further away. Arms cost energy and slow a creature a little, so they only pay off if the hand fits the way it lives. Zoom in to see them twitch, reach, snatch food into the mouth and jab at victims. Tap a creature to read its hands.</li>
 <li><b>Optional parts.</b> Three parts that a creature grows only if evolution takes it there. A <b>stinger</b> (a jointed scorpion-like tail with a venom sac and a hooked barb) poisons whatever bites it, and whatever it bites. <b>Camouflage</b> (murky mottled skin) means a slow-moving creature is only noticed from much closer. A <b>jet</b> (two grey nozzles) gives a burst of speed to escape or to catch prey, with a spray behind, and burns a lot of energy. Each costs energy to keep, so it only spreads where it pays off. Tap a creature to see what it has.</li>
-<li><b>Eating and biting show.</b> A creature with arms reaches out, grabs the pellet and carries it to its mouth. Without arms the pellet is slurped in. Jaws open and snap when biting, meat-eaters show teeth, and a bite leaves tooth marks and a flash on the victim, with a red burst when it is killed.</li>
+<li><b>Eating and biting show.</b> A creature with arms reaches out, grabs the food and carries it to its mouth. Without arms the food is slurped in. Jaws open and snap when biting, meat-eaters show teeth, and a bite leaves tooth marks and a flash on the victim, with a red burst when it is killed.</li>
 <li><b>Body shape matters.</b> Every part of a body has a price and a payoff. <b>Long, thin</b> bodies run fast and swim cheaply but turn slowly. <b>Thick, short</b> bodies store more energy and turn fast. <b>Curled</b> bodies turn tightly but run slower. <b>More segments</b> mean more stored energy and a longer bite reach, but a heavier body. Limbs help turning, fins and wiggle make swimming cheaper. Natural selection weighs it all, so shapes drift toward what works in that dish.</li>
 <li><b>Prey, threats and crowds.</b> Besides the nearest creature, every brain can sense the nearest <i>prey</i> (another kind it could eat), the nearest <i>threat</i> (something that bites and is not tiny), how rich the food is all around, and which way the crowd is. Creatures also keep a little personal space: they drift away from a crowd, and crowding costs energy, so food does not pile everyone into one clump. Tap a creature, More details, Show brain to read what it senses and decides in plain words.</li>
 <li><b>Solid bodies and walls.</b> Creatures cannot walk through each other. They bump and push apart, and the only way to overlap is a bite: a creature that is biting its victim can close in on it. Walls stop whole bodies, even fast ones. Walls you draw cannot be torn down by creatures. Walls that creatures built themselves can still be dug out by a creature that learns to dig.</li>
@@ -236,7 +243,7 @@ export function guideHTML() {
 <details><summary>The world</summary>
 <ul>
 <li><b>Day and night:</b> daylight rises and falls over a 200-second day. Plants grow faster in daylight, and sun-feeding motes only earn energy by day.</li>
-<li><b>Food:</b> plant pellets grow in clumps, so some places are rich and some are deserts. When a mote dies it leaves <b>meat</b> that rots away in about a minute. Hunters and scavengers digest meat well.</li>
+<li><b>Food:</b> plants grow in clumps where the soil is good, so some places are rich and some are deserts. Farms add their own on top. Nothing grows inside walls or outside the dish. When a mote dies it leaves <b>meat</b> that rots away in about a minute. Hunters and scavengers digest meat well.</li>
 <li><b>Temperature, toxin and scents</b> are fields you can see with the <b>👁</b> button. Toxin spreads slowly. Scents spread and fade over about half a minute, so they work like messages and trails. If you want to see creatures releasing smells, turn on “Show smell ripples” in the 👁 panel.</li>
 <li><b>Structures</b> motes can build: walls (block movement), farms (grow food), nests (heal and boost babies), granaries (store energy). They decay unless motes repair them by building the same thing again on them. A mote can also dig down structures that motes built, so raiders are possible. Walls you draw cannot be dug out.</li>
 <li><b>Random events</b> (optional, on by default): blooms of food, cold snaps, heatwaves, plagues and toxic spills. Random events can also bring droughts and the odd meteor. You can call events yourself from the ⚡ Powers panel or ☰ Menu → Dish and saving.</li>
