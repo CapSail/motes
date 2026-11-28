@@ -128,6 +128,7 @@ export function guideHTML() {
 <li>Creatures put <b>survival first</b>.</li>
 <li>Three parts that may or may not evolve: <b>stinger</b>, <b>camouflage</b>, <b>jet</b>.</li>
 <li>Your powers are rebalanced: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler; <b>New life</b> drops a family of four.</li>
+<li><b>Immortal journals</b>: every starred creature keeps a detailed life story (☰ Menu → 📔 Immortal journals).</li>
 <li><b>Immortality</b>: any creature you ☆ star can no longer die.</li>
 <li>A <b>new look</b>: natural colours, six body plans, new tails, eyes and skin, walls made of pebbles. No more glow.</li>
 <li>Arms with tools, visible eating and biting, solid bodies and walls.</li>
@@ -261,6 +262,7 @@ export function guideHTML() {
 <ul>
 <li><b>Diary</b> (menu): the journal of the dish, stamped with the dish year and day. Filter it by Years (an "in review" entry is written at the end of every dish-year), Firsts (first kill, first granary, first best friends…), Species, Events and Stars. Firsts, year reviews and star stories are never pushed out; smaller news scrolls away.</li>
 <li><b>Species</b> (menu): everyone alive and extinct, with population, peak, birth day and parent species. Tap one to jump to a member.</li>
+<li><b>📔 Immortal journals</b>: from the moment you star it, a creature's life is written down: who it was that day, every child and grandchild, meals, hunts and attacks on it, every death it cheated, friends made and lost, grudges, pods, gifts, thefts, buildings, sickness, the big events it lived through, and a review of every dish-day. Open it from the creature's panel or ☰ Menu → Immortal journals. Filter it, copy it, or save it as a text file. Removing the star keeps the journal.</li>
 <li><b>Stars, the god rule</b>: a starred creature is <b>immortal</b>. Hunger, old age, teeth, plague, poison, heat, cold, Smite and Meteor cannot kill it, and nothing can eat it or steal from it. It still lives, eats, breeds and fights as normal; its children are ordinary mortals. Tap the star again to make it mortal (one past its natural lifespan dies of old age right away). Starting a new dish removes everything, stars included.</li>
 <li><b>Stats → Records</b>: oldest, most children, most kills, biggest brain, deepest generation.</li>
 </ul></details>

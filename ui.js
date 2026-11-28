@@ -1,4 +1,5 @@
 import * as S from './sim.js';
+import { JKINDS, jStamp, jText } from './journal.js';
 import { guideHTML, installHTML, senseText, actionText, hasSign, IN_LABEL, OUT_LABEL } from './guide.js';
 // Install help: which device is this, are we already installed, and can the browser offer a one-tap install?
 const UA = navigator.userAgent;
@@ -367,7 +368,7 @@ function renderInsp(force) {
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:${pal(m.hue, 4)}"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
-  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
+  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>${m.fav ? '<button data-a="journal" style="width:100%;margin-top:8px;min-height:46px">📔 Read its journal</button>' : ''}
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}${m.fav ? `age ${Math.round(m.age)}s · <b style="color:#d9c36a">★ immortal</b>` : `age ${Math.round(m.age)} of ${Math.round(m.life)}s`} · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
@@ -395,6 +396,7 @@ insp.addEventListener('click', e => {
   if (a === 'close') { if (follow && m) { inspHidden = true; insp.style.display = 'none'; updChip(); } else { selId = 0; follow = false; insp.style.display = 'none'; } }
   else if (m) {
     if (a === 'brain') { showBrain = !showBrain; renderInsp(true); return; }
+    if (a === 'journal') { jid = m.id; jfilter = 'all'; jall = false; menuTab = 'journal'; mbody.scrollTop = 0; openMenu(); paused = true; return; }
     if (a === 'wire') { showWire = !showWire; renderInsp(true); return; }
     if (a === 'more') { showMore = !showMore; renderInsp(true); return; }
     if (a === 'follow') { if (!follow) { startFollow(m); return; } follow = false; }
@@ -455,19 +457,52 @@ const PAGES = [
   ['guide', '📖', 'How it works', 'Plain-English guide to everything'],
   ['species', '🧬', 'The creatures', 'Species, family tree and stats'],
   ['diary', '📓', 'The story', 'Diary of everything that happened, and starred creatures'],
+  ['journals', '📔', 'Immortal journals', 'The full life story of every creature you starred'],
   ['dish', '⚙️', 'Dish and saving', 'Load a world, share, save a picture'],
   ['install', '📲', 'Put it on your phone', 'Add it to your home screen as an app'],
   ['tour', '🎓', 'Show me around', 'A 20-second tour of the buttons'],
 ];
 const GROUPPAGES = { life: ['species', 'tree', 'stats'], story: ['diary', 'stars'] };
 const SUBNAMES = { species: 'Species', tree: '🌳 Family tree', stats: 'Stats', diary: 'Diary', stars: '⭐ Starred' };
+// ---------- one immortal's journal ----------
+let jid = 0, jfilter = 'all', jall = false;
+function renderJournal() {
+  const j = w.journals && w.journals[jid];
+  if (!j) { mbody.innerHTML = '<div class="dim">That journal is gone.</div>'; mbody.onclick = null; return; }
+  const m = w.motes.find(m => m.id === j.id), s = j.stats, cheats = Object.values(s.cheats).reduce((a, b) => a + b, 0);
+  const cell = (n, label) => `<div class="jstat"><b>${n}</b><span>${label}</span></div>`;
+  const built = Object.entries(s.built).map(([k, v]) => `${v} ${v > 1 ? (k === 'granary' ? 'granaries' : k + 's') : k}`).join(', ');
+  const how = Object.entries(s.cheats).map(([k, v]) => `${k === 'starved' ? 'starving' : k === 'smitten' ? 'your Smite' : k} ×${v}`).join(', ');
+  const friends = [], foes = []; if (m) for (const [id, v] of m.fr) { const o = w.byId.get(id) || w.motes.find(x => x.id === id); if (o) (v > 0.35 ? friends : v < -0.35 ? foes : []).push(o.name); }
+  const rows = j.entries.filter(e => jfilter === 'all' || e[1] === jfilter || (jfilter === 'deed' && e[1] === 'life')).slice().reverse(), shown = jall ? rows : rows.slice(0, 150);
+  let day = '', body = '';
+  for (const [t, kind, text] of shown) { const d = jStamp(t); if (d !== day) { day = d; body += `<div class="jday">${d}</div>`; } body += `<div class="jline k-j${kind}">${esc(text)}</div>`; }
+  mbody.innerHTML = `<h3 style="margin:0 0 2px"><span class="dot" style="background:${pal(j.hue, 4)}"></span>${esc(j.name)} ${j.mortal ? '' : '<span style="color:#d9c36a">★</span>'}</h3>
+  <div class="dim">${j.mortal ? 'Mortal now.' : 'Immortal'} since ${jStamp(j.since)}${m ? ` · now aged ${Math.round(m.age)}s · energy ${Math.round(m.e / m.cap * 100)}% · ${esc(captionFor(m)[0])}` : ' · no longer in the dish'}</div>
+  <div class="jstats">${cell(s.plants + s.meat, 'meals')}${cell(s.children, 'children')}${cell(j.grand, 'grandchildren')}${cell(cheats, 'deaths cheated')}${cell(s.kills, 'caught')}${cell(s.attacked, 'times attacked')}${cell(s.friends, 'friends made')}${cell(s.lost, 'loved ones lost')}${cell(Math.round(s.dist / Math.max(4, (m ? m.r : 5) * 2)), 'body-lengths travelled')}</div>
+  <div class="dim">Ate ${s.plants} plants and ${s.meat} meat. Fed others ${s.gifts} times, stole ${s.stolen} times, sick ${s.sick} times, stung ${s.stung} times.${built ? ' Built ' + built + '.' : ''}${how ? ' Cheated: ' + esc(how) + '.' : ''}${m ? ' Friends now: ' + (friends.length ? esc(friends.join(', ')) : 'none') + '.' + (foes.length ? ' Grudges: ' + esc(foes.join(', ')) + '.' : '') : ''}</div>
+  <details style="margin:8px 0"><summary>Who they were when starred</summary>${j.portrait.map(l => `<div class="jline">${esc(l)}</div>`).join('')}</details>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">${m ? '<button data-jb="find">👁 Find on the dish</button>' : ''}<button data-jb="copy">📋 Copy journal</button><button data-jb="save">⬇️ Save as a file</button><button data-jb="list">📔 All journals</button></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${JKINDS.map(([k, l]) => `<button data-jf="${k}" class="${jfilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  ${body || '<div class="dim">Nothing of this kind yet. Let the dish run.</div>'}${rows.length > shown.length ? `<button data-jb="all" style="width:100%;margin-top:10px">Show all ${rows.length} entries</button>` : ''}`;
+  mbody.onclick = async e => {
+    const f = e.target.closest('[data-jf]'); if (f) { jfilter = f.dataset.jf; jall = false; renderJournal(); return; }
+    const b = e.target.closest('[data-jb]'); if (!b) return;
+    const k = b.dataset.jb;
+    if (k === 'find' && m) { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; startFollow(m); }
+    else if (k === 'list') { menuTab = 'journals'; mbody.scrollTop = 0; renderMenu(); }
+    else if (k === 'all') { jall = true; renderJournal(); }
+    else if (k === 'copy') { try { await navigator.clipboard.writeText(jText(j)); b.textContent = '✔ Copied'; } catch (_) { b.textContent = 'Copy did not work: use Save'; } }
+    else if (k === 'save') { const u = URL.createObjectURL(new Blob([jText(j)], { type: 'text/plain' })), a = document.createElement('a'); a.href = u; a.download = j.name.replace(/[^\w]+/g, '-') + '-journal.txt'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+  };
+}
 function groupOf(t) { return t === 'species' || t === 'tree' || t === 'stats' ? 'life' : t === 'diary' || t === 'stars' ? 'story' : ''; }
 function subnav() {
   const g = groupOf(menuTab); if (!g) return '';
   return '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">' + GROUPPAGES[g].map(t => '<button data-sub="' + t + '" class="' + (menuTab === t ? 'on' : '') + '">' + SUBNAMES[t] + '</button>').join('') + '</div>';
 }
 $('mClose').onclick = () => { menu.style.display = 'none'; paused = false; $('bPause').textContent = '⏸'; };
-$('mBack').onclick = () => { menuTab = 'home'; mbody.scrollTop = 0; renderMenu(); };
+$('mBack').onclick = () => { menuTab = menuTab === 'journal' ? 'journals' : 'home'; mbody.scrollTop = 0; renderMenu(); };
 function openMenu() { menu.style.display = 'flex'; if (sheetFor) closeSheet(); renderMenu(); }
 const dayOf = t => Math.floor(t / DAY) + 1;
 const stamp = t => `Year ${Math.floor(t / S.YEAR) + 1}, day ${Math.floor((t % S.YEAR) / DAY) + 1}`;
@@ -475,7 +510,7 @@ let diaryFilter = 'all', spot = 0, shake = 0;
 function renderMenu() {
   const home = menuTab === 'home', pg = PAGES.find(p => p[0] === menuTab && !groupOf(p[0]));
   $('mBack').style.visibility = home ? 'hidden' : 'visible';
-  $('mTitle').textContent = home ? 'Menu' : pg ? pg[2] : groupOf(menuTab) === 'life' ? 'The creatures' : groupOf(menuTab) === 'story' ? 'The story' : '';
+  $('mTitle').textContent = home ? 'Menu' : menuTab === 'journal' ? 'Journal' : pg ? pg[2] : groupOf(menuTab) === 'life' ? 'The creatures' : groupOf(menuTab) === 'story' ? 'The story' : '';
   if (home) {
     mbody.dataset.tab = '';
     mbody.innerHTML = '<div class="cards">' + PAGES.map(p => `<button class="card" data-pg="${p[0]}"><span class="ic">${p[1]}</span><b>${p[2]}</b><small>${p[3]}</small></button>`).join('') + '</div>';
@@ -524,6 +559,12 @@ function renderMenu() {
     <div class="row">Energy shared ${Math.round(c.shared)} · stolen ${Math.round(c.stolen)} · hoarded ${Math.round(c.stored)} · species born ${c.newSpecies} · extinct ${c.extinct} · plagues ${c.plagues}</div>
     <h4>Records</h4>${fr('dynasty', 'Largest family', ' creatures')}${fr('oldest', 'Oldest', 's')}${fr('kids', 'Most children')}${fr('kills', 'Most kills')}${fr('brain', 'Biggest brain')}${fr('gen', 'Deepest generation')}`;
     drawGraph();
+  } else if (menuTab === 'journals') {
+    const list = Object.values(w.journals || {}).sort((a, b) => (a.mortal - b.mortal) || b.since - a.since);
+    mbody.innerHTML = list.length ? list.map(j => `<button class="jrow" data-j="${j.id}"><span class="dot" style="background:${pal(j.hue, 4)}"></span><b>${esc(j.name)}</b> ${j.mortal ? '<span class="dim">mortal now</span>' : '<span style="color:#d9c36a">★ immortal</span>'}<br><span class="dim">since ${jStamp(j.since)} · ${j.entries.length} entries · ${j.stats.children} children · cheated death ${Object.values(j.stats.cheats).reduce((a, b) => a + b, 0)} times</span></button>`).join('') : '<div class="dim">No journals yet. Tap a creature, then ☆ Star. It becomes immortal and its journal begins.</div>';
+    mbody.onclick = e => { const r = e.target.closest('[data-j]'); if (!r) return; jid = +r.dataset.j; jfilter = 'all'; jall = false; menuTab = 'journal'; mbody.scrollTop = 0; renderMenu(); };
+  } else if (menuTab === 'journal') {
+    renderJournal();
   } else if (menuTab === 'stars') {
     mbody.innerHTML = (w.favs.length ? w.favs.map(f => `<div class="row" data-fid="${f.id}"><span class="dot" style="background:${pal(f.hue, f.alive ? 4 : -24)}"></span><b>${esc(f.name)}</b> <span class="dim">${f.alive ? 'alive' : 'died (' + f.why + ')'} · age ${Math.round(f.age)}s · gen ${f.gen} · kids ${f.kids}</span></div>`).join('') : '<div class="dim">Select a mote and tap ☆ Star to keep an eye on it. Its story is saved here, even after it dies.</div>');
     mbody.onclick = e => { const r = e.target.closest('[data-fid]'); if (!r) return; const m = w.motes.find(m => m.id === +r.dataset.fid); if (m) { menu.style.display = 'none'; startFollow(m); } };

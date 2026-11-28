@@ -9,6 +9,7 @@
 // or whether taking energy from a neighbour is a good idea. Evolution decides.
 
 import { PACK } from './founders.js';
+import { jOpen, jClose, jAdd, jStat, jEat, jCheat, jDeath, jBirth, jTick } from './journal.js';
 export const R = 700;                    // dish radius
 export const CELL = 14;                  // structure/field grid cell
 export const GN = Math.ceil((2 * R) / CELL);
@@ -555,13 +556,14 @@ function infect(w, m, strain) {
   if (m.sick > 0 || m.imm > 0 || m.dead) return;
   m.strain = strain === undefined ? (w.strain === undefined ? (w.strain = rand()) : w.strain) : strain;
   m.sick = 18 + rand() * 22; w.sick++;
+  if (m.fav) { jStat(w, m, 'sick'); jAdd(w, m, 'world', 'Caught the plague.'); }
   if (!w.plagueOn) { w.plagueOn = true; w.plagueDead = 0; }
 }
 
 function kill(w, m, why, killer) {
   if (m.dead) return false;
   // the god rule: a starred creature is immortal. Nothing kills it (hunger, age, teeth, sickness, poison, weather, your own powers) until it is unstarred.
-  if (m.fav) { if (why !== 'old age') m.e = Math.max(m.e, m.cap * 0.35); return false; }
+  if (m.fav) { jCheat(w, m, why); if (why !== 'old age') m.e = Math.max(m.e, m.cap * 0.35); return false; }
   if (w.mercy && (why === 'starved' || why === 'old age') && w.motes.length - w.deadN < 14) { m.e = m.cap * 0.5; m.age *= 0.6; return false; }
   m.dead = true; m.why = why; m.killer = killer || 0; w.deadN++;
   w.counters.deaths++;
@@ -574,6 +576,7 @@ function kill(w, m, why, killer) {
   if (m.fav) noteFavDead(w, m);
   if (!w.noLog && (m.fav || ((m.kids >= 12 || m.kills >= 12) && w.t - (w.lastObit || -1e9) > 15))) { if (!m.fav) w.lastObit = w.t; obit(w, m); }
   fameUpdate(w, m);
+  if (w.journals) { const k = killer ? (w.byId.get(killer) || {}).name : ''; jDeath(w, m, why, k, relOf); }
   return true;
 }
 function noteFavDead(w, m) {
@@ -727,7 +730,7 @@ function body(w, m, dt, tempG) {
   }
   if (m.sick > 0) {
     drain += 2.6 * (1 - m.disr * 0.8); m.sick -= dt; m.why2 = 'plague';
-    if (m.sick <= 0) { m.imm = 45; w.sick--; }
+    if (m.sick <= 0) { m.imm = 45; w.sick--; if (m.fav) jAdd(w, m, 'world', 'Fought off the sickness.'); }
   } else if (m.imm > 0) m.imm -= dt;
   if (m.hurt > 0) m.hurt -= dt * 2;
   if (m.venom > 0) { drain += 3 * (1 - m.toxr * 0.7); m.venom -= dt; m.why2 = 'sting'; m.hurt = Math.max(m.hurt, 0.5); }
@@ -983,24 +986,29 @@ function think(w, m, i, dtt) {
   // -- eating
   if (m.e < m.cap) {
     if (bp >= 0 && bpd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && m.plantEff > 0.05) {
-      const f = food[bp]; m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 0; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      const f = food[bp]; jEat(w, m, false); m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 0; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.plantEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
     if (bm >= 0 && bmd < (m.r + 3 + m.greach) * (m.r + 3 + m.greach) && !food[bm].dead && m.meatEff > 0.1) {
-      const f = food[bm]; m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 1; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
+      const f = food[bm]; jEat(w, m, true); m.actT = w.t; m.actK = 1; m.actX = f.x; m.actY = f.y; m.actF = 1; m.actS = rand() < 0.5 ? -1 : 1; f.dead = true; const gE = f.e * m.intake * m.meatEff * m.gatherK * rare(w, m); m.e = Math.min(m.cap, m.e + gE); giveNut(w, m.x, m.y, NUT.excrete * gE);
     }
   }
   // -- bite
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
     if (w.t - m.actT > 0.3 || m.actK === 1) m.actS = rand() < 0.5 ? -1 : 1;
     m.actT = w.t; m.actK = 2; m.actX = tgt.x; m.actY = tgt.y;
+    if (tgt.sting && m.fav && jAdd(w, m, 'fight', `Was poisoned by ${tgt.name}'s stinger.`, 'stung', 120)) jStat(w, m, 'stung');
     if (tgt.sting) m.venom = Math.max(m.venom, 3 + 4 * tgt.sting);          // biting a stinger hurts
     if (m.sting) tgt.venom = Math.max(tgt.venom, 2 + 3 * m.sting);
     const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (!tgt.fav && rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
       m.e = Math.min(m.cap, m.e + gainE); m.kills++; w.counters.kills++; m.actK = 3;
+      if (m.fav) { jStat(w, m, 'kills'); jAdd(w, m, 'fight', `Hunted down and ate ${tgt.name}${tgt.sp === m.sp ? ', one of its own kind' : ' (' + ((w.species.get(tgt.sp) || {}).name || 'another kind') + ')'}.`); }
       if (kill(w, tgt, 'eaten', m.id)) { milestone2(w, m, 'kill', `First kill: ${m.name} caught ${tgt.name}.`); if (tgt.sp === m.sp) milestone(w, 'cannibal', `Cannibalism! ${m.name} ate one of its own kind.`); }
-    } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m); }
+    } else { m.e -= 0.4; tgt.hurt = 1; grudge(w, tgt, m);
+      if (tgt.fav && jAdd(w, tgt, 'fight', `Was attacked by ${m.name} (${(w.species.get(m.sp) || {}).name || 'unknown kind'}). Nothing can eat an immortal.`, 'bitby', 150)) { jStat(w, tgt, 'attacked'); if (w.journals && w.journals[tgt.id]) w.journals[tgt.id].day.fights++; }
+      if (m.fav) jAdd(w, m, 'fight', `Bit ${tgt.name}.`, 'bite', 400);
+    }
   }
   if (m.dead) return;
   // -- give / take energy
@@ -1010,8 +1018,8 @@ function think(w, m, i, dtt) {
       if (xf > 0) { const a = Math.min(Math.max(0, m.e - m.cap * 0.25), 8 * xf * dtt, 250 - w.store[idx]); if (a > 0) { w.store[idx] += a; m.e -= a; w.counters.stored += a; milestone2(w, m, 'granary', `${m.name} stocked a granary: hoarding has begun.`); } }
       else { const a = Math.min(w.store[idx], 8 * -xf * dtt, m.cap - m.e); if (a > 0) { w.store[idx] -= a; m.e += a * 0.92; } }
     } else if (tgt) {
-      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone2(w, m, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone2(w, m, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
-      else { const a = tgt.fav ? 0 : Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; milestone2(w, m, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
+      if (xf > 0) { const a = Math.min(m.e * 0.5, 6 * xf * dtt); if (a > 0 && tgt.e < tgt.cap) { if (m.fav) { jStat(w, m, 'gifts'); jAdd(w, m, 'deed', `Shared its food with ${tgt.name}${relOf(m, tgt) > 0 ? ', a relative' : ''}.`, 'gave', 600); } if (tgt.fav) jAdd(w, tgt, 'friend', `${m.name} shared food with it.`, 'got', 600); m.e -= a; tgt.e = Math.min(tgt.cap, tgt.e + a * 0.9); w.counters.shared += a; bump(w, m, tgt, 0.25); bump(w, tgt, m, 0.25); if (relOf(m, tgt) > 0) { w.counters.famGifts += a; milestone2(w, m, 'family', `${m.name} fed a hungry relative (${tgt.name}). Family care has begun.`); } else if (tgt.sp === m.sp) milestone2(w, m, 'share', `${m.name} shared energy with a neighbour: cooperation.`); } }
+      else { const a = tgt.fav ? 0 : Math.min(tgt.e * 0.3, 1.2 * -xf * dtt * (1 - tgt.armor * 0.7), m.cap - m.e); if (a > 0) { tgt.e -= a; m.e += a * 0.42; m.e -= 0.5 * dtt; tgt.hurt = 1; grudge(w, tgt, m); w.counters.stolen += a; if (m.fav) { jStat(w, m, 'stolen'); jAdd(w, m, 'deed', `Stole energy from ${tgt.name}.`, 'stole', 900); } milestone2(w, m, 'parasite', `${m.name} is draining a neighbour: a parasite.`); } }
     }
   }
   // -- chemistry
@@ -1031,6 +1039,7 @@ function think(w, m, i, dtt) {
           if (cur === bt && w.hp[ti] < 255 && w.hp[ti] > 0) { w.hp[ti] = Math.min(250, w.hp[ti] + 60); m.e -= cost * 0.4; m.cdB = 2; }
           else if (cur === 0) {
             w.st[ti] = bt; w.hp[ti] = 200; m.e -= cost; m.cdB = 3; w.counters.built++; w.stCount++;
+            if (m.fav && w.journals && w.journals[m.id]) { const what = ['', 'wall', 'farm', 'nest', 'granary'][bt], b = w.journals[m.id].stats.built; b[what] = (b[what] || 0) + 1; if (b[what] === 1 || b[what] % 10 === 0) jAdd(w, m, 'deed', b[what] === 1 ? `Built its first ${what} as an immortal.` : `Has now built ${b[what]} ${what === 'granary' ? 'granaries' : what + 's'}.`); }
             milestone2(w, m, 'build' + bt, `First ${['', 'wall', 'farm', 'nest', 'granary'][bt]} built by ${m.name}.`);
           } else m.cdB = 1;
         }
@@ -1112,6 +1121,7 @@ function birth(w, pa, pb, energy) {
   assignSpecies(w, c, pa.sp);
   w.counters.births++; pb ? w.counters.sexual++ : w.counters.asexual++;
   if (pb) milestone(w, 'sex', 'The first mating: two parents, one child, mixed brains.');
+  jBirth(w, pa, pb, c);
   if (c.net.nh > 0) milestone(w, 'hidden', `A brain grew a new neuron (${c.name}). Brains are getting more complex.`);
 }
 
@@ -1195,6 +1205,7 @@ function fields(w, dt) {
   }
 }
 function sample(w) {
+  jTick(w);
   for (const s of w.species.values()) s.count = 0;
   let sumR = 0, sumDiet = 0, sumC = 0, sumH = 0, sumPhoto = 0, builders = 0;
   const ms = w.motes, lc = new Map(), lrep = new Map();
@@ -1310,8 +1321,23 @@ export function cloneMote(w, m) {
   return c;
 }
 export function feedMote(m) { m.e = m.cap; }
+// who they were on the day they were starred
+function portrait(w, m) {
+  const sp = w.species.get(m.sp), PLAN = ['ringed worm', 'smooth slug', 'plated crawler', 'see-through microbe', 'bristle worm', 'flatworm'], EYES = ['no eyes', 'one big eye', 'two bead eyes', 'a cluster of eyes', 'eyes on stalks'];
+  const word = (v, lo, mid, hi) => (v < 0.34 ? lo : v < 0.67 ? mid : hi), b = m.g.b;
+  const lines = [`Kind: ${sp ? sp.name : 'unknown'}. Generation ${m.gen}, aged ${Math.round(m.age)}s at the time.`,
+    `Body: a ${word(b[B.SIZE], 'small', 'middling', 'large')} ${PLAN[m.style]} with ${m.segs} segments and ${EYES[m.eyes]}; ${word(b[B.SPEED], 'slow', 'steady', 'fast')}, with ${word(b[B.SENSE], 'short', 'fair', 'far')} sight.`,
+    `Appetite: ${m.photo > 0.5 ? 'lives mostly on sunlight' : m.diet > 0.55 ? 'a meat-eater' : m.diet > 0.2 ? 'eats plants and meat' : 'a plant-eater'}${m.armor > 0.4 ? ', and armoured' : ''}.`];
+  if (m.arms) lines.push(`Hands: ${m.arms === 2 ? 'two pairs' : 'one pair'} of arms. ${TOOL_INFO[m.tool]}`);
+  const parts = ['sting', 'camo', 'jet'].filter(k => m[k]).map(k => PARTS[k][0].toLowerCase()); if (parts.length) lines.push(`Special parts: ${parts.join(', ')}.`);
+  lines.push(`Mind: ${m.net.nc} connections and ${m.net.nh} thinking neurons.`);
+  if (m.anc.length) lines.push(`Ancestors: ${m.anc.join(', then ')}.`);
+  const friends = []; for (const [id, v] of m.fr) if (v > 0.35 && w.byId.get(id)) friends.push(w.byId.get(id).name); if (friends.length) lines.push(`Friends that day: ${friends.join(', ')}.`);
+  return lines;
+}
 export function toggleFav(w, m) {
   m.fav = !m.fav;
+  if (m.fav) jOpen(w, m, portrait(w, m)); else jClose(w, m);
   if (m.fav) w.favs.push({ id: m.id, name: m.name, sp: m.sp, hue: m.hue, alive: true, age: m.age, kids: m.kids, gen: m.gen });
   else w.favs = w.favs.filter(f => f.id !== m.id);
 }
@@ -1370,7 +1396,7 @@ export function serialize(w) {
     v: 1, t: w.t, tick: w.tick, rng: RS, innov: INNOV, nextId: w.nextId, nextSp: w.nextSp,
     light: w.light, tempEv: w.tempEv, tempEvLeft: w.tempEvLeft, drift: w.drift || 0, drought: w.drought || 0, strain: w.strain, evTimer: w.evTimer, bloom: w.bloom,
     maxPop: w.maxPop, foodMax: w.foodMax, fert: w.fert, events: w.events,
-    counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
+    counters: w.counters, milestones: w.milestones, fame: w.fame, favs: w.favs, journals: w.journals || {}, log: w.log.slice(-120), keep: w.keep.slice(-300), lastYear: w.lastYear, snap: w.snap, hist: w.hist,
     sick: w.sick, plagueOn: w.plagueOn, plagueDead: w.plagueDead,
     st: u8b64(w.st), hp: u8b64(w.hp), store: u8b64(q8(w.store, 1)), heat: u8b64(q8(w.heat, 100, 128)), tox: u8b64(q8(w.tox, 255)), nut: u8b64(q8(w.nut, 170)),
     chem: w.chem.map(c => u8b64(q8(c, 80))),
@@ -1384,7 +1410,7 @@ export function deserialize(str) {
   const w = createWorld(1);                     // allocates grids; then we overwrite everything
   w.motes.length = 0; w.food.length = 0; w.species.clear(); w.log.length = 0;
   RS = d.rng | 0 || 1; INNOV = d.innov || 1000;
-  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, strain: d.strain, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
+  Object.assign(w, { t: d.t, tick: d.tick, nextId: d.nextId, nextSp: d.nextSp, light: d.light, tempEv: d.tempEv, tempEvLeft: d.tempEvLeft, drift: d.drift || 0, drought: d.drought || 0, strain: d.strain, evTimer: d.evTimer, bloom: d.bloom, maxPop: d.maxPop, foodMax: d.foodMax, fert: d.fert, events: d.events, counters: Object.assign(w.counters, d.counters), milestones: d.milestones, fame: d.fame, favs: d.favs, journals: d.journals || {}, log: d.log, keep: d.keep || [], lastYear: d.lastYear != null ? d.lastYear : Math.floor(d.t / YEAR), snap: d.snap || null, hist: d.hist, sick: d.sick, plagueOn: d.plagueOn, plagueDead: d.plagueDead });
   w.st.set(b64u8(d.st)); w.hp.set(b64u8(d.hp)); w.store.set(f8(b64u8(d.store), 1));
   w.heat.set(f8(b64u8(d.heat), 100, 128)); w.tox.set(f8(b64u8(d.tox), 255)); if (d.nut) w.nut.set(f8(b64u8(d.nut), 170));
   d.chem.forEach((c, k) => w.chem[k].set(f8(b64u8(c), 80)));
