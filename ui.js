@@ -127,7 +127,7 @@ const TOOLINFO = {
   plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes glow green, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
-  spark: ['✨', 'New life', 'Tap to drop in a brand-new creature: a new species with its own look.'],
+  spark: ['✨', 'New life', 'Tap to drop in a new family of four: a brand-new kind with its own look and a working brain.'],
 };
 const EVTILES = [['bloom', '🌸', 'Food bloom', 'Plants boom for a while.'], ['cold', '🥶', 'Cold snap', 'The whole dish turns cold for a bit.'], ['heat', '🥵', 'Heatwave', 'The whole dish heats up for a bit.'], ['iceage', '🧊', 'Ice age', 'Long deep cold and thin food. Harsh!'], ['drought', '🏜️', 'Drought', 'Food becomes scarce for a while.']];
 const EVMSG = { bloom: '🌸 A food bloom has begun.', cold: '🥶 A cold snap is coming.', heat: '🥵 A heatwave is coming.', iceage: '🧊 An ice age has begun. It will be hard.', drought: '🏜️ A drought has begun.' };
@@ -284,7 +284,7 @@ cv.addEventListener('pointerdown', e => {
   if (UNDOABLE.has(tool)) { undoStack.push({ w, f: S.snapshotFields(w) }); gesturePushed = true; if (undoStack.length > 10) undoStack.shift(); lastUndoAt = Date.now(); renderStrip(); }
   if (tool === 'smite' || tool === 'plague') feedback(tool, wx, wy);
   if (tool === 'spark') { const nm = S.spark(w, wx, wy); painting = null; fx.push({ x: wx, y: wy, r: 40, c: '255,255,160', t: 0 }); showHint('', '✨ A new creature appeared: ' + ((w.species.get(nm.sp) || {}).name || 'unknown') + '. Tap it with 👆 Look to see its brain.'); sfx('spark'); buzz(15); }
-  if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 100); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 100, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
+  if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 135); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 135, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
 });
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;
@@ -360,13 +360,14 @@ function renderInsp(force) {
   const cap = captionFor(m);
   const more = showMore ? `${m.anc.length ? `<div class="dim" style="margin-top:6px">Ancestors: ${m.anc.map(esc).join(' ← ')}</div>` : ''}
   ${socialText(m)}
+  ${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => `<div class="dim" style="margin-top:4px"><b>${S.PARTS[k][0]}.</b> ${esc(S.PARTS[k][1])}</div>`).join('')}
   <div class="bars">${bar('size', b[S.B.SIZE])}${bar('speed', b[S.B.SPEED])}${bar('senses', b[S.B.SENSE])}${bar('diet', b[S.B.DIET])}${bar('armor', b[S.B.ARMOR])}${bar('sunlight', b[S.B.PHOTO])}${bar('segments', m.segs - 2, 7)}${bar('length', b[S.B.LEN])}${bar('curl', Math.abs(m.curl))}${bar('wiggle', b[S.B.WAMP])}${bar('limbs', m.limbs, 4)}${bar('arms', m.arms, 2)}</div>
   ${m.arms ? `<div class="dim" style="margin-top:4px">${esc(S.TOOL_INFO[m.tool])}</div>` : ''}
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:hsl(${m.hue * 360},75%,60%)"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
   <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Unstar' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>
-  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
+  <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}age ${Math.round(m.age)} of ${Math.round(m.life)}s · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
   <button data-a="more" style="width:100%;margin-top:8px;min-height:44px">${showMore ? '▴ Fewer details' : '▾ More details'}</button>${more}`;
@@ -786,6 +787,32 @@ function drawArms(m, n, dtv) {
     }
   }
 }
+// optional parts: camouflage mottling, a barbed stinger on the tail, jet nozzles that flare when firing
+function drawParts(m, n) {
+  const t = n - 1, bx = PX[t], by = PY[t], back = PA[t], r = m.r;
+  if (m.camo) {                                       // mottled blotches in murky greens over the whole body
+    for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) {
+      const a = PA[i] + q * 2.3 + i * 1.7 + m.id, d = PR[i] * (0.25 + 0.45 * ((q * 37 + i * 11 + m.id) % 10) / 10);
+      ctx.fillStyle = q & 1 ? `rgba(60,82,40,${0.35 + 0.4 * m.camo})` : `rgba(28,40,34,${0.3 + 0.45 * m.camo})`;
+      ctx.beginPath(); ctx.arc(PX[i] + Math.cos(a) * d, PY[i] + Math.sin(a) * d, PR[i] * 0.38, 0, 7); ctx.fill();
+    }
+  }
+  if (m.jet) {
+    ctx.fillStyle = '#9fb4c8';
+    for (const sd of [-1, 1]) { const a = back + sd * 0.9; ctx.beginPath(); ctx.arc(bx + Math.cos(a) * PR[t] * 0.9, by + Math.sin(a) * PR[t] * 0.9, r * 0.22, 0, 7); ctx.fill(); }
+    if (m.jetOn) {                                     // the burst: two flickering streams behind
+      for (const sd of [-1, 1]) {
+        const a = back + sd * 0.9, ox = bx + Math.cos(a) * PR[t] * 0.9, oy = by + Math.sin(a) * PR[t] * 0.9, L = r * (1.6 + 1.2 * m.jet) * (0.75 + 0.25 * Math.sin(w.t * 40 + sd + m.id)), w2 = r * 0.2;
+        ctx.fillStyle = 'rgba(130,215,255,0.75)'; ctx.beginPath(); ctx.moveTo(ox + Math.cos(back + 1.57) * w2, oy + Math.sin(back + 1.57) * w2); ctx.lineTo(ox + Math.cos(back) * L, oy + Math.sin(back) * L); ctx.lineTo(ox - Math.cos(back + 1.57) * w2, oy - Math.sin(back + 1.57) * w2); ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+  if (m.sting) {                                       // a hooked barb with a violet venom tip
+    const L = r * (1.1 + 0.9 * m.sting), mx = bx + Math.cos(back) * L, my = by + Math.sin(back) * L, tx = mx + Math.cos(back + 1.35) * L * 0.6, ty = my + Math.sin(back + 1.35) * L * 0.6;
+    ctx.strokeStyle = '#d9c2ff'; ctx.lineWidth = Math.max(1, r * 0.24); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+    ctx.fillStyle = '#b44bff'; ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.1, r * 0.24), 0, 7); ctx.fill();
+  }
+}
 // the mouth: a hinged pair of jaws. Snaps rapidly when biting, opens to take food, shows teeth on meat-eaters.
 function drawMouth(m) {
   const t = w.t - m.actT, bit = m.o && m.o[S.OUT.BITE] > 0.3;
@@ -932,6 +959,7 @@ function drawSquiggle(m, dtv) {
     for (let i = 0; i < n; i++) { const an = PA[i] - 1.5708 + Math.sin(m.ph + i) * 0.25, L = PR[i] * (0.8 + m.frill * 1.8); ctx.moveTo(PX[i] - Math.cos(PA[i]) * PR[i] * 0.7, PY[i] - Math.sin(PA[i]) * PR[i] * 0.7); ctx.lineTo(PX[i] + Math.cos(an) * (PR[i] + L), PY[i] + Math.sin(an) * (PR[i] + L)); ctx.lineTo(PX[i] + Math.cos(PA[i]) * PR[i] * 0.7, PY[i] + Math.sin(PA[i]) * PR[i] * 0.7); }
     ctx.fill();
   }
+  if (m.sting || m.camo || m.jet) drawParts(m, n);
   if (m.arms > 0) drawArms(m, n, dtv);
   if (m.ant > 0) {                          // antennae with little bulbs
     ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;

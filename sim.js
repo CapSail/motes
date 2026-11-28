@@ -62,8 +62,16 @@ export const B = {
   IMT: 41,    // immune type: a plague strain close to this value hardly infects the host
   // arms: 0-2 pairs, how long, and which tool is on the end (claw / spear / club = weapons, pincer / scoop / rake = gathering tools)
   ARMS: 42, ARMLEN: 43, TOOL: 44,
+  // optional parts, grown only when the gene is high enough
+  STING: 45, CAMO: 46, JET: 47,
 };
-export const NB = 45;
+export const NB = 48;
+export const PART_AT = 0.64;
+export const PARTS = {
+  sting: ['Stinger', 'A barbed tail. Anything that bites this creature (or that it bites) is poisoned for a few seconds. Costs energy to keep.'],
+  camo: ['Camouflage', 'Faded, mottled skin. While it moves slowly, others only notice it from much closer. Costs energy to keep.'],
+  jet: ['Jet', 'A water jet. A burst of speed to escape a threat or run down prey, paid for with a lot of energy.'],
+};
 export const TOOLS = ['claw', 'spear', 'club', 'pincer', 'scoop', 'rake'];
 export const TOOL_INFO = [
   'Claws: sharp hooks that make bites land far more often.',
@@ -153,7 +161,7 @@ function runBrain(net, inp) {
   for (let j = 0; j < n; j++) a[NI + j] = Math.tanh(acc[j]);
 }
 
-const BODY_DIFF = [B.ARMS, B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
+const BODY_DIFF = [B.STING, B.CAMO, B.JET, B.ARMS, B.SIZE, B.SPEED, B.SENSE, B.DIET, B.ARMOR, B.PHOTO, B.EFFIC, B.TPREF, B.LIFE, B.FAT, B.SEGS, B.LEN, B.CURL, B.LIMBS];
 function dist(a, b) {
   let bd = 0;
   for (let i = 0; i < BODY_DIFF.length; i++) bd += Math.abs(a.b[BODY_DIFF[i]] - b.b[BODY_DIFF[i]]);
@@ -237,6 +245,7 @@ function bodyOf(o) {
   for (let k = B.STYLE; k <= B.GLOW; k++) b[k] = rand();
   b[B.IMT] = rand();
   b[B.ARMS] = rand() * 0.7; b[B.ARMLEN] = rand(); b[B.TOOL] = rand();
+  b[B.STING] = rand() * 0.8; b[B.CAMO] = rand() * 0.8; b[B.JET] = rand() * 0.8;
   for (const k in o) b[B[k]] = o[k];
   return b;
 }
@@ -313,7 +322,7 @@ function wild(hue) {
 
 // ---------- world ----------
 // the founding seed that makes the best Day 1 dish (found by scripts/seed-search.mjs)
-export const BEST_SEED = 137;
+export const BEST_SEED = 182;
 export function createWorld(seed = 1, opts = {}) {
   seedRng(seed); INNOV = 1000;
   const N = GN * GN;
@@ -417,6 +426,11 @@ export function derive(m) {
   else if (m.tool === 4) { m.greach = 2 + 3 * aS; m.gatherK = 1 + 0.05 * aS; }       // scoop: wider pickup
   else if (m.tool === 5) { m.greach = 2 + 5 * aS; m.gatherK = 0.95; }                                // rake: widest pickup
   { const HB = globalThis.__HB === undefined ? 0.4 : globalThis.__HB; m.hitB *= HB; m.pierce *= HB; }
+  const part = v => Math.max(0, Math.min(1, (v - PART_AT) / (1 - PART_AT)));
+  m.sting = b[B.STING] > PART_AT ? 0.4 + 0.6 * part(b[B.STING]) : 0;
+  m.camo = b[B.CAMO] > PART_AT ? 0.4 + 0.6 * part(b[B.CAMO]) : 0;
+  m.jet = b[B.JET] > PART_AT ? 0.4 + 0.6 * part(b[B.JET]) : 0;
+  m.basal += (m.sting ? 0.06 + 0.08 * m.sting : 0) + (m.camo ? 0.05 + 0.07 * m.camo : 0) + (m.jet ? 0.04 + 0.04 * m.jet : 0);
   m.basal += m.arms * (0.1 + 0.15 * m.armLen); m.maxSp *= 1 - 0.07 * m.arms * (0.5 + m.armLen);
   const segX = (m.segs - 2) / 7;                                                      // long bodies: more energy storage and bite reach, but heavier
   m.cap += segX * 26; m.basal += 0.14 * segX; m.reach += 0.3 * (m.segs - 2) * m.lenF;
@@ -433,7 +447,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, actX: 0, actY: 0, actS: 1, actF: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, thrCap: 1, sting: 0, camo: 0, jet: 0, jetOn: false, venom: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, actX: 0, actY: 0, actS: 1, actF: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -662,7 +676,7 @@ function body(w, m, dt, tempG) {
   const o = m.o;
   // steering and motion
   m.h += clamp(o[OUT.TURN] + m.rt, -1.5, 1.5) * m.turnRate * dt;
-  const target = clamp(o[OUT.THRUST] + m.rth, 0, 1) * m.maxSp;
+  const target = Math.min(clamp(o[OUT.THRUST] + m.rth, 0, 1), m.thrCap) * m.maxSp * (m.jetOn ? 1 + 0.7 * m.jet : 1);
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
   let nx = m.x, ny = m.y, hit = false, edge = false;
@@ -693,6 +707,7 @@ function body(w, m, dt, tempG) {
   const idx = cidx(m.x, m.y);
   let drain = m.basal + 0.00025 * m.v * m.v * m.r * m.mvMul + 0.0012 * m.senseR + m.bcost;
   if (o[OUT.BITE] > 0.3) drain += 0.3;
+  if (m.jetOn) drain += 1.1 * m.jet;
   const em = Math.max(0, o[OUT.EMIT_A]) + Math.max(0, o[OUT.EMIT_B]) + Math.max(0, o[OUT.EMIT_C]);
   drain += 0.12 * em + 0.07 * Math.max(0, m.crowd - 4);
   let gain = 0; m.why2 = '';
@@ -703,16 +718,17 @@ function body(w, m, dt, tempG) {
   }
   if (idx >= 0) {
     const tx = w.tox[idx];
-    if (tx > 0.05) { drain += tx * 7 * (1 - m.toxr * 0.9); m.hurt = 1; m.why2 = 'toxin'; }
+    if (tx > 0.05) { drain += tx * 12 * (1 - m.toxr * 0.9); m.hurt = 1; m.why2 = 'toxin'; }
     const T = tempG + w.heat[idx] + geoT(m.y), d = Math.abs(T - m.tpref) - m.ttol;
     if (d > 0) { drain += d * 6; m.why2 = T > m.tpref ? 'heat' : 'cold'; }
     if (w.st[idx] === 3 && m.crowd <= 4) { gain += 0.75; drain *= 0.8; }
   }
   if (m.sick > 0) {
-    drain += 1.5 * (1 - m.disr * 0.8); m.sick -= dt; m.why2 = 'plague';
+    drain += 2.6 * (1 - m.disr * 0.8); m.sick -= dt; m.why2 = 'plague';
     if (m.sick <= 0) { m.imm = 45; w.sick--; }
   } else if (m.imm > 0) m.imm -= dt;
   if (m.hurt > 0) m.hurt -= dt * 2;
+  if (m.venom > 0) { drain += 3 * (1 - m.toxr * 0.7); m.venom -= dt; m.why2 = 'sting'; m.hurt = Math.max(m.hurt, 0.5); }
   m.e += (gain - drain) * dt;
   if (m.e > m.cap) m.e = m.cap;
   if (m.e <= 0) { kill(w, m, m.why2 || 'starved'); if (!m.dead) m.why2 = ''; else return; }
@@ -746,6 +762,7 @@ function think(w, m, i, dtt) {
       if (q === i) continue;
       const o = motes[q]; if (o.dead) continue;
       const dx = o.x - m.x, dy = o.y - m.y, d2 = dx * dx + dy * dy; if (d2 > s2) continue;
+      if (o.camo && d2 > 400 && o.v < o.maxSp * 0.65) { const k = 1 - 0.65 * o.camo; if (d2 > s2 * k * k) continue; }
       if (hasW && d2 > 900 && blockedLine(w, m.x, m.y, o.x, o.y)) continue;
       count++; if (d2 < 1600) crowd++;
       const same = o.sp === m.sp;
@@ -759,7 +776,7 @@ function think(w, m, i, dtt) {
         if (o.r <= m.r * 1.15 && d2 < bypd) { bypd = d2; byp = q; }                                                            // something smaller I could eat
         if ((o.o[OUT.BITE] > 0.3 || o.diet > 0.35 || fs0 < -0.3) && o.r >= m.r * 0.7 && d2 < bthd) { bthd = d2; bth = q; }     // something that bites and is not tiny
       }
-      if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 0.5 * dtt * (1 - o.disr * 0.6) * (1 - 0.75 * Math.exp(-((o.imt - m.strain) ** 2) / 0.02))) infect(w, o, clamp01(m.strain + gauss() * 0.06));
+      if (infectR && d2 < (infectR + o.r) * (infectR + o.r) && rand() < 1.0 * dtt * (1 - o.disr * 0.6) * (1 - 0.75 * Math.exp(-((o.imt - m.strain) ** 2) / 0.02))) infect(w, o, clamp01(m.strain + gauss() * 0.06));
     }
   }
   m.crowd = crowd;
@@ -867,6 +884,28 @@ function think(w, m, i, dtt) {
       rt += -q * (Math.tanh(sd * 3) * 0.9 + (m.id & 1 ? 1 : -1) * Math.max(0, f) * 0.5);
       rth += q * (-0.45 * f + 0.1);
     }
+    // survival comes first. These are body instincts, not rescues: a hungry creature turns to food, one in danger runs.
+    if (!globalThis.__NOSURV) {
+      const hunger = clamp((0.5 - m.e / m.cap) / 0.35, 0, 1) * (1 - 0.7 * m.photo);
+      if (hunger > 0) {
+        const mem = m.mem;
+        let tx = 0, ty = 0, got = false;
+        if (bp >= 0 && m.plantEff > 0.25 && (bm < 0 || m.meatEff < 0.25 || bpd * m.meatEff <= bmd * m.plantEff)) { tx = food[bp].x; ty = food[bp].y; got = true; }
+        else if (bm >= 0 && m.meatEff > 0.25) { tx = food[bm].x; ty = food[bm].y; got = true; }
+        else if (mem[2] > 0) { tx = mem[0]; ty = mem[1]; got = true; }
+        if (got) {
+          const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, f = (dx * ch + dy * sh) / d, sd = (dy * ch - dx * sh) / d;
+          rt += hunger * (1.4 * Math.tanh(sd * 3) + (f < -0.3 ? (m.id & 1 ? 0.8 : -0.8) : 0));
+          rth += hunger * (d < 18 && f < 0.5 ? -0.5 : 0.25 + 0.5 * Math.max(0, f));       // ease off when the food is close but off to the side, so it is not overshot
+        }
+        m.thrCap = got ? 1 : 1 - 0.35 * hunger;                                             // nothing to eat in sight: do not waste energy sprinting
+      } else m.thrCap = 1;
+      const tp = inp[IN.THREAT_P];
+      if (tp > 0.4 && !(m.tool >= 0 && m.tool <= 2) && m.diet < 0.35) {                      // unarmed plant-eaters run from whatever bites
+        const q = Math.min(1, (tp - 0.4) / 0.35), f = inp[IN.THREAT_F], sd = inp[IN.THREAT_S];
+        rt += -q * 1.3 * (Math.tanh(sd * 6) || (m.id & 1 ? 1 : -1)); rth += q * (f > 0 ? 0.25 : 0.8);
+      }
+    } else m.thrCap = 1;
     m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1); if (globalThis.__NOREFLEX) { m.rt = 0; m.rth = 0; }
   } else { m.rt = 0; m.rth = 0; }
   {   // walls are solid: steer away from them whatever the brain thinks
@@ -902,6 +941,11 @@ function think(w, m, i, dtt) {
   }
   runBrain(m.net, inp);
   const o = m.o;
+  if (!globalThis.__NOSURV && m.e < m.cap * 0.35) {
+    for (let k = 0; k < 3; k++) if (o[OUT.EMIT_A + k] > 0) o[OUT.EMIT_A + k] = 0;
+    if (o[OUT.XFER] > 0) o[OUT.XFER] = 0;
+  }
+  m.jetOn = m.jet > 0 && m.e > m.cap * 0.35 && (inp[IN.THREAT_P] > 0.45 || (m.diet > 0.25 && inp[IN.PREY_P] > 0.4 && o[OUT.BITE] > 0));
   // where the arms reach (for drawing): toward a victim when biting, otherwise toward food that is close
   {
     let ak = 0, ax = 0, ay = 0;
@@ -947,6 +991,8 @@ function think(w, m, i, dtt) {
   if (tgt && o[OUT.BITE] > 0.3 && !tgt.dead) {
     if (w.t - m.actT > 0.3 || m.actK === 1) m.actS = rand() < 0.5 ? -1 : 1;
     m.actT = w.t; m.actK = 2; m.actX = tgt.x; m.actY = tgt.y;
+    if (tgt.sting) m.venom = Math.max(m.venom, 3 + 4 * tgt.sting);          // biting a stinger hurts
+    if (m.sting) tgt.venom = Math.max(tgt.venom, 2 + 3 * m.sting);
     const p = clamp(1.5 + m.hitB + (m.r - tgt.r) * 0.28 - tgt.armor * 2.2 * (1 - m.pierce) + (m.maxSp - tgt.maxSp) / 45, 0, 3) * dtt;
     if (rand() < p) {
       const gainE = (tgt.e * 0.5 + tgt.r * 6) * Math.max(globalThis.__MF || 0.05, m.meatEff) * m.intake * (globalThis.__BG || 2.5);
@@ -970,7 +1016,7 @@ function think(w, m, i, dtt) {
   if (idx >= 0) for (let k = 0; k < 3; k++) { const e = o[OUT.EMIT_A + k]; if (e > 0.05) w.chem[k][idx] = Math.min(3, w.chem[k][idx] + e * 1.2 * dtt); }
   // -- build and dig
   m.cdB -= dtt; m.cdD -= dtt;
-  if (m.cdB <= 0 && idx >= 0 && w.stCount < 3200) {
+  if (m.cdB <= 0 && idx >= 0 && w.stCount < 3200 && (globalThis.__NOSURV || m.e > m.cap * 0.5)) {
     let bt = 0, best = 0.5;
     for (let k = 0; k < 4; k++) if (o[OUT.B_WALL + k] > best) { best = o[OUT.B_WALL + k]; bt = k + 1; }
     if (bt) {
@@ -995,7 +1041,9 @@ function think(w, m, i, dtt) {
   }
   // -- reproduction
   m.cdA -= dtt;
-  if (o[OUT.MATE] > 0 && m.age > m.matureAge && m.e >= m.thr && w.motes.length < w.maxPop) {
+  // a survivor does not breed into a famine: it needs food around it, or a very full belly, or sunlight to live on
+  const fedWell = globalThis.__NOSURV || m.photo > 0.4 || m.e > m.cap * 0.85 || inp[IN.FOODDENS] >= (globalThis.__FD === undefined ? 0.6 : globalThis.__FD);
+  if (o[OUT.MATE] > 0 && fedWell && m.age > m.matureAge && m.e >= m.thr && w.motes.length < w.maxPop) {
     const t = bn >= 0 ? motes[bn] : null;
     if (t && !t.dead && t.id > m.id && t.sp === m.sp && inp[IN.CONTACT] === 1 && t.o[OUT.MATE] > 0 && t.age > t.matureAge && t.e >= t.thr * 0.9) {
       const ca = m.e * (0.25 + 0.5 * m.g.b[B.INVEST]) * 0.5, cb = t.e * (0.25 + 0.5 * t.g.b[B.INVEST]) * 0.5;
@@ -1109,7 +1157,7 @@ function structures(w, dt) {
       if (v <= 0) { if (t === 4 && w.store[i] > 0) { const n = Math.min(10, Math.ceil(w.store[i] / 18)); for (let q = 0; q < n; q++) spawnFood(w, (i % GN + 0.5) * CELL - R + gauss() * 4, Math.floor(i / GN) * CELL + CELL / 2 - R + gauss() * 4, 0, 18); w.store[i] = 0; } st[i] = 0; hp[i] = 0; count--; }
       else hp[i] = v;
     }
-    if (t === 2 && w.food.length < w.foodMax && rand() < 0.16 * w.light * dt) spawnFood(w, (i % GN + 0.5) * CELL - R + (rand() - 0.5) * CELL, Math.floor(i / GN) * CELL + CELL / 2 - R + (rand() - 0.5) * CELL, 0, 18);
+    if (t === 2 && w.food.length < w.foodMax && rand() < (hp[i] === 255 ? 0.07 : 0.16) * w.light * dt) spawnFood(w, (i % GN + 0.5) * CELL - R + (rand() - 0.5) * CELL, Math.floor(i / GN) * CELL + CELL / 2 - R + (rand() - 0.5) * CELL, 0, 18);
   }
   w.stCount = count; w.walls = walls;
 }
@@ -1140,7 +1188,7 @@ function fields(w, dt) {
   // toxin spreads a little as well
   if (w.tick % 8 === 0) {
     const tmp = w.tmpArr || (w.tmpArr = new Float32Array(N));
-    for (let y = 1; y < GN - 1; y++) for (let x = 1; x < GN - 1; x++) { const i = y * GN + x; tmp[i] = tox[i] * 0.6 + (tox[i - 1] + tox[i + 1] + tox[i - GN] + tox[i + GN]) * 0.1; }
+    for (let y = 1; y < GN - 1; y++) for (let x = 1; x < GN - 1; x++) { const i = y * GN + x; tmp[i] = tox[i] * 0.92 + (tox[i - 1] + tox[i + 1] + tox[i - GN] + tox[i + GN]) * 0.02; }
     for (let i = 0; i < N; i++) tox[i] = tmp[i] < 0.01 ? 0 : tmp[i];
   }
 }
@@ -1203,8 +1251,8 @@ export function paint(w, tool, x, y, rad, dt) {
     if (d > rad) continue;
     const i = gy * GN + gx, f = 1 - d / rad;
     switch (tool) {
-      case 'heat': w.heat[i] = Math.min(1.6, w.heat[i] + 1.2 * dt * f); break;
-      case 'cold': w.heat[i] = Math.max(-1.6, w.heat[i] - 1.2 * dt * f); break;
+      case 'heat': w.heat[i] = Math.min(1.8, w.heat[i] + 3 * dt * (0.4 + 0.6 * f)); break;
+      case 'cold': w.heat[i] = Math.max(-1.8, w.heat[i] - 3 * dt * (0.4 + 0.6 * f)); break;
       case 'toxin': w.tox[i] = Math.min(1, w.tox[i] + 2 * dt * f + (dt >= 1 ? 1 : 0)); break;
       case 'wall': case 'farm': case 'nest': case 'granary': {
         if (w.st[i] === 255) break;
@@ -1239,11 +1287,19 @@ export function restoreFields(w, sn) {
 }
 export function cleanFood(w) { let j = 0; for (let i = 0; i < w.food.length; i++) if (!w.food[i].dead) w.food[j++] = w.food[i]; w.food.length = j; }
 export function spark(w, x, y) {
-  const g = rand() < 0.5 ? wild(rand()) : [grazer, hunter, weaver, scavenger, drifter][(rand() * 5) | 0](rand());
-  const m = makeMote(w, g, x, y, 0, 0);
-  const ns = newSpecies(w, g, 0); m.sp = ns.id; m.e = m.cap * 0.8;
+  let g;
+  if (PACK.length >= 8) {
+    g = unpackG(PACK[(rand() * PACK.length) | 0]); for (const id of g.h) if (id >= INNOV) INNOV = id + 1;
+    g.b[B.HUE] = rand(); g.b[B.STYLE] = rand(); g.b[B.PATTERN] = rand(); mutateG(g);
+  } else g = grazer(rand());
+  const ns = newSpecies(w, g, 0); let first = null;
+  for (let i = 0; i < 4; i++) {                                           // a founding family, so the new kind has a fighting chance
+    const gg = cloneG(g); if (i) mutateG(gg);
+    let px = x + (i ? gauss() * 14 : 0), py = y + (i ? gauss() * 14 : 0); if (solidAt(w, px, py)) { px = x; py = y; }
+    const m = makeMote(w, gg, px, py, 0, 0); m.sp = ns.id; m.e = m.cap * 0.9; first = first || m;
+  }
   log(w, `A spark of new life: ${ns.name}.`, 'life');
-  return m;
+  return first;
 }
 export function cloneMote(w, m) {
   const g = cloneG(m.g); mutateG(g);
@@ -1259,14 +1315,14 @@ export function toggleFav(w, m) {
 }
 export function startPlague(w, n = 5) { if (w.motes.length) { w.strain = rand(); for (let i = 0; i < n; i++) infect(w, w.motes[(rand() * w.motes.length) | 0]); w.counters.plagues++; } }
 export function triggerEvent(w, kind) {
-  if (kind === 'bloom') { w.bloom = 45; log(w, 'You called a bloom.', 'event'); }
+  if (kind === 'bloom') { w.bloom = 25; log(w, 'You called a bloom.', 'event'); }
   if (kind === 'cold') { w.tempEv = -0.8; w.tempEvLeft = 70; log(w, 'You called a cold snap.', 'event'); }
   if (kind === 'heat') { w.tempEv = 0.8; w.tempEvLeft = 70; log(w, 'You called a heatwave.', 'event'); }
-  if (kind === 'iceage') { w.tempEv = -0.85; w.tempEvLeft = 180; w.drought = Math.max(w.drought || 0, 60); log(w, 'An ice age has begun: deep cold and thin food for three minutes.', 'event'); }
-  if (kind === 'drought') { w.drought = 160; log(w, 'A drought: food is scarce.', 'event'); }
+  if (kind === 'iceage') { w.tempEv = -0.75; w.tempEvLeft = 180; w.drought = Math.max(w.drought || 0, 35); log(w, 'An ice age has begun: deep cold and thin food for three minutes.', 'event'); }
+  if (kind === 'drought') { w.drought = 110; log(w, 'A drought: food is scarce.', 'event'); }
 }
 // a meteor: kills everything in the crater, burns the ground bare, heats and poisons it, then the rim blooms with ash-fed plants
-export function meteor(w, x, y, rad = 110) {
+export function meteor(w, x, y, rad = 135) {
   let dead = 0;
   for (const m of w.motes) if (!m.dead && Math.hypot(m.x - x, m.y - y) < rad) { kill(w, m, 'meteor'); dead++; }
   if (w.deadN) { let j = 0; for (let i = 0; i < w.motes.length; i++) if (!w.motes[i].dead) w.motes[j++] = w.motes[i]; w.motes.length = j; w.deadN = 0; }
@@ -1305,7 +1361,7 @@ function b64u8(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (le
 const q8 = (f, scale, off = 0) => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = clamp(Math.round(f[i] * scale + off), 0, 255); return u; };
 const f8 = (u, scale, off = 0) => { const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = (u[i] - off) / scale; return f; };
 function packG(g) { return { b: u8b64(q8(g.b, 255)), h: g.h, c: g.c.map(c => [c.s, c.d, Math.round(c.w * 1000) / 1000]) }; }
-function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = i === B.ARMS ? 0.1 : i >= B.ARMS ? Math.random() : i >= B.SC_A ? 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.25) : 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
+function unpackG(p) { let b = f8(b64u8(p.b), 255); if (b.length < NB) { const nb = new Float32Array(NB).fill(0.5); nb.set(b); for (let i = b.length; i < NB; i++) nb[i] = i >= B.STING ? ((b[0] * 97.31 + b[13] * 31.77 + b[1] * 13.9 + i * 0.377) % 1) * 0.77 : i === B.ARMS ? 0.1 : i >= B.ARMS ? Math.random() : i >= B.SC_A ? 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.25) : 0.2 + ((i * 37) % 60) / 100; b = nb; } return { b, h: p.h.slice(), c: p.c.map(([s, d, w]) => ({ k: ckey(s, d), s, d, w })) }; }
 
 export function serialize(w) {
   return JSON.stringify({
@@ -1396,7 +1452,7 @@ export function helpSpecies(w, id) {
   for (const m of w.motes) if (m.sp === id && !m.dead) {
     n++; m.e = Math.min(m.cap, m.e + m.cap * 0.5);
     for (let i = 0; i < 8; i++) spawnFood(w, m.x + gauss() * 30, m.y + gauss() * 30, 0, 18);
-    const ix = cidx(m.x, m.y); if (ix >= 0 && w.st[ix] === 0) { w.st[ix] = 3; w.hp[ix] = 255; w.stCount++; }
+    const ix = cidx(m.x, m.y); if (ix >= 0 && w.st[ix] === 0) { w.st[ix] = 3; w.hp[ix] = 220; w.stCount++; }
   }
   const sp = w.species.get(id); if (sp) name = sp.name;
   if (n) log(w, 'You gave the last ' + n + ' ' + name + ' a hand: food and nests appeared beside them.', 'event');
