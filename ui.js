@@ -694,41 +694,69 @@ function captionFor(m) {
 const STC = [null, '#7a8696', '#3f9a56', '#d08a3c', '#d6c04a'];
 // A mote's body is generated from its shape genes: a spine of segments that curls and wiggles, tapering, with limbs.
 const PX = new Float32Array(12), PY = new Float32Array(12), PA = new Float32Array(12), PR = new Float32Array(12);
-// tools at the end of an arm: weapons are steel-coloured (claw, spear, club), gathering tools are gold (pincers, scoop, rake)
-function drawTool(k, x, y, a, s, lw, act) {
-  act = act || 0;
-  const c = Math.cos(a), sn = Math.sin(a);
-  const P = (f, l) => [x + c * f - sn * l, y + sn * f + c * l];
-  const col = k <= 2 ? '#e8eef6' : '#f2c14e';
-  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (k === 0) {                                          // claw: two curved hooks
-    ctx.beginPath();
-    for (const sd of [-1, 1]) { const q = P(s * 0.6, sd * s * 0.42 * (1 + act * 0.6)), e = P(s * 1.25, sd * s * (0.12 + act * 0.25)); ctx.moveTo(x, y); ctx.quadraticCurveTo(q[0], q[1], e[0], e[1]); }
-    ctx.stroke();
-  } else if (k === 1) {                                   // spear: a shaft and a pointed head
-    const b = P(s * 1.7, 0), t = P(s * 2.7, 0), l = P(s * 1.7, s * 0.34), r = P(s * 1.7, -s * 0.34);
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(l[0], l[1]); ctx.lineTo(r[0], r[1]); ctx.closePath(); ctx.fill();
-  } else if (k === 2) {                                   // club: a handle with a studded knob
-    const b = P(s * 0.8, 0), cc = P(s * 1.3, 0);
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cc[0], cc[1], s * 0.55, 0, 7); ctx.fill();
-    ctx.fillStyle = '#5b6573'; for (let q = 0; q < 3; q++) { const p = P(s * 1.3 + Math.cos(q * 2.1) * s * 0.3, Math.sin(q * 2.1) * s * 0.3); ctx.beginPath(); ctx.arc(p[0], p[1], s * 0.1, 0, 7); ctx.fill(); }
-  } else if (k === 3) {                                   // pincers: two rounded jaws that close on food
-    ctx.beginPath();
-    const open = 1 - 0.85 * act;                          // the jaws snap shut on a pickup
-    for (const sd of [-1, 1]) { const m1 = P(s * 0.8, sd * s * 0.5 * open), e = P(s * 1.5, sd * s * 0.14 * open); ctx.moveTo(x, y); ctx.lineTo(m1[0], m1[1]); ctx.lineTo(e[0], e[1]); }
-    ctx.stroke();
-    for (const sd of [-1, 1]) { const e = P(s * 1.5, sd * s * 0.14 * open); ctx.beginPath(); ctx.arc(e[0], e[1], lw * 0.9, 0, 7); ctx.fill(); }
-  } else if (k === 4) {                                   // scoop: a cup that opens forward
-    const b = P(s * 0.7, 0), cc = P(s * 1.15, 0);
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cc[0], cc[1], s * 0.55, a + 1.5708, a + 4.7124); ctx.globalAlpha = 0.45; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
-  } else {                                                // rake: a handle, a cross bar and tines
-    const b = P(s * 0.9, 0), l = P(s * 0.9, s * 0.55), r = P(s * 0.9, -s * 0.55);
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(b[0], b[1]); ctx.moveTo(l[0], l[1]); ctx.lineTo(r[0], r[1]);
-    for (const sd of [-1, 0, 1]) { const f = P(s * 0.9, sd * s * 0.55), e = P(s * 1.7, sd * s * 0.55); ctx.moveTo(f[0], f[1]); ctx.lineTo(e[0], e[1]); }
-    ctx.stroke();
+// Arms are grown out of the body: tapered flesh in the creature's own colour, knobby joints, and little grabby hands.
+// Every tool is a body part: hooked talons, a bone lance, a knuckled fist, fleshy pincers, a webbed hand, long spindly fingers.
+const BONE = '#efe7d3', NAIL = '#2a1418', PAD = '#ffe0a8';
+let FLESH = '#888', SKIN = '#333', SHINE = '#bbb', FINE = true;
+// a tapered, filled shape through a chain of points (thick where w is big)
+function taper(pts, ws, fill, edge) {
+  const n = pts.length, L = [], R2 = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d * ws[i] / 2, ny = dx / d * ws[i] / 2;
+    L.push([pts[i][0] + nx, pts[i][1] + ny]); R2.push([pts[i][0] - nx, pts[i][1] - ny]);
+  }
+  ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+  for (let i = 1; i < n; i++) ctx.lineTo(L[i][0], L[i][1]);
+  for (let i = n - 1; i >= 0; i--) ctx.lineTo(R2[i][0], R2[i][1]);
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  if (edge && FINE) { ctx.strokeStyle = edge; ctx.lineWidth = Math.max(0.35, ws[0] * 0.14); ctx.lineJoin = 'round'; ctx.stroke(); }
+}
+const at = (x, y, a, d) => [x + Math.cos(a) * d, y + Math.sin(a) * d];
+// one skinny jointed finger that curls toward 'turn', ending in a dark hooked nail (or a pale gripping pad)
+function finger(x, y, a, len, turn, w, tip) {
+  const k = at(x, y, a, len * 0.58), e = at(k[0], k[1], a + turn, len * 0.5);
+  if (!FINE) { ctx.strokeStyle = FLESH; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); return e; }
+  taper([[x, y], at(x, y, a, len * 0.3), k, e], [w, w * 0.62, w * 0.86, w * 0.4], FLESH, SKIN);
+  if (tip === 'pad') { ctx.fillStyle = PAD; ctx.beginPath(); ctx.arc(e[0], e[1], w * 0.34, 0, 7); ctx.fill(); }
+  else { const h = at(e[0], e[1], a + turn * 1.9, w * 1.25), s1 = at(e[0], e[1], a + turn + 1.57, w * 0.24), s2 = at(e[0], e[1], a + turn - 1.57, w * 0.24); ctx.fillStyle = NAIL; ctx.beginPath(); ctx.moveTo(s1[0], s1[1]); ctx.quadraticCurveTo(...at(e[0], e[1], a + turn, w * 0.9), h[0], h[1]); ctx.lineTo(s2[0], s2[1]); ctx.closePath(); ctx.fill(); }
+  return e;
+}
+// a curved horn or blade of bone growing out of the flesh, dark at the point
+function horn(x, y, a, len, bend, w) {
+  const mid = at(x, y, a, len * 0.55), tip = at(mid[0], mid[1], a + bend, len * 0.5);
+  const pre = [mid[0] + (tip[0] - mid[0]) * 0.55, mid[1] + (tip[1] - mid[1]) * 0.55];
+  taper([[x, y], mid, pre, tip], [w, w * 0.7, w * 0.36, 0.05], BONE, SKIN);
+  if (FINE) taper([pre, tip], [w * 0.36, 0.05], NAIL);
+}
+// the hand at the end of an arm. side: which arm; curl: 0 open .. 1 clenched
+function drawHand(kind, x, y, a, s, side, curl, wig) {
+  const inward = -side, w = s * 0.3;
+  if (kind === 0) {                                       // talons: three hooked claws
+    for (let q = -1; q <= 1; q++) { const aa = a + q * (0.62 - 0.3 * curl) + wig * (q || 0.5) * 0.12, base = at(x, y, aa, s * 0.42); taper([[x, y], base], [w * 1.15, w * 0.8], FLESH, SKIN); horn(base[0], base[1], aa, s * 1.05, (q === 0 ? inward : -q) * (0.55 + 0.85 * curl), w * 0.72); }
+  } else if (kind === 1) {                                // lance: one long barbed bone spike, two stunted fingers beside it
+    for (const q of [-1, 1]) finger(x, y, a + q * (1.0 - 0.4 * curl) + wig * 0.15, s * 0.7, -q * (0.5 + curl), w * 0.7);
+    horn(x, y, a, s * 2.5, inward * 0.08, w * 1.3);
+    if (FINE) for (const q of [-1, 1]) { const b = at(x, y, a, s * (1.25 + q * 0.22)); horn(b[0], b[1], a + q * 2.45, s * 0.5, -q * 0.3, w * 0.45); }
+  } else if (kind === 2) {                                // fist: a swollen knuckled lump with bony knobs
+    const c = at(x, y, a, s * 0.55), r = s * (0.58 - 0.06 * curl);
+    ctx.fillStyle = FLESH; ctx.beginPath(); ctx.ellipse(c[0], c[1], r * 1.08, r * 0.92, a, 0, 7); ctx.fill(); if (FINE) { ctx.strokeStyle = SKIN; ctx.lineWidth = w * 0.32; ctx.stroke(); }
+    for (let q = -2; q <= 2; q++) { const k = at(c[0], c[1], a + q * 0.55, r * 0.92); horn(k[0], k[1], a + q * 0.62, s * 0.38, 0, w * 0.82); }
+  } else if (kind === 3) {                                // pincers: two thick curved jaws of flesh that snap shut
+    const open = 0.78 * (1 - 0.9 * curl) + wig * 0.08;
+    for (const q of [-1, 1]) {
+      const m1 = at(x, y, a + q * (open + 0.25), s * 0.85), tip = at(m1[0], m1[1], a - q * (0.55 - open * 0.35), s * 0.85), pre = [m1[0] + (tip[0] - m1[0]) * 0.6, m1[1] + (tip[1] - m1[1]) * 0.6];
+      taper([[x, y], m1, pre, tip], [w * 1.25, w * 1.2, w * 0.7, 0.1], FLESH, SKIN); if (FINE) taper([pre, tip], [w * 0.7, 0.05], NAIL);
+      if (FINE) { const t1 = [(m1[0] + pre[0]) / 2, (m1[1] + pre[1]) / 2]; horn(t1[0], t1[1], a - q * 1.5, s * 0.26, 0, w * 0.34); }
+    }
+  } else if (kind === 4) {                                // webbed hand: four fingers with skin stretched between them
+    const tips = [];
+    for (let q = 0; q < 4; q++) { const spread = (q - 1.5) * (0.58 - 0.22 * curl), len = s * (q === 1 || q === 2 ? 1.25 : 1.05); const k = at(x, y, a + spread, len * 0.62), e = at(k[0], k[1], a + spread - Math.sign(q - 1.5) * (0.25 + curl * 1.0) + wig * 0.1, len * 0.46); tips.push([a + spread, len, -Math.sign(q - 1.5) * (0.25 + curl * 1.0) + wig * 0.1, e, k]); }
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tips[0][3][0], tips[0][3][1]);
+    for (let q = 1; q < 4; q++) ctx.quadraticCurveTo((tips[q - 1][4][0] + tips[q][4][0]) / 2, (tips[q - 1][4][1] + tips[q][4][1]) / 2, tips[q][3][0], tips[q][3][1]);
+    ctx.closePath(); ctx.globalAlpha *= 0.5; ctx.fillStyle = FLESH; ctx.fill(); ctx.globalAlpha /= 0.5;
+    for (const t of tips) finger(x, y, t[0], t[1], t[2], w * 0.66, 'pad');
+  } else {                                                // rake: long spindly fingers
+    for (let q = 0; q < 4; q++) finger(x, y, a + (q - 1.5) * (0.4 - 0.16 * curl) + Math.sin(wig * 3 + q * 1.9) * 0.07, s * (q === 1 || q === 2 ? 1.85 : 1.55), -Math.sign(q - 1.5) * 0.18 + inward * (0.15 + curl * 1.15), w * 0.56);
   }
 }
 function angLerp(a, b, t) { const d = ((b - a + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; return a + d * t; }
@@ -743,44 +771,57 @@ function ik(sx, sy, tx, ty, L1, L2, bend) {
   return [sx + ux * a - uy * h * bend, sy + uy * a + ux * h * bend, tx, ty];
 }
 const EAT_COL = ['#7fe08a', '#d96a6a'];
-// arms do their job. Eating: reach out, grab the pellet, carry it to the mouth, mouth snaps. Fighting: jab at the victim. Resting: sway.
+// arms do their job. Resting: they twitch and flex their fingers. Eating: reach, snatch, stuff it in the mouth. Fighting: jab and grab.
 function drawArms(m, n, dtv) {
   const hh = m.hue * 360, light = m.diet > 0.6 ? 47 : 58;
-  const L1 = m.r * (0.8 + 0.6 * m.armLen), L2 = m.r * (0.75 + 0.7 * m.armLen), lw = Math.max(1, m.r * 0.24), tl = Math.max(0.9, m.r * 0.15);
-  const sw = Math.sin(m.ph * 1.1), ts = m.r * (0.62 + 0.5 * m.armLen);
+  FLESH = `hsl(${hh},58%,${light - 7}%)`; SKIN = `hsl(${hh},55%,${light - 31}%)`; SHINE = `hsl(${hh},70%,${light + 16}%)`; FINE = cam.z >= 0.85;
+  const L1 = m.r * (0.72 + 0.48 * m.armLen), L2 = m.r * (0.68 + 0.56 * m.armLen);
+  const hs = m.r * (0.64 + 0.34 * m.armLen);
   const fresh = m.aimK > 0 && w.t - m.aimT < 1.2;
   let rel = 0;
   if (fresh) { const ang = Math.atan2(m.aimY - m.y, m.aimX - m.x); m.aa = m.aa === undefined ? ang : angLerp(m.aa, ang, Math.min(1, dtv * 12)); rel = ((m.aa - m.h + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI; }
   const reach = fresh && Math.abs(rel) < 2.2 ? 1 : 0;                    // cannot reach what is behind it
   m.ak = (m.ak || 0) + (reach - (m.ak || 0)) * Math.min(1, dtv * 9);
   const k = m.ak, striking = fresh && m.aimK === 2, t = w.t - m.actT, eating = m.actK === 1 && t < 0.9;
-  const ch = Math.cos(m.h), sh = Math.sin(m.h), mouthX = m.x + ch * m.r * 0.95, mouthY = m.y + sh * m.r * 0.95;
+  const ch = Math.cos(m.h), sh = Math.sin(m.h), mouthX = m.x + ch * m.r * 1.02, mouthY = m.y + sh * m.r * 1.02;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (let pr = 0; pr < m.arms; pr++) {
-    const si = Math.min(n - 1, pr), sc = pr ? 0.82 : 1, base = m.h;
+  for (let pr = m.arms - 1; pr >= 0; pr--) {
+    const si = Math.min(n - 1, pr), sc = pr ? 0.8 : 1, base = m.h;
     for (const side of [-1, 1]) {
-      const sx = PX[si] + Math.cos(base + side * 1.5708) * PR[si] * 0.8, sy = PY[si] + Math.sin(base + side * 1.5708) * PR[si] * 0.8;
-      const rd = (L1 + L2) * sc * 0.72, ra = base + side * (0.75 + sw * 0.12 * side);
-      let tx = sx + Math.cos(ra) * rd, ty = sy + Math.sin(ra) * rd, act = 0, pel = null;
+      // the shoulder sits inside the flank, so the arm swells out of the body
+      const sa = base + side * 1.35, sx = PX[si] + Math.cos(sa) * PR[si] * 0.52, sy = PY[si] + Math.sin(sa) * PR[si] * 0.52;
+      const tw = m.ph * 1.15 + side * 1.9 + pr * 2.6 + m.id, wig = Math.sin(tw * 2.3) * 0.7 + Math.sin(tw * 5.1) * 0.3;   // restless, uneven twitching
+      const rd = (L1 + L2) * sc * 0.66, ra = base + side * (0.62 + 0.2 * Math.sin(tw) + 0.07 * Math.sin(tw * 4.7));
+      let tx = sx + Math.cos(ra) * rd, ty = sy + Math.sin(ra) * rd, curl = 0.34 + 0.26 * Math.sin(tw * 1.7), pel = false;
       if (k > 0.01) {                                                                    // reach toward what it is working on
         let ax = m.aimX, ay = m.aimY;
-        if (striking) { const ph = Math.sin(m.ph * 6 + pr * 1.7 + (side > 0 ? 1.6 : 0)), f = 0.78 + 0.22 * Math.max(0, ph); ax = sx + (ax - sx) * f; ay = sy + (ay - sy) * f; act = Math.max(0, ph); }
+        if (striking) { const ph = Math.sin(m.ph * 6 + pr * 1.7 + (side > 0 ? 1.6 : 0)), f = 0.74 + 0.26 * Math.max(0, ph); ax = sx + (ax - sx) * f; ay = sy + (ay - sy) * f; curl = curl * (1 - k) + k * (ph > 0.3 ? 0.9 : 0.05); }
+        else curl = curl * (1 - k) + k * (0.08 + 0.2 * Math.max(0, Math.sin(tw * 6)));     // fingers splay and flutter as they close in
+        ax += -Math.sin(base) * side * hs * 0.75; ay += Math.cos(base) * side * hs * 0.75;      // the two hands close in from either side, not on top of each other
         tx += (ax - tx) * k; ty += (ay - ty) * k;
       }
-      if (eating && pr === 0 && side === m.actS) {                                       // grab the food and bring it to the mouth
+      if (eating && pr === 0 && side === m.actS) {                                       // snatch the food and stuff it in the mouth
         let gx, gy;
         if (t < 0.3) { gx = m.actX; gy = m.actY; }
         else if (t < 0.7) { const e = ease((t - 0.3) / 0.4); gx = m.actX + (mouthX - m.actX) * e; gy = m.actY + (mouthY - m.actY) * e; }
         else { const e = ease((t - 0.7) / 0.2); gx = mouthX + (tx - mouthX) * e; gy = mouthY + (ty - mouthY) * e; }
         const bl = ease(t / 0.12); tx += (gx - tx) * bl; ty += (gy - ty) * bl;
-        act = t > 0.25 && t < 0.72 ? 1 : 0; pel = t < 0.72;
+        curl = t < 0.22 ? 0 : t < 0.72 ? 1 : 0.2; pel = t < 0.72;
       }
       const [ex, ey, hx, hy] = ik(sx, sy, tx, ty, L1 * sc, L2 * sc, side), a2 = Math.atan2(hy - ey, hx - ex);
-      ctx.strokeStyle = `hsl(${hh},50%,${light - 10}%)`; ctx.lineWidth = lw;
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
-      drawTool(m.tool, hx, hy, a2, ts * sc, tl, act);
-      if (pel) {                                                                          // the pellet: pulled in from where it lay, then carried
-        const off = ts * sc * (m.tool === 4 ? 1.1 : 0.9), px = hx + Math.cos(a2) * off, py = hy + Math.sin(a2) * off, e = ease(t / 0.3);
+      const th = m.r * 0.57 * sc;
+      if (FINE) {
+        const a1 = Math.atan2(ey - sy, ex - sx), bulge = [(sx + ex) / 2 - Math.sin(a1) * side * th * 0.16, (sy + ey) / 2 + Math.cos(a1) * side * th * 0.16];
+        taper([[sx, sy], bulge, [ex, ey], [(ex + hx) / 2, (ey + hy) / 2], [hx, hy]], [th * 1.15, th * 0.74, th * 0.66, th * 0.34, th * 0.42], FLESH, SKIN);
+        ctx.strokeStyle = SHINE; ctx.lineWidth = th * 0.12; ctx.globalAlpha *= 0.55; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(bulge[0], bulge[1], ex, ey); ctx.lineTo(hx, hy); ctx.stroke(); ctx.globalAlpha /= 0.55;
+        ctx.strokeStyle = SKIN; ctx.lineWidth = Math.max(0.35, th * 0.1); ctx.beginPath();                       // creases at the wrist and forearm
+        for (const f of [0.42, 0.72, 0.9]) { const cx2 = ex + (hx - ex) * f, cy2 = ey + (hy - ey) * f, hw = th * 0.2; ctx.moveTo(cx2 - Math.sin(a2) * hw, cy2 + Math.cos(a2) * hw); ctx.lineTo(cx2 + Math.sin(a2) * hw, cy2 - Math.cos(a2) * hw); }
+        ctx.stroke();
+        horn(ex, ey, Math.atan2(ey - (sy + hy) / 2, ex - (sx + hx) / 2), th * 0.62, side * 0.5, th * 0.34);       // a little spur on the elbow
+      } else { ctx.strokeStyle = FLESH; ctx.lineWidth = th * 0.6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke(); }
+      drawHand(m.tool, hx, hy, a2, hs * sc, side, curl, wig);
+      if (pel) {                                                                          // the pellet: dragged in from where it lay, then carried in the fingers
+        const off = hs * sc * 0.75, px = hx + Math.cos(a2) * off, py = hy + Math.sin(a2) * off, e = ease(t / 0.3);
         const qx = t < 0.3 ? m.actX + (px - m.actX) * e : px, qy = t < 0.3 ? m.actY + (py - m.actY) * e : py;
         ctx.fillStyle = EAT_COL[m.actF]; ctx.beginPath(); ctx.arc(qx, qy, 2.4 + m.actF * 0.8, 0, 7); ctx.fill();
       }
@@ -892,17 +933,18 @@ function drawSquiggle(m, dtv) {
     const ga = (m.glow - 0.4) * (0.5 + 0.25 * Math.sin(m.ph * 0.6 + m.id)); ctx.fillStyle = `hsla(${(m.accent * 360)},95%,65%,${ga})`;
     for (let i = 0; i < n; i += 1) { ctx.beginPath(); ctx.arc(PX[i], PY[i], PR[i] * 1.9, 0, 7); ctx.fill(); }
   }
+  if (m.arms > 0) drawArms(m, n, dtv);
   if (m.limbs > 0) {
-    ctx.strokeStyle = `hsl(${hh},50%,${light - 12}%)`; ctx.lineWidth = Math.max(0.8, m.r * 0.18); ctx.lineCap = 'round'; ctx.beginPath();
-    const len = m.r * (0.7 + m.limbLen * 1.5);
+    const len = m.r * (0.65 + m.limbLen * 1.35), thick = Math.max(0.9, m.r * 0.3);
+    FLESH = `hsl(${hh},55%,${light - 13}%)`; SKIN = `hsl(${hh},50%,${light - 32}%)`; FINE = cam.z >= 0.85;
     for (let k = 0; k < m.limbs; k++) {
       const i = Math.min(n - 1, 1 + Math.floor(k * (n - 1) / m.limbs));
       for (const side of [-1, 1]) {
-        const ang = PA[i] + side * (1.35 + Math.sin(m.ph * 1.3 + i + (side > 0 ? 1 : 0)) * 0.45);
-        ctx.moveTo(PX[i], PY[i]); ctx.lineTo(PX[i] + Math.cos(ang) * len, PY[i] + Math.sin(ang) * len);
+        const sw2 = Math.sin(m.ph * 1.3 + i * 1.4 + (side > 0 ? 1.6 : 0)), ang = PA[i] + side * (1.5 + sw2 * 0.35);
+        const kn = at(PX[i], PY[i], ang, len * 0.62), tip = at(kn[0], kn[1], ang - side * (0.85 + sw2 * 0.3), len * 0.55);
+        taper([[PX[i], PY[i]], kn, tip], [thick * 1.15, thick * 0.62, 0.15], FLESH, SKIN);
       }
     }
-    ctx.stroke();
   }
   const acc = m.accent * 360;
   if (m.fin > 0.15) {                       // tail fin: a translucent fan behind the last segment
@@ -960,7 +1002,6 @@ function drawSquiggle(m, dtv) {
     ctx.fill();
   }
   if (m.sting || m.camo || m.jet) drawParts(m, n);
-  if (m.arms > 0) drawArms(m, n, dtv);
   if (m.ant > 0) {                          // antennae with little bulbs
     ctx.strokeStyle = `hsl(${hh},60%,75%)`; ctx.lineWidth = Math.max(0.7, m.r * 0.12); ctx.fillStyle = `hsl(${acc},90%,70%)`;
     for (let k = 0; k < m.ant; k++) {
@@ -1014,6 +1055,7 @@ function draw() {
   const vx0 = cam.x - W / 2 / cam.z - 40, vx1 = cam.x + W / 2 / cam.z + 40, vy0 = cam.y - H / 2 / cam.z - 40, vy1 = cam.y + H / 2 / cam.z + 40;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const m of w.motes) {
+    if (m.x < vx0 - 80 || m.x > vx1 + 80 || m.y < vy0 - 80 || m.y > vy1 + 80) continue;     // off screen: nothing to draw (keeps phones smooth)
     if (spot) ctx.globalAlpha = m.sp === spot ? 1 : 0.28;
     drawSquiggle(m, dtv);
     if (spot && m.sp === spot) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6 / cam.z + 0.5; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 2.2 + 4 + Math.sin(nowMs / 250) * 1.5, 0, 7); ctx.stroke(); }

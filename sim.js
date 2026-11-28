@@ -74,12 +74,12 @@ export const PARTS = {
 };
 export const TOOLS = ['claw', 'spear', 'club', 'pincer', 'scoop', 'rake'];
 export const TOOL_INFO = [
-  'Claws: sharp hooks that make bites land far more often.',
-  'Spear: a long point that reaches prey from further away.',
-  'Club: a heavy knob that gets through armor.',
-  'Pincers: grab food quickly, so each pellet gives more.',
-  'Scoop: a cup that picks up food from further away.',
-  'Rake: long tines that rake in food from a long way off.',
+  'Claws: hooked talons that make bites land far more often.',
+  'Spear: a long barbed bone spike that reaches prey from further away.',
+  'Club: a swollen knuckled fist, knobbed with bone, that gets through armor.',
+  'Pincers: fleshy snapping jaws that grab food quickly, so each pellet gives more.',
+  'Scoop: a webbed hand that cups food from further away.',
+  'Rake: long spindly fingers that drag in food from a long way off.',
 ];
 
 // ---------- rng (seedable, serialisable) ----------
