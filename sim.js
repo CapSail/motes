@@ -982,9 +982,9 @@ function think(w, m, i, dtt) {
   }
 
   if (w.steer && w.steer.id === m.id && m.fav) {          // steered: bites only on your say-so, and builds, sprays, digs, gives and steals nothing on its own
-    o[OUT.BITE] = w.steer.bite ? 1 : -1; o[OUT.XFER] = 0; o[OUT.DIG] = -1;
-    for (let k = 0; k < 3; k++) o[OUT.EMIT_A + k] = 0;
-    for (let k = 0; k < 4; k++) o[OUT.B_WALL + k] = -1;
+    o[OUT.BITE] = w.steer.bite ? 1 : -1; o[OUT.XFER] = 0; o[OUT.DIG] = w.steer.dig ? 1 : -1;
+    for (let k = 0; k < 3; k++) o[OUT.EMIT_A + k] = w.steer.smell === k ? 1 : 0;
+    for (let k = 0; k < 4; k++) o[OUT.B_WALL + k] = w.steer.build === k + 1 ? 1 : -1;
     jAdd(w, m, 'life', 'You took the wheel and steered it yourself.', 'steer', 300);
   }
   // -- friendships: spending time near a non-hostile mote builds a bond; being bitten or drained makes a grudge; bonds fade
@@ -1053,7 +1053,7 @@ function think(w, m, i, dtt) {
   if (idx >= 0) for (let k = 0; k < 3; k++) { const e = o[OUT.EMIT_A + k]; if (e > 0.05) w.chem[k][idx] = Math.min(3, w.chem[k][idx] + e * 1.2 * dtt); }
   // -- build and dig
   m.cdB -= dtt; m.cdD -= dtt;
-  if (m.cdB <= 0 && idx >= 0 && w.stCount < 3200 && (globalThis.__NOSURV || m.e > m.cap * 0.5)) {
+  if (m.cdB <= 0 && idx >= 0 && w.stCount < 3200 && (globalThis.__NOSURV || m.e > m.cap * 0.5 || (w.steer && w.steer.id === m.id && w.steer.build))) {
     let bt = 0, best = 0.5;
     for (let k = 0; k < 4; k++) if (o[OUT.B_WALL + k] > best) { best = o[OUT.B_WALL + k]; bt = k + 1; }
     if (bt) {
@@ -1066,6 +1066,7 @@ function think(w, m, i, dtt) {
           if (cur === bt && w.hp[ti] < 255 && w.hp[ti] > 0) { w.hp[ti] = Math.min(250, w.hp[ti] + 60); m.e -= cost * 0.4; m.cdB = 2; }
           else if (cur === 0) {
             w.st[ti] = bt; w.hp[ti] = 200; m.e -= cost; m.cdB = 3; w.counters.built++; w.stCount++;
+            if (w.steer && w.steer.id === m.id) { w.steer.build = 0; w.steer.did = ['', 'wall', 'farm', 'nest', 'granary'][bt]; }
             if (bt === 1) for (const f of w.food) if (cidx(f.x, f.y) === ti) f.dead = true;
             if (m.fav && w.journals && w.journals[m.id]) { const what = ['', 'wall', 'farm', 'nest', 'granary'][bt], b = w.journals[m.id].stats.built; b[what] = (b[what] || 0) + 1; if (b[what] === 1 || b[what] % 10 === 0) jAdd(w, m, 'deed', b[what] === 1 ? `Built its first ${what} as an immortal.` : `Has now built ${b[what]} ${what === 'granary' ? 'granaries' : what + 's'}.`); }
             milestone2(w, m, 'build' + bt, `First ${['', 'wall', 'farm', 'nest', 'granary'][bt]} built by ${m.name}.`);
@@ -1076,7 +1077,7 @@ function think(w, m, i, dtt) {
   }
   if (m.cdD <= 0 && o[OUT.DIG] > 0.5 && idx >= 0) {
     const ti = cidx(m.x + ch * (m.r + CELL * 0.7), m.y + sh * (m.r + CELL * 0.7));
-    if (ti >= 0 && w.st[ti] > 0 && w.st[ti] < 255 && w.hp[ti] < 255) { w.st[ti] = 0; w.hp[ti] = 0; w.counters.dug++; m.e -= 1; m.cdD = 1.2; w.stCount--; milestone(w, 'dig', `${m.name} tore down a structure.`); }
+    if (ti >= 0 && w.st[ti] > 0 && w.st[ti] < 255 && w.hp[ti] < 255) { w.st[ti] = 0; w.hp[ti] = 0; w.counters.dug++; if (w.steer && w.steer.id === m.id) { w.steer.dig = false; w.steer.did = 'dug'; } m.e -= 1; m.cdD = 1.2; w.stCount--; milestone(w, 'dig', `${m.name} tore down a structure.`); }
   }
   // -- reproduction
   m.cdA -= dtt;

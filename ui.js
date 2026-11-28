@@ -390,7 +390,23 @@ function buildPad() {
       '<div style="position:absolute;inset:0;color:#8ea0b6aa;font-size:15px;pointer-events:none"><span style="position:absolute;left:87px;top:6px">▲</span><span style="position:absolute;left:87px;bottom:6px">▼</span><span style="position:absolute;left:9px;top:83px">◀</span><span style="position:absolute;right:9px;top:83px">▶</span></div>' +
       '<div id="pKnob" style="position:absolute;left:54px;top:54px;width:78px;height:78px;border-radius:50%;background:#cfd8e3;border:3px solid #7d8fa6;box-shadow:0 4px 14px #0009;pointer-events:none"></div></div>' +
     '<button id="pBite" style="' + base + 'right:calc(24px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;font-size:34px;line-height:1;background:#4a2320e6;border:3px solid #a8574c">🦷<div style="font-size:14px;margin-top:4px">Bite</div></button>';
+  // a small tools button above Bite; its choices fly out only when asked for
+  const round = 'width:58px;height:58px;border-radius:50%;padding:0;font-size:23px;line-height:1;background:#16202ee8;border:2px solid #4a5f78;';
+  const choice = (k, icon, label) => '<button data-act="' + k + '" style="' + round + 'pointer-events:auto">' + icon + '<div style="font-size:10px;margin-top:3px">' + label + '</div></button>';
+  pad.insertAdjacentHTML('beforeend',
+    '<button id="pTools" aria-label="Build and smell" style="' + base + round + 'right:calc(47px + env(safe-area-inset-right));bottom:calc(168px + env(safe-area-inset-bottom))">🛠️</button>' +
+    '<div id="pFly" style="position:absolute;display:none;grid-template-columns:58px 58px;gap:8px;right:calc(14px + env(safe-area-inset-right));bottom:calc(236px + env(safe-area-inset-bottom))">' +
+    choice('b1', '🧱', 'Wall') + choice('b2', '🌱', 'Farm') + choice('b3', '🪺', 'Nest') + choice('b4', '🏺', 'Store') + choice('dig', '⛏️', 'Dig') + choice('s0', '🔴', 'Smell') + choice('s1', '🟢', 'Smell') + choice('s2', '🔵', 'Smell') + '</div>');
   document.body.appendChild(pad);
+  const tools = pad.querySelector('#pTools'), fly = pad.querySelector('#pFly');
+  tools.addEventListener('pointerdown', e => { e.preventDefault(); showFly(fly.style.display === 'none'); });
+  fly.addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-act]'); if (!b || !w.steer) return; e.preventDefault();
+    const k = b.dataset.act;
+    if (k[0] === 's') { const n = +k[1]; w.steer.smell = w.steer.smell === n ? -1 : n; showHint('', w.steer.smell === n ? 'Releasing the ' + ['red', 'green', 'blue'][n] + ' smell. Tap it again to stop.' : 'Smell off.'); }
+    else { w.steer.build = k === 'dig' ? 0 : +k[1]; w.steer.dig = k === 'dig'; w.steer.did = ''; asked = performance.now(); }
+    showFly(false); paintTools();
+  });
   const q = id => pad.querySelector('#' + id), st = q('pStick'), knob = q('pKnob'), bite = q('pBite');
   const move = e => {
     const r = st.getBoundingClientRect(); let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
@@ -406,15 +422,24 @@ function buildPad() {
   pad.addEventListener('contextmenu', e => e.preventDefault());
   q('pDone').addEventListener('click', () => stopSteer());
 }
+let asked = 0;
+function showFly(open) { if (!pad) return; pad.querySelector('#pFly').style.display = open ? 'grid' : 'none'; pad.querySelector('#pTools').textContent = open ? '✕' : '🛠️'; if (open) paintTools(); else paintTools(); }
+function paintTools() {
+  if (!pad) return;
+  const sm = w.steer ? w.steer.smell : -1;
+  for (const b of pad.querySelectorAll('[data-act]')) b.style.borderColor = b.dataset.act === 's' + sm ? '#e8e2c8' : '#4a5f78';
+  pad.querySelector('#pTools').style.borderColor = sm >= 0 ? ['#d06a5c', '#6fae6a', '#6a8fd0'][sm] : '#4a5f78';
+}
 function startSteer(m) {
   if (!m.fav) return;
   if (sheetFor) closeSheet(); tool = 'look'; renderStrip();
-  w.steer = { id: m.id, x: m.x, y: m.y, on: false, bite: false };
+  w.steer = { id: m.id, x: m.x, y: m.y, on: false, bite: false, build: 0, dig: false, smell: -1, did: '' };
+  asked = 0;
   selId = m.id; follow = true; inspHidden = true; camGoal = null; insp.style.display = 'none'; cam.z = Math.max(cam.z, 2.4); paused = false; $('bPause').textContent = '⏸'; renderInsp(true); updChip();
   if (!pad) buildPad();
   stick = { id: null, x: 0, y: 0 }; pad.querySelector('#pKnob').style.transform = '';
   pad.querySelector('#pName').textContent = '🕹️ ' + m.name;
-  pad.style.display = 'block'; dock.style.display = 'none';                 // the tool bar steps aside so your thumbs have room
+  showFly(false); pad.style.display = 'block'; dock.style.display = 'none';                 // the tool bar steps aside so your thumbs have room
 }
 function stopSteer() { const was = w && w.steer; if (w) w.steer = null; steerAt = null; stick.id = null; stick.x = stick.y = 0; if (pad) pad.style.display = 'none'; dock.style.display = ''; if (was) updChip(); }
 // every frame: turn the stick (or a finger held on the dish) into a spot for the creature to swim toward
@@ -428,6 +453,8 @@ function steerTick() {
   if (push > 0.12) { const L = Math.hypot(stick.x, stick.y), far = 5 + push * 30; w.steer.x = m.x + stick.x / L * far; w.steer.y = m.y + stick.y / L * far; w.steer.on = true; w.steer.stick = true; }
   else if (steerAt) { const [x, y] = s2w(steerAt.x, steerAt.y); w.steer.x = x; w.steer.y = y; w.steer.on = true; w.steer.stick = false; }
   else w.steer.on = false;
+  if (w.steer.did) { const d = w.steer.did; w.steer.did = ''; asked = 0; showHint('', d === 'dug' ? '⛏️ Dug it out.' : '✔ Built a ' + d + '.'); sfx('spark'); }
+  else if (asked && performance.now() - asked > 3800) { const wasDig = w.steer.dig; asked = 0; w.steer.build = 0; w.steer.dig = false; showHint('', wasDig ? 'Nothing to dig right in front. (Walls you drew cannot be dug.)' : 'Could not build: the spot is taken, or it is too hungry.'); }
   if (pad && performance.now() - padT > 200) {
     padT = performance.now(); const f = Math.max(0, Math.min(1, m.e / m.cap)), bar = pad.querySelector('#pEnergy');
     bar.style.width = (f * 100).toFixed(0) + '%'; bar.style.background = f < 0.25 ? '#c0573f' : f < 0.55 ? '#c49a48' : '#7fa860';
