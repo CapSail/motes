@@ -817,7 +817,15 @@ function ik(sx, sy, tx, ty, L1, L2, bend) {
   const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - a * a)), ux = dx / d, uy = dy / d;
   return [sx + ux * a - uy * h * bend, sy + uy * a + ux * h * bend, tx, ty];
 }
-const EAT_COL = ['#8fa86c', '#a15a4c'];
+// a bite of food on its way to the mouth, shaped like the food it came from
+function morsel(x, y, isMeat, seed) {
+  const a = (seed % 63) / 10;
+  ctx.beginPath();
+  if (isMeat) { ctx.fillStyle = '#8c443b'; ctx.ellipse(x, y, 2.8, 2.1, a, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(214,168,150,0.7)'; ctx.lineWidth = 0.55; ctx.beginPath(); ctx.moveTo(x - 1.5, y + 0.3); ctx.quadraticCurveTo(x, y - 1.2, x + 1.5, y + 0.2); ctx.stroke(); return; }
+  ctx.fillStyle = '#6f8c50';
+  for (let k = 0; k < 3; k++) { const b = a + k * 2.094, c = Math.cos(b), s = Math.sin(b), tx = x + c * 3.2, ty = y + s * 3.2, mx = x + c * 1.6, my = y + s * 1.6; ctx.moveTo(x, y); ctx.quadraticCurveTo(mx - s * 1.3, my + c * 1.3, tx, ty); ctx.quadraticCurveTo(mx + s * 1.3, my - c * 1.3, x, y); }
+  ctx.fill();
+}
 // arms do their job. Resting: they twitch and flex their fingers. Eating: reach, snatch, stuff it in the mouth. Fighting: jab and grab.
 function drawArms(m, n, dtv) {
   FLESH = pal(m.hue, shade(m) - 3); SKIN = pal(m.hue, shade(m) - 26); SHINE = pal(m.hue, shade(m) + 17); FINE = cam.z >= 0.85;
@@ -869,7 +877,7 @@ function drawArms(m, n, dtv) {
       if (pel) {                                                                          // the pellet: dragged in from where it lay, then carried in the fingers
         const off = hs * sc * 0.75, px = hx + Math.cos(a2) * off, py = hy + Math.sin(a2) * off, e = ease(t / 0.3);
         const qx = t < 0.3 ? m.actX + (px - m.actX) * e : px, qy = t < 0.3 ? m.actY + (py - m.actY) * e : py;
-        ctx.fillStyle = EAT_COL[m.actF]; ctx.beginPath(); ctx.arc(qx, qy, 2.4 + m.actF * 0.8, 0, 7); ctx.fill();
+        morsel(qx, qy, m.actF, m.id);
       }
     }
   }
@@ -909,7 +917,7 @@ function drawMouth(m) {
   if (m.actK >= 2 && t < 0.25) open = Math.max(open, 1 - t * 2);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
   if (m.arms === 0 && m.actK === 1 && t < 0.32) {                                         // no arms: the pellet slurps straight in
-    const e = ease(t / 0.3); ctx.fillStyle = EAT_COL[m.actF]; ctx.beginPath(); ctx.arc(m.actX + (m.x + ch * m.r * 0.95 - m.actX) * e, m.actY + (m.y + sh * m.r * 0.95 - m.actY) * e, 2.4 + m.actF * 0.8, 0, 7); ctx.fill();
+    const e = ease(t / 0.3); morsel(m.actX + (m.x + ch * m.r * 0.95 - m.actX) * e, m.actY + (m.y + sh * m.r * 0.95 - m.actY) * e, m.actF, m.id);
   }
   if (open < 0.08) return;
   const r = m.r, hx = m.x + ch * r * 0.45, hy = m.y + sh * r * 0.45, ang = 0.12 + 0.6 * open, jl = r * 0.78;
@@ -1244,21 +1252,29 @@ function drawTile(t, x, y, h, stored) {
     if (f > 0.03) { ctx.fillStyle = '#b79c5e'; ctx.beginPath(); ctx.arc(x + c / 2, y + c / 2, c * 0.28 * Math.sqrt(f), 0, 7); ctx.fill(); }
   }
 }
-// plant food is algae in three little shapes, meat is ragged scraps. Only what is on screen is drawn.
+// plant food is little leaf sprigs, meat is soft chunks. Only what is on screen is drawn.
 function drawFood() {
   const x0 = cam.x - W / 2 / cam.z - 6, x1 = cam.x + W / 2 / cam.z + 6, y0 = cam.y - H / 2 / cam.z - 6, y1 = cam.y + H / 2 / cam.z + 6, near = cam.z >= 0.75;
   const seen = [];
   for (const f of w.food) if (f.x > x0 && f.x < x1 && f.y > y0 && f.y < y1) seen.push(f);
   if (!near) { for (const k of [0, 1]) { ctx.fillStyle = k ? '#9c5a4c' : '#7f9962'; for (const f of seen) if (f.k === k) ctx.fillRect(f.x - 1.7, f.y - 1.7, 3.4, 3.4); } return; }
   const hs = f => ((f.x * 7.3 + f.y * 13.1) & 1023);
-  ctx.fillStyle = '#718b55'; ctx.beginPath();
-  for (const f of seen) if (f.k === 0) { const q = hs(f) % 3, a = hs(f) / 160; if (q === 0) dot(f.x, f.y, 2.1); else if (q === 1) { dot(f.x + Math.cos(a) * 1.4, f.y + Math.sin(a) * 1.4, 1.6); dot(f.x - Math.cos(a) * 1.4, f.y - Math.sin(a) * 1.4, 1.35); } else for (let k = 0; k < 3; k++) dot(f.x + Math.cos(a + k * 2.1) * 1.5, f.y + Math.sin(a + k * 2.1) * 1.5, 1.25); }
+  // plants are leaf sprigs: pointed leaves and a stem, and nothing round-with-a-dot that could pass for a little animal
+  const leaf = (x, y, a, len, wid) => { const c = Math.cos(a), s = Math.sin(a), tx = x + c * len, ty = y + s * len, mx = x + c * len * 0.5, my = y + s * len * 0.5; ctx.moveTo(x, y); ctx.quadraticCurveTo(mx - s * wid, my + c * wid, tx, ty); ctx.quadraticCurveTo(mx + s * wid, my - c * wid, x, y); };
+  const leaves = (f, each) => { const q = hs(f) % 3, a = hs(f) / 160, n = q === 0 ? 2 : 3; for (let k = 0; k < n; k++) each(f.x, f.y, a + k * (q === 0 ? 2.5 : q === 1 ? 2.094 : 0.95), q === 2 && k !== 1 ? 2.8 : 3.4, 1.35); };
+  ctx.fillStyle = '#6f8c50'; ctx.beginPath(); for (const f of seen) if (f.k === 0) leaves(f, leaf); ctx.fill();
+  if (cam.z >= 1.3) { ctx.strokeStyle = 'rgba(184,204,140,0.65)'; ctx.lineWidth = 0.34; ctx.beginPath(); for (const f of seen) if (f.k === 0) leaves(f, (x, y, a, len) => { ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len * 0.78, y + Math.sin(a) * len * 0.78); }); ctx.stroke(); }
+  // meat is a soft lumpy chunk with a streak of fat through it
+  ctx.fillStyle = '#8c443b'; ctx.beginPath();
+  for (const f of seen) if (f.k === 1) {
+    const a = hs(f) / 160, pt = k => { const d = 2.1 + ((hs(f) >> k) & 3) * 0.42; return [f.x + Math.cos(a + k * 1.047) * d * 1.15, f.y + Math.sin(a + k * 1.047) * d * 0.9]; };
+    let p = pt(5), q = pt(0); ctx.moveTo((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+    for (let k = 0; k < 6; k++) { p = pt(k); q = pt((k + 1) % 6); ctx.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
+  }
   ctx.fill();
-  ctx.fillStyle = '#a9bd83'; ctx.beginPath(); for (const f of seen) if (f.k === 0) dot(f.x - 0.5, f.y - 0.6, 0.75); ctx.fill();
-  ctx.fillStyle = '#8f4a40'; ctx.beginPath();
-  for (const f of seen) if (f.k === 1) { const a = hs(f) / 160; for (let k = 0; k < 5; k++) { const d = k & 1 ? 1.5 : 3.1, px = f.x + Math.cos(a + k * 1.26) * d, py = f.y + Math.sin(a + k * 1.26) * d; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); }
-  ctx.fill();
-  ctx.fillStyle = '#d3bfa3'; ctx.beginPath(); for (const f of seen) if (f.k === 1) dot(f.x + 0.4, f.y - 0.3, 0.7); ctx.fill();
+  ctx.strokeStyle = 'rgba(214,168,150,0.7)'; ctx.lineWidth = 0.55; ctx.beginPath();
+  for (const f of seen) if (f.k === 1) { const a = hs(f) / 160, c = Math.cos(a), s = Math.sin(a); ctx.moveTo(f.x - c * 1.7 - s * 0.4, f.y - s * 1.7 + c * 0.4); ctx.quadraticCurveTo(f.x + s * 1.3, f.y - c * 1.3, f.x + c * 1.8, f.y + s * 1.8); }
+  ctx.stroke();
 }
 let floorArt = null;
 function dishFloor() {                                     // painted one time into a spare canvas, then just stamped each frame
