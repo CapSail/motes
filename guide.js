@@ -126,7 +126,8 @@ export function guideHTML() {
 <details><summary>🆕 What is new</summary>
 <p><b>Latest</b></p>
 <ul>
-<li><b>🕹️ Take control of a favourite</b>: thumb stick and bite button. Tap a starred creature, then Take control.</li>
+<li><b>🕹️ Take control of a favourite</b>: a bigger thumb stick and a bite button, and it still follows your finger. Tap a starred creature, then Take control.</li>
+<li><b>🛠️ Build and smell while in control</b>: the tools button above Bite flies out wall, farm, nest, granary, dig and the red, green and blue smells.</li>
 <li><b>New stingers</b>: jointed scorpion-like tails with a venom sac and a hooked barb.</li>
 <li><b>Smoother touch</b>: two fingers only move and zoom, and never set off a tool.</li>
 <li><b>Food fixed and redrawn</b>: plants are leaf sprigs, meat is soft chunks. Farms now grow even when the dish is full of food, and pellets no longer flash and vanish.</li>
