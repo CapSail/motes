@@ -274,16 +274,15 @@ function feedback(t, wx, wy) {
 const s2w = (sx, sy) => [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y];
 const ptrs = new Map();
 let pinch = null, downAt = null, painting = null, panning = null, gesturePushed = false;
-cv.addEventListener('pointerdown', e => {
-  if (sheet.style.display === 'block') { closeSheet(); return; }
-  try { cv.setPointerCapture(e.pointerId); } catch (_) { /* synthetic or already-released pointer */ }
-  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (ptrs.size >= 2) { if (gesturePushed) { undoStack.pop(); gesturePushed = false; } const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return; }
-  downAt = { x: e.clientX, y: e.clientY, moved: false }; camGoal = null;
-  if (e.button === 1 || e.button === 2 || tool === 'look') { panning = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; return; }
-  const [wx, wy] = s2w(e.clientX, e.clientY);
+// A tool never fires the instant a finger lands: the first finger of a two-finger pan or zoom would set it off.
+let pending = null, multi = false, committedAt = 0;
+const TAP_ONLY = new Set(['spark', 'meteor']);              // these fire only when a single finger lifts without having dragged
+const HOLD_MS = 180;                                        // brushes start after a short hold (or a drag, or a quick tap)
+function dropPending() { if (pending) { clearTimeout(pending.timer); pending = null; } }
+function useTool(cx, cy) {                                  // the finger at screen point (cx, cy) really does mean the tool
+  const [wx, wy] = s2w(cx, cy);
   painting = { x: wx, y: wy };
-  if (UNDOABLE.has(tool)) { undoStack.push({ w, f: S.snapshotFields(w) }); gesturePushed = true; if (undoStack.length > 10) undoStack.shift(); lastUndoAt = Date.now(); renderStrip(); }
+  if (UNDOABLE.has(tool)) { undoStack.push({ w, f: S.snapshotFields(w) }); gesturePushed = true; committedAt = performance.now(); if (undoStack.length > 10) undoStack.shift(); lastUndoAt = Date.now(); renderStrip(); }
   if (tool === 'smite' || tool === 'plague') feedback(tool, wx, wy);
   if (tool === 'spark') {
     const nm = S.spark(w, wx, wy); painting = null;
@@ -292,6 +291,23 @@ cv.addEventListener('pointerdown', e => {
   }
   if (tool === 'meteor' && !S.inDish(wx, wy)) { painting = null; showHint('', '☄️ Tap inside the dish.'); }
   else if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 135); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 135, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
+}
+function commitPending() { if (!pending) return; const p = pending; dropPending(); useTool(p.x, p.y); }
+cv.addEventListener('pointerdown', e => {
+  if (sheet.style.display === 'block') { closeSheet(); return; }
+  try { cv.setPointerCapture(e.pointerId); } catch (_) { /* synthetic or already-released pointer */ }
+  if (e.isPrimary) { ptrs.clear(); multi = false; pinch = null; }           // a fresh first finger: forget anything a lost touch left behind
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) {
+    multi = true; dropPending();
+    if (gesturePushed && performance.now() - committedAt < 450) undo(); // a stroke that had only just begun was really the start of this gesture: take it back
+    gesturePushed = false;
+    const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return;
+  }
+  downAt = { x: e.clientX, y: e.clientY, moved: false }; camGoal = null;
+  if (e.button === 1 || e.button === 2 || tool === 'look') { panning = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; return; }
+  dropPending();
+  pending = { x: e.clientX, y: e.clientY, at: performance.now(), timer: TAP_ONLY.has(tool) ? 0 : setTimeout(commitPending, HOLD_MS) };
 });
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;
@@ -303,13 +319,21 @@ cv.addEventListener('pointermove', e => {
     return;
   }
   if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) downAt.moved = true;
+  if (pending && downAt && downAt.moved && !TAP_ONLY.has(tool) && performance.now() - pending.at > 60 && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 14) commitPending();   // a real drag with a brush
   if (panning) { if (downAt && downAt.moved) { cam.x = panning.cx - (e.clientX - panning.x) / cam.z; cam.y = panning.cy - (e.clientY - panning.y) / cam.z; follow = false; } }
   else if (painting) { const [wx, wy] = s2w(e.clientX, e.clientY); painting.x = wx; painting.y = wy; }
 });
 function up(e) {
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinch = null;
+  if (pending) {                                               // lifted before the hold ran out: a deliberate single tap (never after two fingers)
+    if (e.type === 'pointerup' && !multi && !(TAP_ONLY.has(tool) && downAt && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 14)) {
+      commitPending();
+      if (painting && tool !== 'smite' && tool !== 'plague') { S.paint(w, tool, painting.x, painting.y, BR(), 0.15); if (tool === 'erase' || tool === 'food') S.cleanFood(w); }     // a quick tap still leaves one dab
+    } else dropPending();
+  }
   if (ptrs.size === 0) {
+    multi = false;
     if (downAt && !downAt.moved && tool === 'look' && e.type === 'pointerup') { const [wx, wy] = s2w(e.clientX, e.clientY); pick(wx, wy); }
     painting = null; panning = null; downAt = null; gesturePushed = false;
   }
