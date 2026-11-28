@@ -132,3 +132,5 @@ Cap called it a finished product. Guide, tool tips, README and this log were aud
 - 2026-11-28: control screen for a favourite ("Take control"): thumb stick (analog), round Bite button, top card with name, energy and activity, Release button; the dock and diary pop-ups step aside. Holding a finger on the dish still works. Checked with simulated touches at phone size in the desktop browser.
 
 - 2026-11-28: control screen got a tools fly-out above Bite: wall, farm, nest, granary, dig, and red/green/blue smell toggles (`w.steer.build/dig/smell`). Ordered builds skip the half-full-belly rule but still cost energy.
+
+- 2026-11-28: killer chance from New life lowered from 35% to 10% at Cap's request; menu text updated.

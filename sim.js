@@ -1346,7 +1346,7 @@ function apex(hue) {
   for (const k in set) b[B[k]] = set[k];
   return g;
 }
-export const KILLER_CHANCE = 0.35;
+export const KILLER_CHANCE = 0.1;
 const HUNGRY = 0.72, PRED_MAX = 0.12;
 export function spark(w, x, y, forceKiller) {
   if (!inDish(x, y) || solidAt(w, x, y)) return null;                       // nothing is born outside the dish or inside a wall

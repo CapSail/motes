@@ -128,7 +128,7 @@ const TOOLINFO = {
   plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes come out in yellow-green spots, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
-  spark: ['✨', 'New life', 'Tap inside the dish to drop in a new family. About one time in three it is a family of three absolute killers.'],
+  spark: ['✨', 'New life', 'Tap inside the dish to drop in a new family. About one time in ten it is a family of three absolute killers.'],
 };
 const EVTILES = [['bloom', '🌸', 'Food bloom', 'Plants boom for a while.'], ['cold', '🥶', 'Cold snap', 'The whole dish turns cold for a bit.'], ['heat', '🥵', 'Heatwave', 'The whole dish heats up for a bit.'], ['iceage', '🧊', 'Ice age', 'Long deep cold and thin food. Harsh!'], ['drought', '🏜️', 'Drought', 'Food becomes scarce for a while.']];
 const EVMSG = { bloom: '🌸 A food bloom has begun.', cold: '🥶 A cold snap is coming.', heat: '🥵 A heatwave is coming.', iceage: '🧊 An ice age has begun. It will be hard.', drought: '🏜️ A drought has begun.' };
