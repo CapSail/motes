@@ -128,3 +128,5 @@ Cap called it a finished product. Guide, tool tips, README and this log were aud
 - 2026-11-28 (end of day): How it works audited and brought up to date with every change so far: What is new split into Latest and Also recent, touch rules, farm behaviour, food look and where food grows, poison description, Farm tool tip.
 
 - 2026-11-28: steer a favourite. Starred creature panel has "Steer it yourself": hold a finger where it should swim (`w.steer`, not saved), a Bite button held with a second finger, Done or any bottom button to hand back. While steered it only bites when told and does not build, spray, dig, give or steal. `scripts/steer-test.mjs`; checked with simulated touches in the desktop browser.
+
+- 2026-11-28: control screen for a favourite ("Take control"): thumb stick (analog), round Bite button, top card with name, energy and activity, Release button; the dock and diary pop-ups step aside. Holding a finger on the dish still works. Checked with simulated touches at phone size in the desktop browser.

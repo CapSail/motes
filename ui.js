@@ -241,7 +241,7 @@ addEventListener('keydown', e => { if (e.code === 'Space') { $('bPause').click()
 
 // the dish tells you what is happening: new species, disasters, firsts and records pop up as a short message
 let lastToastT = -1, lastToastAt = 0;
-function toastFeed() {
+function toastFeed() { if (w.steer) return;      // no pop-ups over the controls
   if (lastToastT < 0 || w.t < lastToastT) { lastToastT = w.t; return; }
   if (menu.style.display === 'flex' || performance.now() - lastToastAt < 6000 || hintEl.style.opacity === '1') return;
   const fresh = w.log.slice(-6).concat(w.keep.slice(-6)).filter(e => e.t > lastToastT && ['species', 'event', 'first', 'fav', 'year', 'life'].includes(e.kind)).sort((a, b) => a.t - b.t);
@@ -373,35 +373,66 @@ function updChip() { if (w && w.steer) { fchip.style.display = 'none'; return; }
   fchip.style.display = show ? 'block' : 'none';
   if (show) fchip.innerHTML = `👁 Following <b>${esc(m.name)}</b><span data-i="1" style="display:inline-block;padding:10px 12px;margin-left:4px;text-decoration:underline">info</span><span data-x="1" style="display:inline-block;padding:10px 12px;font-weight:700">✕ Stop</span>`;
 }
-// ---------- steering a favourite: hold a finger where you want it to go ----------
-let steerBar = null, steerAt = null;
+// ---------- taking control of a favourite: a thumb stick on the left, a bite button on the right ----------
+let pad = null, steerAt = null, stick = { id: null, x: 0, y: 0 };
+const STICK_R = 54;                                          // how far the knob travels, in pixels
+function buildPad() {
+  pad = document.createElement('div');
+  pad.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:6;user-select:none;-webkit-user-select:none';
+  const base = 'position:absolute;pointer-events:auto;touch-action:none;';
+  pad.innerHTML =
+    '<div style="' + base + 'left:10px;right:10px;top:calc(96px + env(safe-area-inset-top));max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:center;background:#0f1722e6;border:1px solid #33455c;border-radius:16px;padding:8px 8px 8px 14px">' +
+      '<div style="flex:1;min-width:0"><div id="pName" style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>' +
+      '<div style="height:9px;background:#1b2736;border-radius:5px;overflow:hidden;margin-top:5px"><i id="pEnergy" style="display:block;height:100%;width:50%;background:#7fa860"></i></div>' +
+      '<div id="pDoing" style="font-size:12px;color:#8ea0b6;margin-top:3px"></div></div>' +
+      '<button id="pDone" style="min-width:88px;min-height:52px;font-size:15px">✔ Release</button></div>' +
+    '<div id="pStick" style="' + base + 'left:calc(18px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom));width:156px;height:156px;border-radius:50%;background:radial-gradient(circle,#1a2534cc 0,#0f1722b0 70%);border:2px solid #4a5f78">' +
+      '<div style="position:absolute;inset:0;color:#8ea0b6aa;font-size:15px;pointer-events:none"><span style="position:absolute;left:70px;top:5px">▲</span><span style="position:absolute;left:70px;bottom:5px">▼</span><span style="position:absolute;left:8px;top:66px">◀</span><span style="position:absolute;right:8px;top:66px">▶</span></div>' +
+      '<div id="pKnob" style="position:absolute;left:44px;top:44px;width:64px;height:64px;border-radius:50%;background:#cfd8e3;border:3px solid #7d8fa6;box-shadow:0 4px 14px #0009;pointer-events:none"></div></div>' +
+    '<button id="pBite" style="' + base + 'right:calc(24px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;font-size:34px;line-height:1;background:#4a2320e6;border:3px solid #a8574c">🦷<div style="font-size:14px;margin-top:4px">Bite</div></button>';
+  document.body.appendChild(pad);
+  const q = id => pad.querySelector('#' + id), st = q('pStick'), knob = q('pKnob'), bite = q('pBite');
+  const move = e => {
+    const r = st.getBoundingClientRect(); let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy); if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
+    stick.x = dx / STICK_R; stick.y = dy / STICK_R; knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  };
+  const drop = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
+  st.addEventListener('pointerdown', e => { e.preventDefault(); stick.id = e.pointerId; try { st.setPointerCapture(e.pointerId); } catch (_) {} move(e); });
+  st.addEventListener('pointermove', e => { if (e.pointerId === stick.id) move(e); });
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) st.addEventListener(t, drop);
+  const press = v => e => { e.preventDefault(); if (v) { try { bite.setPointerCapture(e.pointerId); } catch (_) {} if (sndOn) buzz(12); } if (w.steer) w.steer.bite = v; bite.style.background = v ? '#a8453a' : '#4a2320e6'; bite.style.transform = v ? 'scale(0.93)' : ''; };
+  bite.addEventListener('pointerdown', press(true)); for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) bite.addEventListener(t, press(false));
+  pad.addEventListener('contextmenu', e => e.preventDefault());
+  q('pDone').addEventListener('click', () => stopSteer());
+}
 function startSteer(m) {
   if (!m.fav) return;
   if (sheetFor) closeSheet(); tool = 'look'; renderStrip();
   w.steer = { id: m.id, x: m.x, y: m.y, on: false, bite: false };
-  selId = m.id; follow = true; inspHidden = true; camGoal = null; insp.style.display = 'none'; cam.z = Math.max(cam.z, 2.2); paused = false; $('bPause').textContent = '⏸'; renderInsp(true); updChip();
-  if (!steerBar) {
-    steerBar = document.createElement('div');
-    steerBar.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(86px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;background:#0f1722f2;border:1px solid #33455c;border-radius:16px;padding:8px;z-index:6;max-width:620px;margin:0 auto';
-    steerBar.innerHTML = '<div style="flex:1;font-size:14px;line-height:1.3"></div><button id="stBite" style="min-width:96px;min-height:62px;font-size:17px;touch-action:none;user-select:none;-webkit-user-select:none">🦷 Bite</button><button id="stDone" class="on" style="min-width:76px;min-height:62px;font-size:16px">✔ Done</button>';
-    document.body.appendChild(steerBar);
-    const bite = steerBar.querySelector('#stBite'), set = v => e => { e.preventDefault(); if (w.steer) w.steer.bite = v; bite.classList.toggle('on', v); };
-    bite.addEventListener('pointerdown', set(true)); for (const t of ['pointerup', 'pointercancel', 'pointerleave']) bite.addEventListener(t, set(false));
-    bite.addEventListener('contextmenu', e => e.preventDefault());
-    steerBar.querySelector('#stDone').addEventListener('click', () => stopSteer());
-  }
-  steerBar.firstChild.textContent = 'Hold your finger where you want ' + m.name.split(' ')[0] + ' to go. Hold Bite to attack.';
-  steerBar.style.display = 'flex';
+  selId = m.id; follow = true; inspHidden = true; camGoal = null; insp.style.display = 'none'; cam.z = Math.max(cam.z, 2.4); paused = false; $('bPause').textContent = '⏸'; renderInsp(true); updChip();
+  if (!pad) buildPad();
+  stick = { id: null, x: 0, y: 0 }; pad.querySelector('#pKnob').style.transform = '';
+  pad.querySelector('#pName').textContent = '🕹️ ' + m.name;
+  pad.style.display = 'block'; dock.style.display = 'none';                 // the tool bar steps aside so your thumbs have room
 }
-function stopSteer() { const was = w && w.steer; if (w) w.steer = null; steerAt = null; if (steerBar) steerBar.style.display = 'none'; if (was) updChip(); }
-// every frame: the finger stays put on screen while the camera follows, so the spot on the dish is worked out afresh
+function stopSteer() { const was = w && w.steer; if (w) w.steer = null; steerAt = null; stick.id = null; stick.x = stick.y = 0; if (pad) pad.style.display = 'none'; dock.style.display = ''; if (was) updChip(); }
+// every frame: turn the stick (or a finger held on the dish) into a spot for the creature to swim toward
+let padT = 0;
 function steerTick() {
-  if (!w.steer) { if (steerBar && steerBar.style.display !== 'none') steerBar.style.display = 'none'; return; }
+  if (!w.steer) { if (pad && pad.style.display !== 'none') stopSteer(); return; }
   const m = w.motes.find(x => x.id === w.steer.id);
   if (!m || !m.fav) { stopSteer(); return; }
   selId = m.id; follow = true;
-  w.steer.on = !!steerAt;
-  if (steerAt) { const [x, y] = s2w(steerAt.x, steerAt.y); w.steer.x = x; w.steer.y = y; }
+  const push = Math.min(1, Math.hypot(stick.x, stick.y));
+  if (push > 0.12) { const L = Math.hypot(stick.x, stick.y), far = 5 + push * 30; w.steer.x = m.x + stick.x / L * far; w.steer.y = m.y + stick.y / L * far; w.steer.on = true; w.steer.stick = true; }
+  else if (steerAt) { const [x, y] = s2w(steerAt.x, steerAt.y); w.steer.x = x; w.steer.y = y; w.steer.on = true; w.steer.stick = false; }
+  else w.steer.on = false;
+  if (pad && performance.now() - padT > 200) {
+    padT = performance.now(); const f = Math.max(0, Math.min(1, m.e / m.cap)), bar = pad.querySelector('#pEnergy');
+    bar.style.width = (f * 100).toFixed(0) + '%'; bar.style.background = f < 0.25 ? '#c0573f' : f < 0.55 ? '#c49a48' : '#7fa860';
+    const t = w.t - m.actT; pad.querySelector('#pDoing').textContent = t < 1 && m.actK === 3 ? 'Got one!' : t < 1 && m.actK === 2 ? 'Biting' : t < 1 && m.actK === 1 ? 'Eating' : w.steer.on ? 'Swimming' : 'Waiting for you';
+  }
 }
 function startFollow(m) { selId = m.id; follow = true; inspHidden = true; cam.z = Math.max(cam.z, 2.2); renderInsp(true); updChip(); }
 const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.id === selId); return m || null; };
@@ -439,7 +470,7 @@ function renderInsp(force) {
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:${pal(m.hue, 4)}"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
-  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>${m.fav ? '<button data-a="steer" style="width:100%;margin-top:8px;min-height:50px">🕹️ Steer it yourself</button><button data-a="journal" style="width:100%;margin-top:8px;min-height:46px">📔 Read its journal</button>' : ''}
+  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>${m.fav ? '<button data-a="steer" style="width:100%;margin-top:8px;min-height:50px">🕹️ Take control</button><button data-a="journal" style="width:100%;margin-top:8px;min-height:46px">📔 Read its journal</button>' : ''}
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}${m.fav ? `age ${Math.round(m.age)}s · <b style="color:#d9c36a">★ immortal, never grows old</b>` : `age ${Math.round(m.age)} of ${Math.round(m.life)}s`} · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
@@ -1427,7 +1458,7 @@ function draw() {
   }
   if (cam.z >= 0.45) drawBiteFx();
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dtv; if (f.t > 0.7) { fx.splice(i, 1); continue; } const k = f.t / 0.7; ctx.strokeStyle = `rgba(${f.c},${1 - k})`; ctx.lineWidth = 3 / cam.z + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.9 * k), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.c},${0.25 * (1 - k)})`; ctx.fill(); }
-  if (w.steer && w.steer.on) { ctx.strokeStyle = 'rgba(236,228,200,0.8)'; ctx.lineWidth = 1.6 / cam.z + 0.4; ctx.beginPath(); ctx.arc(w.steer.x, w.steer.y, 7 + Math.sin(performance.now() / 130) * 1.5, 0, 7); ctx.stroke(); }
+  if (w.steer && w.steer.on && !w.steer.stick) { ctx.strokeStyle = 'rgba(236,228,200,0.8)'; ctx.lineWidth = 1.6 / cam.z + 0.4; ctx.beginPath(); ctx.arc(w.steer.x, w.steer.y, 7 + Math.sin(performance.now() / 130) * 1.5, 0, 7); ctx.stroke(); }
   const sm = selected();
   if (sm) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / cam.z + 0.5; ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r + 5, 0, 7); ctx.stroke();
