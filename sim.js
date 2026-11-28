@@ -682,8 +682,13 @@ export function step(w, dt) {
 function body(w, m, dt, tempG) {
   const o = m.o;
   // steering and motion
-  m.h += clamp(o[OUT.TURN] + m.rt, -1.5, 1.5) * m.turnRate * dt;
-  const target = Math.min(clamp(o[OUT.THRUST] + m.rth, 0, 1), m.thrCap) * m.maxSp * (m.jetOn ? 1 + 0.7 * m.jet : 1);
+  const steered = w.steer && w.steer.id === m.id && m.fav ? w.steer : null;
+  let drive = Math.min(clamp(o[OUT.THRUST] + m.rth, 0, 1), m.thrCap);
+  if (steered) {                                            // you have the wheel: swim toward the finger, coast to a stop when it lifts
+    const dx = steered.x - m.x, dy = steered.y - m.y, d = Math.hypot(dx, dy), off = ((((Math.atan2(dy, dx) - m.h + Math.PI) % 6.2832) + 6.2832) % 6.2832) - Math.PI;
+    if (steered.on && d > 4) { const turn = m.turnRate * 2.2 * dt; m.h += clamp(off, -turn, turn); drive = d < 30 && Math.abs(off) > 1 ? 0.25 : Math.min(1, 0.25 + d / 40); } else drive = 0;
+  } else m.h += clamp(o[OUT.TURN] + m.rt, -1.5, 1.5) * m.turnRate * dt;
+  const target = drive * m.maxSp * (m.jetOn ? 1 + 0.7 * m.jet : 1);
   m.v += (target - m.v) * Math.min(1, dt * 4);
   const ch = Math.cos(m.h), sh = Math.sin(m.h);
   let nx = m.x, ny = m.y, hit = false, edge = false;
@@ -976,6 +981,12 @@ function think(w, m, i, dtt) {
     m.aimK = ak; m.aimX = ax; m.aimY = ay; m.aimT = w.t;
   }
 
+  if (w.steer && w.steer.id === m.id && m.fav) {          // steered: bites only on your say-so, and builds, sprays, digs, gives and steals nothing on its own
+    o[OUT.BITE] = w.steer.bite ? 1 : -1; o[OUT.XFER] = 0; o[OUT.DIG] = -1;
+    for (let k = 0; k < 3; k++) o[OUT.EMIT_A + k] = 0;
+    for (let k = 0; k < 4; k++) o[OUT.B_WALL + k] = -1;
+    jAdd(w, m, 'life', 'You took the wheel and steered it yourself.', 'steer', 300);
+  }
   // -- friendships: spending time near a non-hostile mote builds a bond; being bitten or drained makes a grudge; bonds fade
   if (bn >= 0) {
     const o = motes[bn];

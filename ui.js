@@ -183,6 +183,7 @@ function renderStrip() {
 }
 strip.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.b) { brush = +b.dataset.b; renderStrip(); } else if (b.id === 'undoBtn') undo(); else if (b.id === 'stripDone') setTool('look'); };
 dock.onclick = e => {
+  if (w.steer) stopSteer();
   const b = e.target.closest('button'); if (!b) return;
   const id = b.dataset.g, g = GROUPS.find(x => x[0] === id);
   if (id === 'look') { setTool('look'); return; }
@@ -302,7 +303,7 @@ cv.addEventListener('pointerdown', e => {
   if (e.isPrimary) { ptrs.clear(); multi = false; pinch = null; }           // a fresh first finger: forget anything a lost touch left behind
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size >= 2) {
-    multi = true; dropPending();
+    multi = true; dropPending(); steerAt = null;
     if (gesturePushed) {                                       // a stroke that had only just begun was really the start of this gesture
       const age = performance.now() - committedAt;
       if (age < 400) { const sn = undoStack.pop(); if (sn && sn.w === w && age >= GRACE_MS) S.restoreFields(w, sn.f); renderStrip(); updUndo(); }
@@ -310,6 +311,7 @@ cv.addEventListener('pointerdown', e => {
     gesturePushed = false;
     const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, cx: cam.x, cy: cam.y }; painting = null; downAt = null; panning = null; return;
   }
+  if (w.steer) { steerAt = { x: e.clientX, y: e.clientY, id: e.pointerId }; downAt = null; panning = null; return; }
   downAt = { x: e.clientX, y: e.clientY, moved: false }; camGoal = null;
   if (e.button === 1 || e.button === 2 || tool === 'look') { panning = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; return; }
   dropPending();
@@ -319,6 +321,7 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (steerAt && steerAt.id === e.pointerId) { steerAt.x = e.clientX; steerAt.y = e.clientY; return; }
   if (pinch && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
     cam.z = Math.max(0.15, Math.min(8, pinch.z * d / pinch.d));
@@ -332,6 +335,7 @@ cv.addEventListener('pointermove', e => {
 });
 function up(e) {
   ptrs.delete(e.pointerId);
+  if (steerAt && steerAt.id === e.pointerId) steerAt = null;
   if (ptrs.size < 2) pinch = null;
   if (pending) {                                               // a deliberate single tap on a power (never after two fingers)
     if (e.type === 'pointerup' && !multi && !(TAP_ONLY.has(tool) && downAt && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 18)) commitPending(); else dropPending();
@@ -363,11 +367,41 @@ const fchip = document.createElement('div');
 fchip.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 96px);left:50%;transform:translateX(-50%);background:#101722f2;border:1px solid #58c08a;border-radius:20px;padding:0 6px 0 16px;display:none;z-index:5;white-space:nowrap;font-size:15px';
 document.body.appendChild(fchip);
 fchip.onclick = e => { if (e.target.dataset.x) { follow = false; inspHidden = false; renderInsp(true); } else { inspHidden = false; renderInsp(true); } updChip(); };
-function updChip() {
+function updChip() { if (w && w.steer) { const c = document.getElementById('chip'); if (c) c.style.display = 'none'; return; }
   const m = selected();
   const show = follow && inspHidden && m;
   fchip.style.display = show ? 'block' : 'none';
   if (show) fchip.innerHTML = `👁 Following <b>${esc(m.name)}</b><span data-i="1" style="display:inline-block;padding:10px 12px;margin-left:4px;text-decoration:underline">info</span><span data-x="1" style="display:inline-block;padding:10px 12px;font-weight:700">✕ Stop</span>`;
+}
+// ---------- steering a favourite: hold a finger where you want it to go ----------
+let steerBar = null, steerAt = null;
+function startSteer(m) {
+  if (!m.fav) return;
+  if (sheetFor) closeSheet(); tool = 'look'; renderStrip();
+  w.steer = { id: m.id, x: m.x, y: m.y, on: false, bite: false };
+  selId = m.id; follow = true; inspHidden = true; camGoal = null; insp.style.display = 'none'; cam.z = Math.max(cam.z, 2.2); paused = false; $('bPause').textContent = '⏸'; renderInsp(true); updChip();
+  if (!steerBar) {
+    steerBar = document.createElement('div');
+    steerBar.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(86px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;background:#0f1722f2;border:1px solid #33455c;border-radius:16px;padding:8px;z-index:6;max-width:620px;margin:0 auto';
+    steerBar.innerHTML = '<div style="flex:1;font-size:14px;line-height:1.3"></div><button id="stBite" style="min-width:96px;min-height:62px;font-size:17px;touch-action:none;user-select:none;-webkit-user-select:none">🦷 Bite</button><button id="stDone" class="on" style="min-width:76px;min-height:62px;font-size:16px">✔ Done</button>';
+    document.body.appendChild(steerBar);
+    const bite = steerBar.querySelector('#stBite'), set = v => e => { e.preventDefault(); if (w.steer) w.steer.bite = v; bite.classList.toggle('on', v); };
+    bite.addEventListener('pointerdown', set(true)); for (const t of ['pointerup', 'pointercancel', 'pointerleave']) bite.addEventListener(t, set(false));
+    bite.addEventListener('contextmenu', e => e.preventDefault());
+    steerBar.querySelector('#stDone').addEventListener('click', () => stopSteer());
+  }
+  steerBar.firstChild.textContent = 'Hold your finger where you want ' + m.name.split(' ')[0] + ' to go. Hold Bite to attack.';
+  steerBar.style.display = 'flex';
+}
+function stopSteer() { const was = w && w.steer; if (w) w.steer = null; steerAt = null; if (steerBar) steerBar.style.display = 'none'; if (was) updChip(); }
+// every frame: the finger stays put on screen while the camera follows, so the spot on the dish is worked out afresh
+function steerTick() {
+  if (!w.steer) { if (steerBar && steerBar.style.display !== 'none') steerBar.style.display = 'none'; return; }
+  const m = w.motes.find(x => x.id === w.steer.id);
+  if (!m || !m.fav) { stopSteer(); return; }
+  selId = m.id; follow = true;
+  w.steer.on = !!steerAt;
+  if (steerAt) { const [x, y] = s2w(steerAt.x, steerAt.y); w.steer.x = x; w.steer.y = y; }
 }
 function startFollow(m) { selId = m.id; follow = true; inspHidden = true; cam.z = Math.max(cam.z, 2.2); renderInsp(true); updChip(); }
 const selected = () => { if (!selId) return null; const m = w.motes.find(m => m.id === selId); return m || null; };
@@ -405,7 +439,7 @@ function renderInsp(force) {
   <div class="dim">Generation ${m.gen} · ${m.kills} kills. Brain: ${m.net.nc} connections, ${m.net.nh} hidden neurons. </div>
   <div class="btns" style="grid-template-columns:1fr 1fr"><button data-a="rename">✏️ Rename</button><button data-a="brain" class="${showBrain ? 'on' : ''}">🧠 Show brain</button></div>${showBrain ? mindHTML(m) : ''}` : '';
   ib.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0"><span class="dot" style="background:${pal(m.hue, 4)}"></span>${esc(m.name)} ${m.fav ? '★' : ''}</h3><button data-a="close" style="width:50px;padding:0;font-size:20px" aria-label="Close">${follow ? '▾' : '✕'}</button></div>
-  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>${m.fav ? '<button data-a="journal" style="width:100%;margin-top:8px;min-height:46px">📔 Read its journal</button>' : ''}
+  <div class="btns"><button data-a="follow" class="${follow ? 'on' : ''}">👁<br>Follow</button><button data-a="fav">${m.fav ? '★<br>Immortal' : '☆<br>Star'}</button><button data-a="feed">🍎<br>Feed</button><button data-a="clone">🧬<br>Clone</button></div>${m.fav ? '<button data-a="steer" style="width:100%;margin-top:8px;min-height:50px">🕹️ Steer it yourself</button><button data-a="journal" style="width:100%;margin-top:8px;min-height:46px">📔 Read its journal</button>' : ''}
   <div class="dim" style="margin-top:8px">${sp ? esc(sp.name) : '?'} · ${dietLabel(m.diet)} · ${m.arms ? armsLabel(m) + ' · ' : ''}${['sting', 'camo', 'jet'].filter(k => m[k]).map(k => S.PARTS[k][0].toLowerCase() + ' · ').join('')}${kinds.length ? '<b style="color:#9f4">' + kinds.join(', ') + '</b> · ' : ''}${m.fav ? `age ${Math.round(m.age)}s · <b style="color:#d9c36a">★ immortal, never grows old</b>` : `age ${Math.round(m.age)} of ${Math.round(m.life)}s`} · ${m.kids} kids</div>
   <div style="margin-top:8px;line-height:1.5">🎯 <b>Doing:</b> ${esc(cap[0])}<br>💭 <b>Feeling:</b> ${esc(cap[1])}</div>
   <div class="bars" style="margin-top:6px">${bar('energy', m.e, m.cap)}</div>
@@ -433,6 +467,7 @@ insp.addEventListener('click', e => {
   if (a === 'close') { if (follow && m) { inspHidden = true; insp.style.display = 'none'; updChip(); } else { selId = 0; follow = false; insp.style.display = 'none'; } }
   else if (m) {
     if (a === 'brain') { showBrain = !showBrain; renderInsp(true); return; }
+    if (a === 'steer') { startSteer(m); return; }
     if (a === 'journal') { jid = m.id; jfilter = 'all'; jall = false; menuTab = 'journal'; mbody.scrollTop = 0; openMenu(); paused = true; return; }
     if (a === 'wire') { showWire = !showWire; renderInsp(true); return; }
     if (a === 'more') { showMore = !showMore; renderInsp(true); return; }
@@ -691,6 +726,7 @@ function soundTick() {
   lastC = cur;
 }
 function setWorld(nw) {
+  stopSteer();
   w = nw; selId = 0; follow = false; inspHidden = false; spot = 0; camGoal = null; undoStack.length = 0; lastC = null; lastToastT = -1;
   if (matchMedia('(pointer:coarse)').matches && w.maxPop > 450) w.maxPop = 450;
   insp.style.display = 'none'; updChip();
@@ -1391,6 +1427,7 @@ function draw() {
   }
   if (cam.z >= 0.45) drawBiteFx();
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dtv; if (f.t > 0.7) { fx.splice(i, 1); continue; } const k = f.t / 0.7; ctx.strokeStyle = `rgba(${f.c},${1 - k})`; ctx.lineWidth = 3 / cam.z + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.9 * k), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.c},${0.25 * (1 - k)})`; ctx.fill(); }
+  if (w.steer && w.steer.on) { ctx.strokeStyle = 'rgba(236,228,200,0.8)'; ctx.lineWidth = 1.6 / cam.z + 0.4; ctx.beginPath(); ctx.arc(w.steer.x, w.steer.y, 7 + Math.sin(performance.now() / 130) * 1.5, 0, 7); ctx.stroke(); }
   const sm = selected();
   if (sm) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / cam.z + 0.5; ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r + 5, 0, 7); ctx.stroke();
@@ -1439,6 +1476,7 @@ function frame(now) {
   const sm = selected();
   if (follow && sm) { cam.x += (sm.x - cam.x) * 0.15; cam.y += (sm.y - cam.y) * 0.15; }
   if (!catching) soundTick();
+  steerTick();
   dtv = rdt; draw();
   if (now - hudT > 400) {
     hudT = now;

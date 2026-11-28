@@ -126,6 +126,7 @@ export function guideHTML() {
 <details><summary>🆕 What is new</summary>
 <p><b>Latest</b></p>
 <ul>
+<li><b>🕹️ Steer a favourite</b>: tap a starred creature, then Steer it yourself.</li>
 <li><b>New stingers</b>: jointed scorpion-like tails with a venom sac and a hooked barb.</li>
 <li><b>Smoother touch</b>: two fingers only move and zoom, and never set off a tool.</li>
 <li><b>Food fixed and redrawn</b>: plants are leaf sprigs, meat is soft chunks. Farms now grow even when the dish is full of food, and pellets no longer flash and vanish.</li>
@@ -160,7 +161,7 @@ export function guideHTML() {
 <li>When you use a power, you get a message saying what happened (for example “Infected 3 motes”) and a ring flashes where it hit.</li>
 <li>The first time you open the app you get a short tour of these buttons. Menu → 🎓 Show me around replays it.</li>
 <li><b>The little icon over a creature's head</b> (when you zoom in) shows what it is doing right now: 💢 hurt or attacked, ☠️ poisoned, 🤢 sick, 😈 hunting, 😠 stealing energy, 💛 giving energy, ❤️ looking for a mate, 🔨 building, 🍽️ hungry, 🤝 in a pod with a friend. ★ means you starred it. Tap a creature and its panel says in words what it is <b>doing</b> and how it is <b>feeling</b>; its best friend (💚), rival (💢) and nearest relatives (🏠) get a name tag and a line.</li>
-<li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (makes it <b>immortal</b>, and keeps its story), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>. Under <b>More details</b>: <b>🧠 Show brain</b> lists what it senses and decides right now and why, with an optional wiring map.</li>
+<li>Selected mote buttons: <b>👁 Follow</b> (camera tracks it), <b>☆ Star</b> (makes it <b>immortal</b>, and keeps its story), <b>🍎 Feed</b>, <b>🧬 Clone</b> (a mutated copy), <b>✏️ Rename</b>. A starred creature also has <b>🕹️ Steer it yourself</b>: hold a finger where you want it to swim and it goes there; lift and it coasts to a stop. It eats food it runs into, and attacks only while you hold <b>🦷 Bite</b> (use a second finger). Two fingers on the dish still zoom. <b>✔ Done</b>, or any bottom button, hands control back to its own brain. Under <b>More details</b>: <b>🧠 Show brain</b> lists what it senses and decides right now and why, with an optional wiring map.</li>
 </ul></details>
 
 <details><summary>The tools, one by one</summary>

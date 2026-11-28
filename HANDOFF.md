@@ -126,3 +126,5 @@ Cap called it a finished product. Guide, tool tips, README and this log were aud
 - 2026-11-28: stinger redrawn (Cap: "stingers look dumb"). `drawStinger` in `ui.js`: two pinched tail joints in body colour, a venom sac with a violet cast, a hooked bone barb and two small spurs, drawn from beneath the tail instead of a tail fin; a simple curved line when zoomed out.
 
 - 2026-11-28 (end of day): How it works audited and brought up to date with every change so far: What is new split into Latest and Also recent, touch rules, farm behaviour, food look and where food grows, poison description, Farm tool tip.
+
+- 2026-11-28: steer a favourite. Starred creature panel has "Steer it yourself": hold a finger where it should swim (`w.steer`, not saved), a Bite button held with a second finger, Done or any bottom button to hand back. While steered it only bites when told and does not build, spray, dig, give or steal. `scripts/steer-test.mjs`; checked with simulated touches in the desktop browser.
