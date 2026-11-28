@@ -31,6 +31,7 @@ Files: `sim.js` (the engine, pure JS), `ui.js` + `index.html` (plain UI), `sw.js
 - **Optional parts** that only some lineages grow: stinger (poisons through a bite), camouflage (noticed only up close while slow), water jet (burst of speed). Each costs upkeep.
 - **Survival first**: hunger steers to food, no sprinting with nothing in sight, no building or gifts when low, unarmed plant-eaters flee biters, no breeding into a famine.
 - **Immortals and their journals**: a starred creature cannot die and keeps a detailed life journal (`journal.js`): portrait, family, friends, grudges, fights, deeds, every cheated death, world events and a daily review; filter, copy or save as text.
+- **Killers**: New life drops three purpose-built predators about one time in three; carnivores hunt by instinct, rest when full and stay rare.
 - **Personal space**: creatures drift away from crowds so food does not pile everyone into one clump.
 - **While you are away** the dish keeps living (1 away-second = 0.25 dish-seconds, capped at 40 dish-minutes), with a welcome-back report. The last few motes are protected during catch-up.
 - Dish is saved on the device. Export/import a dish file or code to move it between phone and PC.

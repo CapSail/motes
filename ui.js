@@ -128,7 +128,7 @@ const TOOLINFO = {
   plague: ['🦠', 'Plague', 'Touch motes to infect them. Sick motes come out in yellow-green spots, lose energy, and pass it on when they touch others. The sickness mutates as it spreads.'],
   smite: ['⚡', 'Smite', 'Instantly kills the motes under your finger.'],
   meteor: ['☄️', 'Meteor', 'Tap to drop one. It kills everything in the crater, then plants grow around the rim.'],
-  spark: ['✨', 'New life', 'Tap to drop in a new family of four: a brand-new kind with its own look and a working brain.'],
+  spark: ['✨', 'New life', 'Tap inside the dish to drop in a new family. About one time in three it is a family of three absolute killers.'],
 };
 const EVTILES = [['bloom', '🌸', 'Food bloom', 'Plants boom for a while.'], ['cold', '🥶', 'Cold snap', 'The whole dish turns cold for a bit.'], ['heat', '🥵', 'Heatwave', 'The whole dish heats up for a bit.'], ['iceage', '🧊', 'Ice age', 'Long deep cold and thin food. Harsh!'], ['drought', '🏜️', 'Drought', 'Food becomes scarce for a while.']];
 const EVMSG = { bloom: '🌸 A food bloom has begun.', cold: '🥶 A cold snap is coming.', heat: '🥵 A heatwave is coming.', iceage: '🧊 An ice age has begun. It will be hard.', drought: '🏜️ A drought has begun.' };
@@ -285,8 +285,13 @@ cv.addEventListener('pointerdown', e => {
   painting = { x: wx, y: wy };
   if (UNDOABLE.has(tool)) { undoStack.push({ w, f: S.snapshotFields(w) }); gesturePushed = true; if (undoStack.length > 10) undoStack.shift(); lastUndoAt = Date.now(); renderStrip(); }
   if (tool === 'smite' || tool === 'plague') feedback(tool, wx, wy);
-  if (tool === 'spark') { const nm = S.spark(w, wx, wy); painting = null; fx.push({ x: wx, y: wy, r: 40, c: '255,255,160', t: 0 }); showHint('', '✨ A new creature appeared: ' + ((w.species.get(nm.sp) || {}).name || 'unknown') + '. Tap it with 👆 Look to see its brain.'); sfx('spark'); buzz(15); }
-  if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 135); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 135, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
+  if (tool === 'spark') {
+    const nm = S.spark(w, wx, wy); painting = null;
+    if (!nm) showHint('', S.inDish(wx, wy) ? '🧱 That is a wall. Tap open ground.' : '✨ Tap inside the dish.');
+    else { const kind = (w.species.get(nm.sp) || {}).name || 'unknown'; fx.push({ x: wx, y: wy, r: 40, c: nm.apex ? '220,90,70' : '225,215,150', t: 0 }); showHint('', nm.apex ? `⚠️ A KILLER appeared: ${kind}. Three of them, ${armsLabel(nm)}.` : `✨ A new family appeared: ${kind}. Tap one with 👆 Look to see its brain.`); sfx('spark'); buzz(nm.apex ? [30, 30, 60] : 15); }
+  }
+  if (tool === 'meteor' && !S.inDish(wx, wy)) { painting = null; showHint('', '☄️ Tap inside the dish.'); }
+  else if (tool === 'meteor') { const dead = S.meteor(w, wx, wy, 135); painting = null; shake = 1; fx.push({ x: wx, y: wy, r: 135, c: '255,150,60', t: 0 }); showHint('', `☄️ Meteor! ${dead} mote${dead === 1 ? '' : 's'} lost. Plants will grow around the rim.`); sfx('boom'); buzz([60, 40, 60]); }
 });
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;

@@ -177,7 +177,7 @@ export function guideHTML() {
 <li><b>🦠 Plague</b>: touch motes to infect them. Sick motes come out in yellow-green spots, lose energy fast, and pass the sickness to motes they touch, so it can sweep through a crowd. The weak often die of it. It wears off after about half a minute and leaves survivors briefly immune. Touch <i>right on</i> some motes. If you miss you get a message saying so.</li>
 <li><b>⚡ Smite</b>: kills the motes under your finger.</li>
 <li><b>☄️ Meteor</b>: tap to drop one. It kills everything in its wide crater, burns the ground bare and leaves it hot and poisoned, then plants spring up around the rim.</li>
-<li><b>✨ New life</b>: tap to drop in a family of four: a new kind with its own look and a working brain.</li>
+<li><b>✨ New life</b>: tap inside the dish to drop in a new kind with its own look and a working brain. Usually it is a family of four. About <b>one time in three</b> it is three <b>absolute killers</b>: big, fast, far-sighted, meat-eating, armed with weapons, sometimes with a jet, stinger or camouflage. Born killers hunt by instinct and cruise slowly to save energy when no prey is in sight. Nothing can be dropped outside the dish or inside a wall.</li>
 </ul>
 <p>The one-tap events: <b>Food bloom</b> is a short boost, <b>Drought</b> makes food scarce for a couple of minutes, <b>Ice age</b> is the harshest (three minutes of deep cold with thin food), and cold snaps and heatwaves pass in about a minute. The 🆘 Help button for a species on the edge gives food and short-lived nests.</p>
 <p>Walls, farms, nests and granaries you paint are permanent. Structures built by motes decay unless motes keep repairing them.</p></details>

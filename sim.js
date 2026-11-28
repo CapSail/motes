@@ -427,12 +427,14 @@ export function derive(m) {
   else if (m.tool === 4) { m.greach = 2 + 3 * aS; m.gatherK = 1 + 0.05 * aS; }       // scoop: wider pickup
   else if (m.tool === 5) { m.greach = 2 + 5 * aS; m.gatherK = 0.95; }                                // rake: widest pickup
   { const HB = globalThis.__HB === undefined ? 0.4 : globalThis.__HB; m.hitB *= HB; m.pierce *= HB; }
+  const pred = Math.max(0, Math.min(1, (m.diet - 0.6) / 0.25));        // a true carnivore body is built to wait and pounce: cheap to run and to keep
   const part = v => Math.max(0, Math.min(1, (v - PART_AT) / (1 - PART_AT)));
   m.sting = b[B.STING] > PART_AT ? 0.4 + 0.6 * part(b[B.STING]) : 0;
   m.camo = b[B.CAMO] > PART_AT ? 0.4 + 0.6 * part(b[B.CAMO]) : 0;
   m.jet = b[B.JET] > PART_AT ? 0.4 + 0.6 * part(b[B.JET]) : 0;
   m.basal += (m.sting ? 0.06 + 0.08 * m.sting : 0) + (m.camo ? 0.05 + 0.07 * m.camo : 0) + (m.jet ? 0.04 + 0.04 * m.jet : 0);
-  m.basal += m.arms * (0.1 + 0.15 * m.armLen); m.maxSp *= 1 - 0.07 * m.arms * (0.5 + m.armLen);
+  m.basal += m.arms * (0.1 + 0.15 * m.armLen);
+  m.mvMul *= 1 - 0.72 * pred; m.basal *= 1 - 0.5 * pred; m.hitB += 0.7 * pred; m.cap *= 1 + 0.5 * pred; m.thr = m.cap * (0.55 + 0.4 * m.g.b[B.REPRO]); m.maxSp *= 1 - 0.07 * m.arms * (0.5 + m.armLen);
   const segX = (m.segs - 2) / 7;                                                      // long bodies: more energy storage and bite reach, but heavier
   m.cap += segX * 26; m.basal += 0.14 * segX; m.reach += 0.3 * (m.segs - 2) * m.lenF;
   m.cap *= 1.12 - 0.3 * m.taper;                                                      // thick bodies store more...
@@ -448,7 +450,7 @@ function makeMote(w, g, x, y, e, gen) {
     pa: 0, pb: 0, fr: new Map(),
     dead: false, why: '', sick: 0, imm: 0, lt: w.t, cdB: 0, cdD: 0, cdA: rand() * 4, hurt: 0, killer: 0,
     r: 0, maxSp: 0, senseR: 0, diet: 0, armor: 0, photo: 0, cap: 0, life: 0, matureAge: 0, thr: 0, invest: 0, intake: 1,
-    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, thrCap: 1, sting: 0, camo: 0, jet: 0, jetOn: false, venom: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, actX: 0, actY: 0, actS: 1, actF: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
+    crowd: 0, ln: 0, strain: 0.5, imt: 0.5, aff: [0, 0, 0], rt: 0, rth: 0, thrCap: 1, hunting: 0, bred: -999, sting: 0, camo: 0, jet: 0, jetOn: false, venom: 0, pod: 0, style: 0, spikes: 0, eyes: 2, frill: 0, glow: 0, mem: [0, 0, 0, 0, 0, 0], mood: 0, plantEff: 1, meatEff: 1, aimK: 0, aimX: 0, aimY: 0, aimT: -9, actT: -9, actK: 0, actX: 0, actY: 0, actS: 1, actF: 0, bt: 0, arms: 0, armLen: 0, tool: -1, hitB: 0, reach: 0, pierce: 0, greach: 0, gatherK: 1, tpref: 0, ttol: 0, toxr: 0, disr: 0, basal: 0, hue: 0, lobes: 3, bcost: 0,
     pat: 0, accent: 0.5, ant: 0, fin: 0, segs: 4, lenF: 1, taper: 0.5, curl: 0, wamp: 0.5, wfreq: 0.5, limbs: 0, limbLen: 0.5, turnRate: 4.5, mvMul: 1, ph: rand() * 6.28,
   };
   derive(m); setBrain(m);
@@ -911,6 +913,16 @@ function think(w, m, i, dtt) {
         rt += -q * 1.3 * (Math.tanh(sd * 6) || (m.id & 1 ? 1 : -1)); rth += q * (f > 0 ? 0.25 : 0.8);
       }
     } else m.thrCap = 1;
+    // born killers: a body built for meat goes after prey by instinct, and idles along to save energy when none is in sight
+    m.hunting = 0;
+    if (!globalThis.__NOSURV && m.diet > 0.65 && m.e < m.cap * HUNGRY) {                 // a fed predator leaves everyone alone
+      const q = byp >= 0 ? byp : bn >= 0 && motes[bn].sp !== m.sp && relOf(m, motes[bn]) === 0 && motes[bn].r <= m.r * 1.35 ? bn : -1;
+      if (q >= 0) {
+        const t = motes[q], dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1, f = (dx * ch + dy * sh) / d, sd = (dy * ch - dx * sh) / d;
+        rt = 2.2 * Math.tanh(sd * 3) + (f < -0.3 ? (m.id & 1 ? 0.9 : -0.9) : 0); rth = 0.55 + 0.45 * Math.max(0, f); m.hunting = 1;
+        m.thrCap = d < 45 && f < 0.75 ? 0.42 : 1;                    // slow down to turn onto prey that is close but off to one side, instead of circling it
+      } else { m.hunting = 0; if (bm < 0) m.thrCap = Math.min(m.thrCap, 0.45); }
+    }
     m.rt = clamp(rt, -1.5, 1.5); m.rth = clamp(rth, -1, 1); if (globalThis.__NOREFLEX) { m.rt = 0; m.rth = 0; }
   } else { m.rt = 0; m.rth = 0; }
   {   // walls are solid: steer away from them whatever the brain thinks
@@ -950,6 +962,10 @@ function think(w, m, i, dtt) {
     for (let k = 0; k < 3; k++) if (o[OUT.EMIT_A + k] > 0) o[OUT.EMIT_A + k] = 0;
     if (o[OUT.XFER] > 0) o[OUT.XFER] = 0;
   }
+  if (m.diet > 0.65 && tgt && tgt.sp === m.sp && o[OUT.BITE] > 0 && !globalThis.__NOSURV) o[OUT.BITE] = 0;          // born killers do not eat their own pack
+  if (m.diet > 0.65 && m.e >= m.cap * HUNGRY && !globalThis.__NOSURV) o[OUT.BITE] = Math.min(o[OUT.BITE], 0);
+  if (m.hunting) { o[OUT.TURN] *= 0.2; o[OUT.THRUST] = Math.max(o[OUT.THRUST], 0.7); }      // while the hunting instinct has the scent, it does the driving
+  if (!globalThis.__NOSURV && m.diet > 0.65 && tgt && tgt.sp !== m.sp && m.e < m.cap * HUNGRY && relOf(m, tgt) === 0) o[OUT.BITE] = 1;       // and it bites what it catches
   m.jetOn = m.jet > 0 && m.e > m.cap * 0.35 && (inp[IN.THREAT_P] > 0.45 || (m.diet > 0.25 && inp[IN.PREY_P] > 0.4 && o[OUT.BITE] > 0));
   // where the arms reach (for drawing): toward a victim when biting, otherwise toward food that is close
   {
@@ -1052,9 +1068,11 @@ function think(w, m, i, dtt) {
   }
   // -- reproduction
   m.cdA -= dtt;
+  // predators stay rare: they only breed while they are a small part of the dish, and not often
+  const room4 = globalThis.__NOSURV || m.diet <= 0.65 || ((w.predShare || 0) < PRED_MAX && w.t - (m.bred || -999) > 90);
   // a survivor does not breed into a famine: it needs food around it, or a very full belly, or sunlight to live on
   const fedWell = globalThis.__NOSURV || m.photo > 0.4 || m.e > m.cap * 0.85 || inp[IN.FOODDENS] >= (globalThis.__FD === undefined ? 0.6 : globalThis.__FD);
-  if (o[OUT.MATE] > 0 && fedWell && m.age > m.matureAge && m.e >= m.thr && w.motes.length < w.maxPop) {
+  if (o[OUT.MATE] > 0 && fedWell && room4 && m.age > m.matureAge && m.e >= m.thr && w.motes.length < w.maxPop) {
     const t = bn >= 0 ? motes[bn] : null;
     if (t && !t.dead && t.id > m.id && t.sp === m.sp && inp[IN.CONTACT] === 1 && t.o[OUT.MATE] > 0 && t.age > t.matureAge && t.e >= t.thr * 0.9) {
       const ca = m.e * (0.25 + 0.5 * m.g.b[B.INVEST]) * 0.5, cb = t.e * (0.25 + 0.5 * t.g.b[B.INVEST]) * 0.5;
@@ -1101,6 +1119,7 @@ function grudge(w, m, o) {
 }
 
 function birth(w, pa, pb, energy) {
+  pa.bred = w.t; if (pb) pb.bred = w.t;
   const lineId = pa.ln || pa.id;
   const g = pb ? cross(pa.g, pb.g) : cloneG(pa.g);
   mutateG(g);
@@ -1206,6 +1225,7 @@ function fields(w, dt) {
 }
 function sample(w) {
   jTick(w);
+  { let c = 0; for (const m of w.motes) if (m.diet > 0.65) c++; w.predShare = c / Math.max(1, w.motes.length); }
   for (const s of w.species.values()) s.count = 0;
   let sumR = 0, sumDiet = 0, sumC = 0, sumH = 0, sumPhoto = 0, builders = 0;
   const ms = w.motes, lc = new Map(), lrep = new Map();
@@ -1299,24 +1319,40 @@ export function restoreFields(w, sn) {
   w.stCount = sn.stCount; w.food.length = 0; for (const f of sn.food) w.food.push({ x: f.x, y: f.y, k: f.k, e: f.e, dead: false, age: f.age });
 }
 export function cleanFood(w) { let j = 0; for (let i = 0; i < w.food.length; i++) if (!w.food[i].dead) w.food[j++] = w.food[i]; w.food.length = j; }
-export function spark(w, x, y) {
-  let g;
-  if (PACK.length >= 8) {
+export const inDish = (x, y) => x * x + y * y < (R - 14) * (R - 14);
+// a purpose-built predator: big, fast, far-sighted, armed, with a deep belly to last between kills
+function apex(hue) {
+  const g = hunter(hue), b = g.b, pick = (p, a, c) => (rand() < p ? a : c);
+  const set = { SIZE: 0.74 + rand() * 0.26, SPEED: 0.72 + rand() * 0.28, SENSE: 0.8 + rand() * 0.2, DIET: 0.9 + rand() * 0.1, ARMOR: 0.45 + rand() * 0.35, PHOTO: 0, FAT: 0.9 + rand() * 0.1, EFFIC: 0.55 + rand() * 0.35,
+    LIFE: 0.6 + rand() * 0.4, REPRO: 0.8 + rand() * 0.2, MUT: 0.35, ARMS: pick(0.45, 0.85, 0.5), ARMLEN: 0.6 + rand() * 0.4, TOOL: rand() * 0.49, JET: pick(0.6, 0.92, 0.1), STING: pick(0.4, 0.92, 0.1), CAMO: pick(0.35, 0.9, 0.1),
+    SPIKE: 0.55 + rand() * 0.45, EYES: pick(0.5, 0.5, 0.7), STYLE: rand(), PATTERN: rand(), FIN: 0.4 + rand() * 0.6, TTOL: 0.75, TOXR: 0.4, DISR: 0.5 };
+  for (const k in set) b[B[k]] = set[k];
+  return g;
+}
+export const KILLER_CHANCE = 0.35;
+const HUNGRY = 0.72, PRED_MAX = 0.12;
+export function spark(w, x, y, forceKiller) {
+  if (!inDish(x, y) || solidAt(w, x, y)) return null;                       // nothing is born outside the dish or inside a wall
+  let g; const killer = forceKiller === undefined ? rand() < KILLER_CHANCE : forceKiller;
+  if (killer) g = apex(rand());
+  else if (PACK.length >= 8) {
     g = unpackG(PACK[(rand() * PACK.length) | 0]); for (const id of g.h) if (id >= INNOV) INNOV = id + 1;
     g.b[B.HUE] = rand(); g.b[B.STYLE] = rand(); g.b[B.PATTERN] = rand(); mutateG(g);
   } else g = grazer(rand());
   const ns = newSpecies(w, g, 0); let first = null;
-  for (let i = 0; i < 4; i++) {                                           // a founding family, so the new kind has a fighting chance
+  for (let i = 0; i < (killer ? 3 : 4); i++) {                                           // a founding family, so the new kind has a fighting chance
     const gg = cloneG(g); if (i) mutateG(gg);
-    let px = x + (i ? gauss() * 14 : 0), py = y + (i ? gauss() * 14 : 0); if (solidAt(w, px, py)) { px = x; py = y; }
-    const m = makeMote(w, gg, px, py, 0, 0); m.sp = ns.id; m.e = m.cap * 0.9; first = first || m;
+    let px = x + (i ? gauss() * 14 : 0), py = y + (i ? gauss() * 14 : 0); if (solidAt(w, px, py) || !inDish(px, py)) { px = x; py = y; }
+    const m = makeMote(w, gg, px, py, 0, 0); m.sp = ns.id; m.e = m.cap * (killer ? 0.8 : 0.9); first = first || m;
   }
-  log(w, `A spark of new life: ${ns.name}.`, 'life');
+  log(w, killer ? `⚠️ A killer has appeared: ${ns.name}.` : `A spark of new life: ${ns.name}.`, 'life');
+  first.apex = killer;
   return first;
 }
 export function cloneMote(w, m) {
   const g = cloneG(m.g); mutateG(g);
-  const c = makeMote(w, g, m.x + 8, m.y + 8, m.cap * 0.5, m.gen + 1);
+  let cx = m.x + 8, cy = m.y + 8; if (!inDish(cx, cy) || solidAt(w, cx, cy)) { cx = m.x; cy = m.y; }
+  const c = makeMote(w, g, cx, cy, m.cap * 0.5, m.gen + 1);
   c.par = m.id; c.anc = [m.name].concat(m.anc).slice(0, 3); m.kids++; assignSpecies(w, c, m.sp);
   return c;
 }

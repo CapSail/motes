@@ -17,7 +17,7 @@ for (const dt of [0.2, 0.05]) {
 {
   const w = S.createWorld(5); w.events = false; w.noLog = true; for (let t = 0; t < 600; t++) S.step(w, 0.2);
   let worst = 0, pairs = 0, over = 0; const ms = w.motes;
-  for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) { const a = ms[i], b = ms[j]; const d = Math.hypot(a.x - b.x, a.y - b.y), need = (a.r + b.r) * 0.95; pairs++; if (d < need * 0.8) { over++; worst = Math.max(worst, need - d); } }
+  for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) { const a = ms[i], b = ms[j]; const d = Math.hypot(a.x - b.x, a.y - b.y), need = (a.r + b.r) * 0.95; pairs++; if ((a.o[S.OUT.BITE] > 0.3 && a.bt === b.id) || (b.o[S.OUT.BITE] > 0.3 && b.bt === a.id)) continue;   /* a biter may close on its victim */ if (d < need * 0.8) { over++; worst = Math.max(worst, need - d); } }
   ok('crowd: almost no deep overlaps (newborns are still being pushed out)', over / pairs < 0.001, `${over} overlapping pairs of ${pairs}, worst ${worst.toFixed(2)}`);
 }
 // 3. a pile forced onto one spot spreads out
