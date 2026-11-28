@@ -130,7 +130,7 @@ export function guideHTML() {
 <li>Your powers are rebalanced: poison, plague, meteor and heat hit harder; ice age, drought, bloom and your farms are gentler; <b>New life</b> drops a family of four.</li>
 <li><b>Immortal journals</b>: every starred creature keeps a detailed life story (☰ Menu → 📔 Immortal journals).</li>
 <li><b>Immortality</b>: any creature you ☆ star can no longer die.</li>
-<li>A <b>new look</b>: natural colours, six body plans, new tails, eyes and skin, walls made of pebbles. No more glow.</li>
+<li>A <b>new look</b>: natural colours, six body plans, walls made of pebbles, no glow. Creatures are now rounded and wet-looking with shadows, each body plan has its own head, meat-eaters show fangs, and their <b>eyes look at what they are doing, blink, and droop when hurt or sick</b>.</li>
 <li>Arms with tools, visible eating and biting, solid bodies and walls.</li>
 <li>A <b>brain panel in plain words</b>: tap a creature, More details, Show brain.</li>
 <li>New senses for prey, threats, food and crowds.</li>

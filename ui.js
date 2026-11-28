@@ -996,6 +996,74 @@ function markings(m, n, sh0) {
     for (let i = 0; i < n; i++) { const s = (i + m.id) & 1 ? 1 : -1, c = side(i, s, 0.34); ctx.fillStyle = (i + m.id) % 3 ? mark : pale; ctx.beginPath(); ctx.ellipse(c[0], c[1], PR[i] * 0.5, PR[i] * 0.34, PA[i] + s * 0.5, 0, 7); ctx.fill(); }
   }
 }
+// one light, from the upper left, for everything in the dish
+const LX = -0.58, LY = -0.81;
+const WIDE = [0.98, 1.0, 1.12, 1.14, 0.9, 1.22];
+function drawShadow(m, n) {                              // each creature floats a little above the floor of the dish
+  const dx = m.r * 0.34, dy = m.r * 0.52;
+  ctx.translate(dx, dy); hull(n, WIDE[m.style] * 1.02, 0, 0); ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fill(); ctx.translate(-dx, -dy);
+}
+// rounds the body: a broad shade along the side away from the light, a thin sheen along the side facing it
+function volume(m, n) {
+  const w0 = WIDE[m.style];
+  const track = (k, from, to) => {
+    ctx.beginPath(); let px = 0, py = 0;
+    for (let i = from; i < to; i++) {
+      const nx = -Math.sin(PA[i]), ny = Math.cos(PA[i]), d = (nx * LX + ny * LY) * k * PR[i] * w0, x = PX[i] + nx * d, y = PY[i] + ny * d;
+      if (i === from) ctx.moveTo(x, y); else ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+      px = x; py = y;
+    }
+    ctx.lineTo(px, py);
+  };
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  track(-0.62, 0, n); ctx.strokeStyle = 'rgba(8,6,10,0.27)'; ctx.lineWidth = m.r * 0.6 * w0; ctx.stroke();
+  track(0.5, 0, Math.max(2, n - 1)); ctx.strokeStyle = pal(m.hue, shade(m) + 27, 0.36); ctx.lineWidth = m.r * 0.34; ctx.stroke();
+  if (cam.z >= 1.3) {                                      // wet glints
+    ctx.fillStyle = 'rgba(244,240,225,0.5)'; ctx.beginPath();
+    for (let i = 0; i < n; i += 2) { const nx = -Math.sin(PA[i]), ny = Math.cos(PA[i]), d = (nx * LX + ny * LY) * 0.6 * PR[i] * w0; dot(PX[i] + nx * d, PY[i] + ny * d, Math.max(0.35, PR[i] * 0.085)); if ((m.id + i) % 3 === 0) dot(PX[i] + nx * d * 0.6 + Math.cos(PA[i]) * PR[i] * 0.4, PY[i] + ny * d * 0.6 + Math.sin(PA[i]) * PR[i] * 0.4, Math.max(0.25, PR[i] * 0.05)); }
+    ctx.fill();
+  }
+}
+// every body plan has its own head
+function drawHead(m, fine) {
+  const r = m.r, ch = Math.cos(m.h), sh = Math.sin(m.h), sh0 = shade(m);
+  const P = (f, l) => [m.x + ch * f * r - sh * l * r, m.y + sh * f * r + ch * l * r];
+  const M = (f, l) => { const p = P(f, l); ctx.moveTo(p[0], p[1]); };
+  const Q = (a, b, c, d) => { const p = P(a, b), q = P(c, d); ctx.quadraticCurveTo(p[0], p[1], q[0], q[1]); };
+  const dark = pal(m.hue, sh0 - 24), face = pal(m.hue, sh0 + 5), brow = pal(m.hue, sh0 - 9);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // what pokes out in front: fangs on meat-eaters, soft feeding palps on the rest (hidden while the jaws are working)
+  const busy = (m.o && m.o[S.OUT.BITE] > 0.3) || w.t - m.actT < 0.9;
+  if (fine && !busy) {
+    if (m.diet > 0.45) {
+      const gape = 0.12 + 0.07 * Math.sin(m.ph * 0.9 + m.id);
+      for (const s of [1, -1]) { const root = P(0.58, s * 0.5), a = P(0.98, s * 0.5), b = P(1.34, s * (0.34 + gape)), c = P(1.3, s * (0.02 + gape * 0.4)); taper([root, a, b], [r * 0.42, r * 0.32, r * 0.22], pal(m.hue, sh0 - 12), dark); taper([b, [(b[0] + c[0]) / 2 + ch * r * 0.08, (b[1] + c[1]) / 2 + sh * r * 0.08], c], [r * 0.22, r * 0.13, 0.1], '#d9cfb6', '#3a201c'); }
+    } else {
+      ctx.strokeStyle = pal(m.hue, sh0 + 16); ctx.lineWidth = Math.max(0.5, r * 0.13); ctx.beginPath();
+      for (const s of [1, -1]) { const t = Math.sin(m.ph * 2.1 + s + m.id) * 0.13; M(0.78, s * 0.24); Q(1.25, s * (0.34 + t), 1.28, s * (0.1 + t)); }
+      ctx.stroke();
+    }
+  }
+  const st = m.style;
+  ctx.beginPath();
+  if (st === 5) { M(1.34, 0); Q(0.95, 0.34, 0.6, 0.62); Q(0.5, 1.42, 0.05, 1.5); Q(0.06, 0.95, -0.5, 0.78); Q(-0.75, 0, -0.5, -0.78); Q(0.06, -0.95, 0.05, -1.5); Q(0.5, -1.42, 0.6, -0.62); Q(0.95, -0.34, 1.34, 0); }        // spade head with side lobes
+  else if (st === 2) { M(1.12, 0.16); Q(1.08, 1.0, 0.16, 1.2); Q(-0.5, 1.34, -0.66, 1.02); Q(-0.12, 0.5, -0.2, 0); Q(-0.12, -0.5, -0.66, -1.02); Q(-0.5, -1.34, 0.16, -1.2); Q(1.08, -1.0, 1.12, -0.16); Q(0.9, 0, 1.12, 0.16); } // half-moon shield with swept horns
+  else if (st === 1) { M(1.18, 0); Q(1.16, 0.78, 0.4, 0.98); Q(-0.46, 1.06, -0.56, 0); Q(-0.46, -1.06, 0.4, -0.98); Q(1.16, -0.78, 1.18, 0); }                                                                              // soft round snout
+  else if (st === 4) { M(1.06, 0); Q(1.1, 0.5, 0.62, 0.86); Q(0.08, 1.2, -0.46, 0.76); Q(-0.7, 0, -0.46, -0.76); Q(0.08, -1.2, 0.62, -0.86); Q(1.1, -0.5, 1.06, 0); }
+  else { M(1.12, 0.22); Q(1.0, 0.92, 0.28, 1.02); Q(-0.52, 1.0, -0.54, 0); Q(-0.52, -1.0, 0.28, -1.02); Q(1.0, -0.92, 1.12, -0.22); Q(0.86, 0, 1.12, 0.22); }                                                              // notched worm head
+  if (st === 3) {                                          // the see-through one just has a thicker leading membrane
+    ctx.beginPath(); M(0.1, 1.08); Q(1.5, 0.9, 1.42, 0); Q(1.5, -0.9, 0.1, -1.08); ctx.strokeStyle = pal(m.hue, sh0 + 12, 0.85); ctx.lineWidth = Math.max(0.7, r * 0.2); ctx.stroke(); return;
+  }
+  ctx.fillStyle = face; ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = Math.max(0.5, r * 0.1); ctx.stroke();
+  if (!fine) return;
+  // a darker mask across the brow, and light catching the crown
+  ctx.fillStyle = pal(m.accent, sh0 - 20, 0.5); ctx.beginPath(); M(0.72, 0); Q(0.62, 0.66, 0.1, 0.78); Q(0.26, 0.2, -0.16, 0); Q(0.26, -0.2, 0.1, -0.78); Q(0.62, -0.66, 0.72, 0); ctx.fill();
+  const lx = m.x + LX * r * 0.42, ly = m.y + LY * r * 0.42;
+  ctx.fillStyle = pal(m.hue, sh0 + 28, 0.34); ctx.beginPath(); ctx.ellipse(lx, ly, r * 0.42, r * 0.24, Math.atan2(LY, LX) + 1.5708, 0, 7); ctx.fill();
+  ctx.strokeStyle = brow; ctx.lineWidth = Math.max(0.4, r * 0.07); ctx.beginPath(); M(-0.12, 0); Q(0.3, 0.02, 0.62, 0); ctx.stroke();
+  if (st === 4) { ctx.strokeStyle = pal(m.hue, sh0 + 22, 0.9); ctx.lineWidth = Math.max(0.3, r * 0.05); ctx.beginPath(); for (const s of [1, -1]) for (let q = 0; q < 3; q++) { M(0.72 - q * 0.1, s * (0.6 + q * 0.14)); Q(1.3 - q * 0.2, s * (1.0 + q * 0.3), 1.45 - q * 0.45 + Math.sin(m.ph + q) * 0.08, s * (1.35 + q * 0.28)); } ctx.stroke(); }
+}
+
 // six body plans
 function drawBody(m, n, fine) {
   const sh0 = shade(m), base = pal(m.hue, sh0), dark = pal(m.hue, sh0 - 23), lite = pal(m.hue, sh0 + 15), r = m.r;
@@ -1030,6 +1098,7 @@ function drawBody(m, n, fine) {
     ctx.strokeStyle = pal(m.accent, -20, 0.5); ctx.lineWidth = Math.max(0.5, r * 0.2); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(PX[0], PY[0]);
     for (let i = 1; i < n; i++) { const c = side(i, (i & 1 ? 1 : -1), 0.22); ctx.lineTo(c[0], c[1]); } ctx.stroke();
   }
+  if (fine) volume(m, n);
   if (fine && m.armor > 0.4) { ctx.fillStyle = '#b9b09a'; ctx.beginPath(); for (let i = 0; i < n; i++) for (const s of [1, -1]) { const c = side(i, s, st === 5 ? 0.9 : 0.68); dot(c[0], c[1], PR[i] * (0.07 + m.armor * 0.08)); } ctx.fill(); }
 }
 // tails: a forked tail, a ribbed fan or a leaf paddle
@@ -1049,20 +1118,31 @@ function drawTail(m, n) {
     ctx.beginPath(); ctx.moveTo(x, y); const e = at(x, y, a, len * 1.35); ctx.lineTo(e[0], e[1]); ctx.stroke();
   }
 }
-// eyes: none (sense pits), one big eye, two beads, a spider cluster, or short stalks
+// eyes: none (sense pits), one big eye, two beads, a spider cluster, or short stalks. They look at things, and they blink.
+const IRIS = ['#b98a34', '#8c9a4a', '#6f93a0', '#a35a3c', '#9b8bb0', '#c4b58e'];
 function drawEyes(m) {
   const ch = Math.cos(m.h), sh = Math.sin(m.h), r = m.r, hx = m.x + ch * r * 0.36, hy = m.y + sh * r * 0.36, hunter = m.diet > 0.55;
   const P = (f, l) => [hx + ch * f * r - sh * l * r, hy + sh * f * r + ch * l * r];
-  const bead = (p, er) => {
-    ctx.fillStyle = hunter ? '#b8832f' : '#14100f'; ctx.beginPath(); ctx.arc(p[0], p[1], er, 0, 7); ctx.fill();
-    if (hunter) { ctx.fillStyle = '#140c08'; ctx.beginPath(); ctx.ellipse(p[0], p[1], er * 0.78, er * 0.26, m.h, 0, 7); ctx.fill(); }
-    if (cam.z >= 1.4) { ctx.fillStyle = 'rgba(235,232,220,0.75)'; ctx.beginPath(); ctx.arc(p[0] + er * 0.3, p[1] - er * 0.3, er * 0.22, 0, 7); ctx.fill(); }
+  // where it is looking
+  let gx = ch, gy = sh;
+  if (m.aimK > 0 && w.t - m.aimT < 1.2) { const dx = m.aimX - m.x, dy = m.aimY - m.y, d = Math.hypot(dx, dy) || 1; gx = dx / d; gy = dy / d; }
+  const beat = (w.t + (m.id % 53) * 0.37) % (3.2 + (m.id % 7) * 0.55), shut = m.sick > 0 ? 0.55 : beat < 0.14 ? 1 : m.hurt > 0.4 ? 0.6 : 0;
+  const lid = pal(m.hue, shade(m) - 6), rim = pal(m.hue, shade(m) - 28), iris = hunter ? '#c08a2c' : IRIS[(m.accent * 6) | 0];
+  const eye = (p, er) => {
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(p[0], p[1], er * 1.18, 0, 7); ctx.fill();
+    if (shut >= 1) { ctx.fillStyle = lid; ctx.beginPath(); ctx.arc(p[0], p[1], er, 0, 7); ctx.fill(); ctx.strokeStyle = rim; ctx.lineWidth = Math.max(0.35, er * 0.28); ctx.beginPath(); ctx.moveTo(p[0] + sh * er, p[1] - ch * er); ctx.lineTo(p[0] - sh * er, p[1] + ch * er); ctx.stroke(); return; }
+    if (cam.z < 1.15) { ctx.fillStyle = hunter ? iris : '#120e0d'; ctx.beginPath(); ctx.arc(p[0], p[1], er, 0, 7); ctx.fill(); return; }
+    ctx.fillStyle = iris; ctx.beginPath(); ctx.arc(p[0], p[1], er, 0, 7); ctx.fill();
+    const qx = p[0] + gx * er * 0.3, qy = p[1] + gy * er * 0.3;
+    ctx.fillStyle = '#0d0908'; ctx.beginPath(); if (hunter) ctx.ellipse(qx, qy, er * 0.72, er * 0.24, m.h, 0, 7); else ctx.arc(qx, qy, er * 0.6, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(248,244,230,0.9)'; ctx.beginPath(); dot(p[0] + LX * er * 0.46, p[1] + LY * er * 0.46, er * 0.2); dot(p[0] - LX * er * 0.4, p[1] - LY * er * 0.4, er * 0.09); ctx.fill();
+    if (shut > 0) { ctx.fillStyle = lid; ctx.beginPath(); ctx.arc(p[0], p[1], er * 1.02, m.h - shut * 2.2, m.h + shut * 2.2); ctx.closePath(); ctx.fill(); }          // heavy lids when hurt or sick
   };
-  if (m.eyes === 1) { const p = P(0.14, 0); ctx.fillStyle = '#c9c0a6'; ctx.beginPath(); ctx.arc(p[0], p[1], r * 0.42, 0, 7); ctx.fill(); bead(P(0.22, 0), r * 0.25); }
-  else if (m.eyes === 2) { bead(P(0.1, 0.4), r * 0.2); bead(P(0.1, -0.4), r * 0.2); }
-  else if (m.eyes === 3) { for (const [f, l, s] of [[0.28, 0.2, 0.15], [0.28, -0.2, 0.15], [0.04, 0.46, 0.11], [0.04, -0.46, 0.11], [0.48, 0, 0.09]]) bead(P(f, l), r * s); }
-  else if (m.eyes === 4) { ctx.lineWidth = Math.max(0.6, r * 0.15); ctx.lineCap = 'round'; for (const s of [1, -1]) { const a = P(0, s * 0.42), b = P(0.82 + Math.sin(m.ph + s) * 0.1, s * 0.78); ctx.strokeStyle = pal(m.hue, shade(m) - 8); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); bead(b, r * 0.17); } }
-  else { ctx.fillStyle = pal(m.hue, shade(m) - 26); ctx.beginPath(); for (const s of [1, -1]) { const p = P(0.3, s * 0.26); dot(p[0], p[1], r * 0.09); } ctx.fill(); }
+  if (m.eyes === 1) eye(P(0.18, 0), r * 0.4);
+  else if (m.eyes === 2) { eye(P(0.14, 0.44), r * 0.25); eye(P(0.14, -0.44), r * 0.25); }
+  else if (m.eyes === 3) { for (const [f, l, s] of [[0.3, 0.21, 0.17], [0.3, -0.21, 0.17], [0.05, 0.52, 0.13], [0.05, -0.52, 0.13], [0.56, 0, 0.1]]) eye(P(f, l), r * s); }
+  else if (m.eyes === 4) { for (const s of [1, -1]) { const a = P(0, s * 0.46), b = P(0.86 + Math.sin(m.ph + s) * 0.12, s * 0.86); taper([a, [(a[0] + b[0]) / 2 + ch * r * 0.14, (a[1] + b[1]) / 2 + sh * r * 0.14], b], [r * 0.34, r * 0.2, r * 0.22], pal(m.hue, shade(m) - 2), rim); eye(b, r * 0.23); } }
+  else { ctx.fillStyle = rim; ctx.beginPath(); for (const s of [1, -1]) { const p = P(0.34, s * 0.3); dot(p[0], p[1], r * 0.1); } ctx.fill(); ctx.strokeStyle = pal(m.hue, shade(m) + 20, 0.8); ctx.lineWidth = Math.max(0.35, r * 0.06); ctx.beginPath(); for (const s of [1, -1]) { const p = P(0.34, s * 0.3); ctx.moveTo(p[0] + r * 0.17, p[1]); ctx.arc(p[0], p[1], r * 0.17, 0, 7); } ctx.stroke(); }
 }
 function drawSquiggle(m, dtv) {
   if (cam.z < 0.32) {                                     // far away: one cheap stroke that still shows how long and thick it is
@@ -1091,12 +1171,13 @@ function drawSquiggle(m, dtv) {
     const mv = Math.min(1, m.v / (m.maxSp || 1));
     for (let i = 0; i < n; i++) {
       const t = n > 1 ? i / (n - 1) : 0;
-      PR[i] = m.r * (1 - m.taper * 0.72 * t);
+      PR[i] = m.r * (1 - m.taper * 0.72 * t) * (1 + 0.04 * Math.sin(w.t * 2.1 + m.id - i * 0.75));       // a slow breath running down the body
       const off = Math.sin(m.ph - i * 0.9) * m.wamp * 0.55 * PR[i] * (0.25 + 0.75 * mv) * t;   // a wave that runs down the body while swimming
       PX[i] -= Math.sin(PA[i]) * off; PY[i] += Math.cos(PA[i]) * off;
     }
   }
-  const fine = cam.z >= 0.75;
+  const fine = cam.z >= 0.95;                           // the fine detail only once you are close enough to see it
+  if (fine) drawShadow(m, n);
   if (m.arms > 0) drawArms(m, n, dtv);
   if (m.limbs > 0) {
     const len = m.r * (0.65 + m.limbLen * 1.35), thick = Math.max(0.9, m.r * 0.3);
@@ -1136,6 +1217,7 @@ function drawSquiggle(m, dtv) {
     }
     ctx.stroke();
   }
+  drawHead(m, fine);
   drawEyes(m);
   drawMouth(m);
 }
@@ -1178,6 +1260,20 @@ function drawFood() {
   ctx.fill();
   ctx.fillStyle = '#d3bfa3'; ctx.beginPath(); for (const f of seen) if (f.k === 1) dot(f.x + 0.4, f.y - 0.3, 0.7); ctx.fill();
 }
+let floorArt = null;
+function dishFloor() {                                     // painted one time into a spare canvas, then just stamped each frame
+  const SZ = 900, c = document.createElement('canvas'); c.width = c.height = SZ;
+  const g = c.getContext('2d'), h = SZ / 2;
+  let s = 91; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.save(); g.beginPath(); g.arc(h, h, h, 0, 7); g.clip();
+  const tones = ['96,112,86', '112,96,72', '70,96,100', '58,52,46'];
+  for (let i = 0; i < 70; i++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * h, x = h + Math.cos(a) * d, y = h + Math.sin(a) * d, r = 22 + rnd() * 90, t = tones[(rnd() * 4) | 0], gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${t},${0.05 + rnd() * 0.07})`); gr.addColorStop(1, `rgba(${t},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  for (let i = 0; i < 2200; i++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * h; g.fillStyle = rnd() < 0.72 ? `rgba(170,176,150,${0.03 + rnd() * 0.09})` : `rgba(0,0,0,${0.1 + rnd() * 0.18})`; g.beginPath(); g.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, 0.4 + rnd() * rnd() * 2.2, 0, 7); g.fill(); }
+  g.strokeStyle = 'rgba(150,162,128,0.07)'; g.lineWidth = 1;
+  for (let i = 0; i < 60; i++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * (h - 20), x = h + Math.cos(a) * d, y = h + Math.sin(a) * d; g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + rnd() * 30 - 15, y + rnd() * 30 - 15, x + rnd() * 40 - 20, y + rnd() * 40 - 20, x + rnd() * 50 - 25, y + rnd() * 50 - 25); g.stroke(); }
+  const v = g.createRadialGradient(h, h, h * 0.55, h, h, h); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.42)'); g.fillStyle = v; g.fillRect(0, 0, SZ, SZ);
+  g.restore(); return c;
+}
 let dtv = 0.016;
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1188,6 +1284,7 @@ function draw() {
   const lum = Math.round(14 + 14 * w.light);
   ctx.fillStyle = `rgb(${lum + 1},${lum + 5},${lum + 4})`; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
   ctx.strokeStyle = '#39433c'; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = 'rgba(170,180,160,0.14)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R + 5, 0, 7); ctx.stroke();
+  ctx.drawImage(floorArt || (floorArt = dishFloor()), -R, -R, R * 2, R * 2);
   if (performance.now() - ovT > 200) { updOverlay(); ovT = performance.now(); }
   ctx.imageSmoothingEnabled = true; ctx.drawImage(ov, -R, -R, GN * CELL, GN * CELL);
   // structures
