@@ -737,7 +737,7 @@ function body(w, m, dt, tempG) {
   m.e += (gain - drain) * dt;
   if (m.e > m.cap) m.e = m.cap;
   if (m.e <= 0) { kill(w, m, m.why2 || 'starved'); if (!m.dead) m.why2 = ''; else return; }
-  if (m.age > m.life) kill(w, m, 'old age');
+  if (m.age > m.life && !m.fav) kill(w, m, 'old age');          // immortals do not grow old
 }
 
 // negative frequency dependence: the more of your kind there are, the harder it is to find enough to eat (keeps more species alive)
@@ -787,7 +787,7 @@ function think(w, m, i, dtt) {
   m.crowd = crowd;
   // -- inputs
   inp[IN.BIAS] = 1;
-  inp[IN.ENERGY] = m.e / m.cap; inp[IN.AGE] = m.age / m.life; inp[IN.SPEED] = m.v / m.maxSp;
+  inp[IN.ENERGY] = m.e / m.cap; inp[IN.AGE] = m.fav ? Math.min(m.age / m.life, PRIME) : m.age / m.life; inp[IN.SPEED] = m.v / m.maxSp;
   const polar = (ox, oy, d2, fi, si, rng) => {
     const d = Math.sqrt(d2) || 1, prox = 1 - d / (rng || s), dx = ox - m.x, dy = oy - m.y;
     inp[fi] = ((dx * ch + dy * sh) / d) * prox; inp[si] = ((dy * ch - dx * sh) / d) * prox;
@@ -1321,6 +1321,7 @@ export function cloneMote(w, m) {
   return c;
 }
 export function feedMote(m) { m.e = m.cap; }
+const PRIME = 0.3;   // how far through life an immortal ever feels
 // who they were on the day they were starred
 function portrait(w, m) {
   const sp = w.species.get(m.sp), PLAN = ['ringed worm', 'smooth slug', 'plated crawler', 'see-through microbe', 'bristle worm', 'flatworm'], EYES = ['no eyes', 'one big eye', 'two bead eyes', 'a cluster of eyes', 'eyes on stalks'];
@@ -1337,6 +1338,7 @@ function portrait(w, m) {
 }
 export function toggleFav(w, m) {
   m.fav = !m.fav;
+  if (!m.fav) m.age = Math.min(m.age, m.life * PRIME);       // it never grew old, so it goes back to being mortal in its prime
   if (m.fav) jOpen(w, m, portrait(w, m)); else jClose(w, m);
   if (m.fav) w.favs.push({ id: m.id, name: m.name, sp: m.sp, hue: m.hue, alive: true, age: m.age, kids: m.kids, gen: m.gen });
   else w.favs = w.favs.filter(f => f.id !== m.id);

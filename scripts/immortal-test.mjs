@@ -12,5 +12,6 @@ const run = (w, secs, each) => { for (let t = 0; t < secs / 0.2; t++) { if (each
 { const { w, picks } = make(); run(w, 200, () => { for (const m of picks) S.paint(w, 'heat', m.x, m.y, 60, 0.2); }); S.triggerEvent(w, 'iceage'); run(w, 200); ok('heat and ice age', alive(w, picks) === 4, alive(w, picks) + '/4'); }
 { const { w, picks } = make(11); run(w, 3600); ok('an hour of ordinary life and predators', alive(w, picks) === 4, alive(w, picks) + '/4, pop ' + w.motes.length);
   const w2 = S.deserialize(S.serialize(w)); ok('still starred after save and load', w2.motes.filter(m => m.fav).length === 4);
-  for (const m of picks) S.toggleFav(w, m); for (const m of picks) m.age = m.life * 2; run(w, 5); ok('unstarred creatures are mortal again', alive(w, picks) === 0, alive(w, picks) + ' still alive'); }
+  for (const m of picks) m.age = m.life * 4; run(w, 20); ok('an immortal never feels old', picks.every(m => m.inp[S.IN.AGE] <= 0.31), picks.map(m => m.inp[S.IN.AGE].toFixed(2)).join(' '));
+  for (const m of picks) S.toggleFav(w, m); ok('unstarring returns it to its prime', picks.every(m => m.age <= m.life * 0.31)); run(w, 5); ok('so it does not drop dead of old age', alive(w, picks) === 4, alive(w, picks) + '/4'); for (const m of picks) m.age = m.life * 2; run(w, 5); ok('unstarred creatures are mortal again', alive(w, picks) === 0, alive(w, picks) + ' still alive'); }
 console.log(fails ? fails + ' FAILED' : 'ALL PASS');
